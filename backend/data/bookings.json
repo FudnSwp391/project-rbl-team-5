@@ -1,0 +1,42 @@
+[
+  {
+    "id": "bk_1",
+    "customerId": "usr_cust",
+    "technicianId": "usr_tech1",
+    "deviceType": "Điện thoại (iPhone)",
+    "issueDescription": "Màn hình bị sọc xanh và cảm ứng chập chờn sau khi bị rơi nhẹ. Cần thay màn hình mới.",
+    "preferredDate": "2026-05-26",
+    "preferredTime": "10:00 - 12:00",
+    "status": "assigned",
+    "cost": 1500000,
+    "notes": "Đã thay màn hình zin bóc máy, bảo hành 3 tháng.",
+    "createdAt": "2026-05-25T09:30:10.071Z",
+    "updatedAt": "2026-05-28T09:35:27.527Z"
+  },
+  {
+    "id": "bk_2",
+    "customerId": "usr_cust",
+    "technicianId": "usr_tech2",
+    "deviceType": "Laptop (Macbook)",
+    "issueDescription": "Pin bị phồng nhẹ, nhanh hết pin (chỉ dùng được khoảng 1 tiếng). Cần kiểm tra và thay pin.",
+    "preferredDate": "2026-05-29",
+    "preferredTime": "14:00 - 16:00",
+    "status": "assigned",
+    "cost": 1800000,
+    "notes": "Chờ khách mang máy qua hoặc kỹ thuật qua lấy.",
+    "createdAt": "2026-05-28T09:30:10.071Z"
+  },
+  {
+    "id": "bk_3",
+    "customerId": "usr_cust",
+    "technicianId": null,
+    "deviceType": "Máy tính bảng (iPad)",
+    "issueDescription": "Cắm sạc không vào điện, cổng sạc lỏng lẻo. Đã thử nhiều cáp sạc khác nhau.",
+    "preferredDate": "2026-05-30",
+    "preferredTime": "08:00 - 10:00",
+    "status": "pending",
+    "cost": 0,
+    "notes": "",
+    "createdAt": "2026-05-28T09:30:10.071Z"
+  }
+]

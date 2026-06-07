@@ -1,0 +1,46 @@
+[
+  {
+    "id": "ord_1",
+    "customerId": "usr_cust",
+    "items": [
+      {
+        "productId": "prod_4",
+        "name": "Tai nghe Sony WH-1000XM4",
+        "price": 3400000
+      }
+    ],
+    "shippingInfo": {
+      "fullName": "Hoàng Nguyễn",
+      "address": "123 Đường Ba Tháng Hai, Quận 10, TP. Hồ Chí Minh",
+      "phone": "0900112233",
+      "notes": "Giao giờ hành chính"
+    },
+    "paymentMethod": "cod",
+    "totalAmount": 3400000,
+    "status": "completed",
+    "invoiceNumber": "INV-2026-0001",
+    "createdAt": "2026-05-23T09:30:10.073Z"
+  },
+  {
+    "id": "ord_2",
+    "customerId": "usr_cust",
+    "items": [
+      {
+        "productId": "prod_6",
+        "name": "Apple Watch Series 7 45mm GPS",
+        "price": 4900000
+      }
+    ],
+    "shippingInfo": {
+      "fullName": "Hoàng Nguyễn",
+      "address": "123 Đường Ba Tháng Hai, Quận 10, TP. Hồ Chí Minh",
+      "phone": "0900112233",
+      "notes": ""
+    },
+    "paymentMethod": "bank_transfer",
+    "totalAmount": 4900000,
+    "status": "shipping",
+    "invoiceNumber": "INV-2026-0002",
+    "createdAt": "2026-05-28T09:30:10.073Z"
+  }
+]

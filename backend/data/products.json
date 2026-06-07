@@ -1,0 +1,50 @@
+[
+  {
+    "id": "prod_1",
+    "name": "Máy giặt LG Inverter 9kg",
+    "description": "Máy giặt cửa trước LG Inverter tiết kiệm điện nước tối ưu, truyền động trực tiếp êm ái, công nghệ giặt 6 chuyển động làm sạch sâu bảo vệ sợi vải. Tình trạng 95% nguyên bản.",
+    "price": 5200000,
+    "image": "https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?w=600",
+    "category": "WashingMachine",
+    "condition": "excellent",
+    "sellerId": "usr_admin",
+    "status": "available",
+    "createdAt": "2026-06-02T06:00:00.000Z"
+  },
+  {
+    "id": "prod_2",
+    "name": "Tủ lạnh Samsung Inverter 488L",
+    "description": "Tủ lạnh Multidoor Samsung 4 cánh sang trọng, dung tích cực lớn cho gia đình, hai dàn lạnh độc lập Twin Cooling Plus giữ thực phẩm tươi ngon mọng nước lâu gấp 2 lần. Ngoại hình đẹp keng.",
+    "price": 8500000,
+    "image": "https://images.unsplash.com/photo-1588854337236-6889d631faa8?w=600",
+    "category": "Refrigerator",
+    "condition": "excellent",
+    "sellerId": "usr_admin",
+    "status": "available",
+    "createdAt": "2026-06-02T06:01:00.000Z"
+  },
+  {
+    "id": "prod_3",
+    "name": "Máy lạnh Daikin Inverter 1.5 HP",
+    "description": "Máy lạnh Daikin 1.5 ngựa Inverter tiết kiệm điện năng tiêu thụ, công nghệ gió Coanda dễ chịu bảo vệ sức khỏe gia đình, màng lọc Enzyme Blue khử mùi diệt khuẩn tối ưu. Tình trạng hoàn hảo.",
+    "price": 7200000,
+    "image": "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=600",
+    "category": "AirConditioner",
+    "condition": "excellent",
+    "sellerId": "usr_admin",
+    "status": "available",
+    "createdAt": "2026-06-02T06:02:00.000Z"
+  },
+  {
+    "id": "prod_4",
+    "name": "Lò vi sóng Sharp 23L",
+    "description": "Lò vi sóng Sharp dung tích 23L tiện lợi, tích hợp thêm chức năng nướng thực phẩm, bảng điều khiển cơ bền bỉ trực quan, khoang lò phủ men xám kháng khuẩn dễ dàng lau dọn.",
+    "price": 1800000,
+    "image": "https://images.unsplash.com/photo-1574269909862-7e1d70bb8078?w=600",
+    "category": "Microwave",
+    "condition": "good",
+    "sellerId": "usr_admin",
+    "status": "available",
+    "createdAt": "2026-06-02T06:03:00.000Z"
+  }
+]

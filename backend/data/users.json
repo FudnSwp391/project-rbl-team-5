@@ -1,0 +1,52 @@
+[
+  {
+    "id": "usr_admin",
+    "username": "admin",
+    "email": "admin@techcycle.vn",
+    "password": "$2a$10$KH2VhV.miztWK9eMklPDtunINDe7u97V1y/ycZQo01f0WDbpg0Ch.",
+    "phone": "0912345678",
+    "role": "admin",
+    "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
+    "createdAt": "2026-05-28T09:30:10.063Z"
+  },
+  {
+    "id": "usr_seller",
+    "username": "Eco Seller",
+    "email": "seller@techcycle.vn",
+    "password": "$2a$10$KH2VhV.miztWK9eMklPDtunINDe7u97V1y/ycZQo01f0WDbpg0Ch.",
+    "phone": "0909090909",
+    "role": "admin",
+    "avatar": "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150",
+    "createdAt": "2026-06-02T06:00:00.000Z"
+  },
+  {
+    "id": "usr_tech1",
+    "username": "Kỹ thuật viên Minh",
+    "email": "minh.tech@techcycle.vn",
+    "password": "$2a$10$KH2VhV.miztWK9eMklPDtunINDe7u97V1y/ycZQo01f0WDbpg0Ch.",
+    "phone": "0987654321",
+    "role": "technician",
+    "avatar": "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150",
+    "createdAt": "2026-05-28T09:30:10.065Z"
+  },
+  {
+    "id": "usr_tech2",
+    "username": "Kỹ thuật viên Lan",
+    "email": "lan.tech@techcycle.vn",
+    "password": "$2a$10$KH2VhV.miztWK9eMklPDtunINDe7u97V1y/ycZQo01f0WDbpg0Ch.",
+    "phone": "0933445566",
+    "role": "technician",
+    "avatar": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150",
+    "createdAt": "2026-05-28T09:30:10.065Z"
+  },
+  {
+    "id": "usr_cust",
+    "username": "Hoàng Nguyễn",
+    "email": "customer@gmail.com",
+    "password": "$2a$10$KH2VhV.miztWK9eMklPDtunINDe7u97V1y/ycZQo01f0WDbpg0Ch.",
+    "phone": "0900112233",
+    "role": "customer",
+    "avatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150",
+    "createdAt": "2026-05-28T09:30:10.065Z"
+  }
+]

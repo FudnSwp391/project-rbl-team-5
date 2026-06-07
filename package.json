@@ -1,0 +1,15 @@
+{
+  "name": "techcycle",
+  "version": "1.0.0",
+  "description": "TechCycle - Electronics Marketplace & Repair Platform",
+  "scripts": {
+    "install:all": "npm install && npm install --prefix backend && npm install --prefix frontend",
+    "server": "npm start --prefix backend",
+    "client": "npm run dev --prefix frontend",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "start": "npm run build --prefix frontend && npm start --prefix backend"
+  },
+  "dependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

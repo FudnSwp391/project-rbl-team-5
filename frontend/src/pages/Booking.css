@@ -1,0 +1,302 @@
+.booking-page {
+  padding: 50px 24px;
+  min-height: calc(100vh - var(--header-height) - 100px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-prompt-card {
+  max-width: 500px;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  box-shadow: var(--shadow-lg);
+  border-top: 4px solid var(--primary);
+}
+
+.prompt-icon {
+  color: var(--primary);
+}
+
+.login-prompt-card h2 {
+  font-size: 1.6rem;
+}
+
+.login-prompt-card p {
+  color: var(--neutral-medium);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+
+.booking-layout {
+  display: grid;
+  grid-template-columns: 1fr 1.1fr;
+  gap: 50px;
+  width: 100%;
+  max-width: 1080px;
+  align-items: center;
+}
+
+.booking-info-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.booking-title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  line-height: 1.2;
+  margin-bottom: 16px;
+}
+
+.booking-desc {
+  font-size: 1.05rem;
+  color: var(--neutral-dark);
+  margin-bottom: 40px;
+}
+
+.benefits-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.benefit-item {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.benefit-icon-wrapper {
+  background-color: var(--primary-light);
+  color: var(--primary);
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.benefit-item h4 {
+  font-size: 1rem;
+  margin-bottom: 4px;
+}
+
+.benefit-item p {
+  font-size: 0.85rem;
+  color: var(--neutral-medium);
+  line-height: 1.4;
+}
+
+/* Form panel styling */
+.booking-form-panel {
+  padding: 40px;
+}
+
+.booking-form h3 {
+  font-size: 1.4rem;
+  margin-bottom: 6px;
+}
+
+.form-helper {
+  font-size: 0.825rem;
+  color: var(--neutral-medium);
+  margin-bottom: 24px;
+}
+
+.booking-input-wrapper {
+  position: relative;
+}
+
+.booking-input-wrapper input,
+.booking-input-wrapper select {
+  padding-left: 44px !important;
+}
+
+.booking-input-wrapper .input-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--neutral-medium);
+}
+
+.booking-submit-btn {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.booking-error-alert {
+  background-color: #fee2e2;
+  border: 1px solid #fecaca;
+  color: var(--accent-red);
+  padding: 12px;
+  border-radius: var(--border-radius-md);
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 20px;
+}
+
+/* Success panel styling */
+.booking-success-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 0;
+  gap: 16px;
+}
+
+.success-icon {
+  color: var(--accent-green);
+}
+
+.booking-success-view h2 {
+  font-size: 1.8rem;
+}
+
+.booking-success-view p {
+  color: var(--neutral-dark);
+  font-size: 0.95rem;
+}
+
+.sub-note {
+  font-size: 0.85rem !important;
+  color: var(--neutral-medium) !important;
+  background-color: var(--neutral-lightest);
+  padding: 8px 16px;
+  border-radius: var(--border-radius-sm);
+  margin-bottom: 12px;
+}
+
+/* AI Diagnostic Box */
+.booking-ai-diagnostic-box {
+  width: 100%;
+  margin-top: 30px;
+  padding: 20px !important;
+  display: flex;
+  flex-direction: column;
+  height: 380px;
+  background-color: var(--white);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.ai-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+}
+
+.ai-icon {
+  color: var(--primary);
+}
+
+.ai-header h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--primary-dark);
+}
+
+.ai-badge-tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--primary);
+  background-color: var(--primary-light);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.ai-chat-body {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-right: 4px;
+  margin-bottom: 12px;
+}
+
+.ai-chat-bubble-row {
+  display: flex;
+  width: 100%;
+}
+
+.ai-chat-bubble-row.ai {
+  justify-content: flex-start;
+}
+
+.ai-chat-bubble-row.user {
+  justify-content: flex-end;
+}
+
+.ai-bubble-text-box {
+  max-width: 85%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 0.825rem;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.ai-chat-bubble-row.ai .ai-bubble-text-box {
+  background-color: var(--neutral-lightest);
+  color: var(--neutral-darkest);
+  border-bottom-left-radius: 2px;
+}
+
+.ai-chat-bubble-row.user .ai-bubble-text-box {
+  background-color: var(--primary);
+  color: var(--white);
+  border-bottom-right-radius: 2px;
+}
+
+.ai-apply-btn {
+  margin-top: 10px;
+  width: 100%;
+  font-size: 0.75rem !important;
+  padding: 6px 12px !important;
+}
+
+.ai-chat-footer {
+  display: flex;
+  gap: 8px;
+}
+
+.ai-input-control {
+  font-size: 0.8rem !important;
+  padding: 8px 12px !important;
+}
+
+.ai-send-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  padding: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Responsive booking */
+@media (max-width: 900px) {
+  .booking-layout { grid-template-columns: 1fr; gap: 40px; }
+  .booking-info-panel { text-align: center; align-items: center; }
+  .benefits-list { align-items: center; text-align: left; }
+  .booking-ai-diagnostic-box { text-align: left; }
+}
+
+@media (max-width: 600px) {
+  .booking-form-panel { padding: 24px; }
+}
