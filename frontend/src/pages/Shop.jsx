@@ -4,6 +4,8 @@ import { useCart } from '../context/CartContext';
 import { Search, SlidersHorizontal, Check, ShieldCheck, Truck, RefreshCw, X, ShoppingCart, Send, Sparkles } from 'lucide-react';
 import './Shop.css';
 
+const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5005' : '';
+
 const Shop = ({ selectedProduct, setSelectedProduct }) => {
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
@@ -32,7 +34,6 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
   const { addToCart, cartItems } = useCart();
 
   useEffect(() => {
-    const API_BASE = window.location.port === '5173' ? 'http://localhost:5000' : '';
     fetch(`${API_BASE}/api/products`)
       .then(res => res.json())
       .then(data => {
@@ -52,8 +53,8 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(p => 
-        p.name.toLowerCase().includes(q) || 
-        p.description.toLowerCase().includes(q)
+        (p.product_name && p.product_name.toLowerCase().includes(q)) || 
+        (p.description && p.description.toLowerCase().includes(q))
       );
     }
 
@@ -89,55 +90,36 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
     }
   }, [aiChat]);
 
-  const handleSendAiMessage = (e) => {
+  const handleSendAiMessage = async (e) => {
     e.preventDefault();
     if (!aiInput.trim()) return;
 
     const userMsg = aiInput.trim();
-    setAiChat(prev => [...prev, { sender: 'user', text: userMsg }]);
+    const currentHistory = [...aiChat, { sender: 'user', text: userMsg }];
+    setAiChat(currentHistory);
     setAiInput('');
 
-    setTimeout(() => {
-      let filtered = [...products].filter(p => p.status === 'available');
-      const lower = userMsg.toLowerCase();
+    try {
+      const response = await fetch(`${API_BASE}/api/ai/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userMsg, history: aiChat })
+      });
+      const data = await response.json();
 
-      // Parse Category
-      let cat = '';
-      if (lower.includes('máy lạnh') || lower.includes('điều hòa') || lower.includes('air')) cat = 'AirConditioner';
-      else if (lower.includes('máy giặt') || lower.includes('giặt') || lower.includes('wash')) cat = 'WashingMachine';
-      else if (lower.includes('tủ lạnh') || lower.includes('tủ đông') || lower.includes('ref')) cat = 'Refrigerator';
-      else if (lower.includes('lò vi sóng') || lower.includes('vi sóng') || lower.includes('microwave')) cat = 'Microwave';
-
-      if (cat) {
-        filtered = filtered.filter(p => p.category === cat);
+      if (data.text) {
+        setAiChat(prev => [...prev, { 
+          sender: 'ai', 
+          text: data.text 
+        }]);
       }
-
-      // Parse Budget Price
-      let budget = Infinity;
-      if (lower.includes('dưới 15 triệu') || lower.includes('dưới 15tr') || lower.includes('15m')) budget = 15000000;
-      else if (lower.includes('dưới 10 triệu') || lower.includes('dưới 10tr') || lower.includes('10m')) budget = 10000000;
-      else if (lower.includes('dưới 5 triệu') || lower.includes('dưới 5tr') || lower.includes('5m')) budget = 5000000;
-
-      if (budget !== Infinity) {
-        filtered = filtered.filter(p => p.price <= budget);
-      }
-
-      let responseText = '';
-      let recommendedProducts = [];
-
-      if (filtered.length > 0) {
-        responseText = `🤖 TechCycle AI Khuyên dùng:\n\nDựa vào yêu cầu của bạn, tôi tìm thấy ${filtered.length} sản phẩm phù hợp đang bán trong kho. Bạn có thể nhấn trực tiếp vào sản phẩm VNDể xem chi tiết:`;
-        recommendedProducts = filtered.slice(0, 3); // recommend max 3
-      } else {
-        responseText = `🤖 TechCycle AI Khuyên dùng:\n\nRất tiếc, tôi chưa tìm thấy sản phẩm nào khớp hoàn toàn với mô tả của bạn. Hãy thử tìm các từ khóa khác như "iPhone", "MacBook", hoặc thay đổi ngân sách xem sao nhé!`;
-      }
-
+    } catch (err) {
+      console.error('Lỗi kết nối AI:', err);
       setAiChat(prev => [...prev, { 
         sender: 'ai', 
-        text: responseText,
-        recommendations: recommendedProducts
+        text: '🤖 Rất tiếc, tôi đang gặp lỗi kết nối. Vui lòng thử lại sau!' 
       }]);
-    }, 1000);
+    }
   };
 
   const handleConditionChange = (name) => {
@@ -167,24 +149,24 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
         <p className="shop-subtitle text-muted">Mua sắm thiết bị chính hãng, giá tiết kiệm, bảo hành đổi trả uy tín và góp phần bảo vệ môi trường.</p>
       </div>
 
-      <div className="row g-4 shop-layout">
+      <div className="shop-layout">
         {/* Sidebar Filters (Column 1) */}
-        <aside className="col-lg-3 shop-filters-sidebar glass-panel h-100 p-4">
-          <div className="sidebar-section-header d-flex align-items-center gap-2 mb-3">
+        <aside className="shop-filters-sidebar glass-panel">
+          <div className="sidebar-section-header mb-3">
             <SlidersHorizontal size={18} />
-            <h3 className="m-0 fw-bold" style={{ fontSize: '1rem' }}>Bộ lọc tìm kiếm</h3>
+            <h3 className="m-0 fw-bold">Bộ lọc</h3>
           </div>
           
           <hr className="filter-divider" />
 
           {/* Search box */}
-          <div className="filter-group mb-4">
-            <label className="form-label fw-semibold">Tìm theo tên sản phẩm</label>
-            <div className="search-input-wrapper position-relative">
-              <Search className="search-icon position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" size={16} />
+          <div className="filter-group">
+            <label className="form-label">Tìm sản phẩm</label>
+            <div className="search-input-wrapper">
+              <Search className="search-icon" size={16} />
               <input 
                 type="text" 
-                className="form-control filter-search ps-5" 
+                className="form-control filter-search" 
                 placeholder="Nhập tên máy..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
@@ -193,10 +175,10 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
           </div>
 
           {/* Condition Box */}
-          <div className="filter-group mb-3">
-            <label className="form-label fw-semibold">Tình trạng máy</label>
-            <div className="checkbox-list d-flex flex-column gap-2">
-              <label className="checkbox-item d-flex align-items-center gap-2">
+          <div className="filter-group">
+            <label className="form-label">Tình trạng máy</label>
+            <div className="checkbox-list">
+              <label className="checkbox-item">
                 <input 
                   type="checkbox" 
                   checked={conditions.excellent} 
@@ -204,7 +186,7 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
                 />
                 <span>Như mới (99%)</span>
               </label>
-              <label className="checkbox-item d-flex align-items-center gap-2">
+              <label className="checkbox-item">
                 <input 
                   type="checkbox" 
                   checked={conditions.good} 
@@ -212,7 +194,7 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
                 />
                 <span>Rất tốt (&gt;90%)</span>
               </label>
-              <label className="checkbox-item d-flex align-items-center gap-2">
+              <label className="checkbox-item">
                 <input 
                   type="checkbox" 
                   checked={conditions.fair} 
@@ -225,17 +207,16 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
         </aside>
 
         {/* Shop Content (Column 2) */}
-        <main className="col-lg-6 shop-main-content">
+        <main className="shop-main-content">
           {/* Top Bar Navigation / Sort */}
-          <div className="shop-topbar d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+          <div className="shop-topbar">
             {/* Category tabs */}
-            <div className="category-tabs d-flex flex-wrap gap-2">
+            <div className="category-tabs">
               {['All', 'AirConditioner', 'WashingMachine', 'Refrigerator', 'Microwave'].map(cat => (
                 <button
                   key={cat}
-                  className={`btn btn-sm ${category === cat ? 'btn-primary' : 'btn-outline-secondary'}`}
+                  className={`category-tab-btn ${category === cat ? 'active' : ''}`}
                   onClick={() => setCategory(cat)}
-                  style={{ borderRadius: '20px' }}
                 >
                   {cat === 'All' ? 'Tất cả' : cat === 'AirConditioner' ? 'Máy lạnh' : cat === 'WashingMachine' ? 'Máy giặt' : cat === 'Refrigerator' ? 'Tủ lạnh' : 'Lò vi sóng'}
                 </button>
@@ -243,10 +224,10 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
             </div>
 
             {/* Sort selector */}
-            <div className="sort-wrapper d-flex align-items-center gap-2">
-              <span className="sort-label text-nowrap text-muted" style={{ fontSize: '0.85rem' }}>Sắp xếp:</span>
+            <div className="sort-wrapper">
+              <span className="sort-label">Sắp xếp:</span>
               <select 
-                className="form-select sort-select form-select-sm"
+                className="form-select sort-select"
                 value={sortBy}
                 onChange={e => setSortBy(e.target.value)}
               >
@@ -278,9 +259,13 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
           ) : (
             <div className="row row-cols-1 row-cols-md-2 g-4">
               {filteredProducts.map(product => (
-                <div className="col" key={product.id}>
+                <div className="col" key={product.product_id}>
                   <ProductCard 
-                    product={product} 
+                    product={{
+                      ...product,
+                      name: product.product_name, // Map for ProductCard
+                      image: product.image_url // Map for ProductCard
+                    }} 
                     onViewDetails={setSelectedProduct}
                   />
                 </div>
@@ -290,7 +275,7 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
         </main>
 
         {/* Shop AI Assistant (Column 3) */}
-        <aside className="col-lg-3 shop-ai-sidebar glass-panel">
+        <aside className="shop-ai-sidebar glass-panel">
           <div className="ai-header">
             <Sparkles size={20} className="ai-icon animate-pulse" />
             <div>
@@ -312,9 +297,9 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
                           className="ai-recommend-card"
                           onClick={() => setSelectedProduct(prod)}
                         >
-                          <img src={prod.image} alt={prod.name} className="rec-img" />
+                          <img src={prod.image_url} alt={prod.product_name} className="rec-img" />
                           <div className="rec-info">
-                            <h5>{prod.name}</h5>
+                            <h5>{prod.product_name}</h5>
                             <span className="rec-price">{prod.price.toLocaleString('en-US')} <span className="currency">VND</span></span>
                           </div>
                         </div>
@@ -352,15 +337,20 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
             
             <div className="modal-body-grid">
               <div className="modal-image-panel">
-                <img src={selectedProduct.image} alt={selectedProduct.name} className="modal-product-img" />
+                <img src={selectedProduct.image_url || selectedProduct.image} alt={selectedProduct.product_name || selectedProduct.name} className="modal-product-img" />
               </div>
               
               <div className="modal-info-panel">
-                <span className="modal-cat">{selectedProduct.category}</span>
-                <h2 className="modal-title">{selectedProduct.name}</h2>
+                <span className="modal-cat">{selectedProduct.category_name || selectedProduct.category}</span>
+                <h2 className="modal-title">{selectedProduct.product_name || selectedProduct.name}</h2>
                 
                 <div className="modal-price">
                   {selectedProduct.price.toLocaleString('en-US')} <span className="currency">VND</span>
+                  {selectedProduct.old_price > selectedProduct.price && (
+                    <span className="modal-old-price ms-2 text-decoration-line-through text-muted" style={{ fontSize: '1rem' }}>
+                      {selectedProduct.old_price.toLocaleString('en-US')} VND
+                    </span>
+                  )}
                 </div>
 
                 <div className={`modal-condition-card cond-${selectedProduct.condition}`}>
