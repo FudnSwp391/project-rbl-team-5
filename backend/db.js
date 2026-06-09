@@ -30,14 +30,22 @@ const poolPromise = new sql.ConnectionPool(config)
     process.exit(1);
   });
 
+// db.js (Đoạn hàm db.query sau khi sửa)
 const db = {
   query: async (queryString, params = []) => {
     try {
       const pool = await poolPromise;
       const request = pool.request();
+
       params.forEach(param => {
-        request.input(param.name, param.type, param.value);
+        // SỬA LỖI TẠI ĐÂY: Nếu có param.type thì truyền vào, nếu không có/undefined thì bỏ qua tham số thứ 2
+        if (param.type) {
+          request.input(param.name, param.type, param.value);
+        } else {
+          request.input(param.name, param.value); // mssql sẽ tự động map kiểu dữ liệu (Int, String, v.v.)
+        }
       });
+
       const result = await request.query(queryString);
       return result;
     } catch (err) {
@@ -46,19 +54,23 @@ const db = {
     }
   },
 
-  // Helper for simple find (matching existing API as much as possible)
-  find: async (tableName) => {
-    const result = await db.query(`SELECT * FROM ${tableName}`);
+  // Giữ nguyên các hàm find, findOne, insert, update phía dưới...
+  find: async (tableName, queryObj = {}) => {
+    const keys = Object.keys(queryObj);
+    if (keys.length === 0) {
+      const result = await db.query(`SELECT * FROM ${tableName}`);
+      return result.recordset;
+    }
+    const whereClause = keys.map((key, i) => `${key} = @param${i}`).join(' AND ');
+    const params = keys.map((key, i) => ({ name: `param${i}`, value: queryObj[key] }));
+    const result = await db.query(`SELECT * FROM ${tableName} WHERE ${whereClause}`, params);
     return result.recordset;
   },
 
   findOne: async (tableName, queryObj) => {
     const keys = Object.keys(queryObj);
     const whereClause = keys.map((key, i) => `${key} = @param${i}`).join(' AND ');
-    const params = keys.map((key, i) => ({
-      name: `param${i}`,
-      value: queryObj[key]
-    }));
+    const params = keys.map((key, i) => ({ name: `param${i}`, value: queryObj[key] }));
     const result = await db.query(`SELECT TOP 1 * FROM ${tableName} WHERE ${whereClause}`, params);
     return result.recordset[0];
   },
@@ -67,22 +79,16 @@ const db = {
     const keys = Object.keys(record);
     const columns = keys.join(', ');
     const values = keys.map((key, i) => `@param${i}`).join(', ');
-    const params = keys.map((key, i) => ({
-      name: `param${i}`,
-      value: record[key]
-    }));
+    const params = keys.map((key, i) => ({ name: `param${i}`, value: record[key] }));
     const query = `INSERT INTO ${tableName} (${columns}) VALUES (${values}); SELECT SCOPE_IDENTITY() AS id;`;
     const result = await db.query(query, params);
-    return { ...record, id: result.recordset[0].id };
+    return { ...record, id: result.recordset[0]?.id || null };
   },
 
   update: async (tableName, idField, idValue, updates) => {
     const keys = Object.keys(updates);
     const setClause = keys.map((key, i) => `${key} = @param${i}`).join(', ');
-    const params = keys.map((key, i) => ({
-      name: `param${i}`,
-      value: updates[key]
-    }));
+    const params = keys.map((key, i) => ({ name: `param${i}`, value: updates[key] }));
     params.push({ name: 'id', value: idValue });
     const query = `UPDATE ${tableName} SET ${setClause} WHERE ${idField} = @id`;
     await db.query(query, params);
