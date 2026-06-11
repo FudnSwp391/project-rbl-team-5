@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Recycle, Mail, Lock, User, ArrowRight, AlertCircle, ShieldCheck } from 'lucide-react';
+import { Recycle, Mail, Lock, User, ArrowRight, AlertCircle } from 'lucide-react';
 import './Auth.css';
 
 const Auth = ({ setActivePage }) => {
@@ -135,15 +135,15 @@ const Auth = ({ setActivePage }) => {
               </div>
             )}
 
-            {/* Email Field */}
+            {/* Email / Username Field */}
             <div className="form-group">
-              <label className="form-label">Địa chỉ Email</label>
+              <label className="form-label">{isLogin ? 'Tên đăng nhập hoặc Email' : 'Địa chỉ Email'}</label>
               <div className="auth-input-wrapper">
-                <Mail size={18} className="input-icon" />
+                {isLogin ? <User size={18} className="input-icon" /> : <Mail size={18} className="input-icon" />}
                 <input 
-                  type="email" 
+                  type={isLogin ? 'text' : 'email'} 
                   className="form-control" 
-                  placeholder="name@example.com" 
+                  placeholder={isLogin ? "username hoặc name@example.com" : "name@example.com"} 
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   required
@@ -156,7 +156,7 @@ const Auth = ({ setActivePage }) => {
               <div className="password-label-row">
                 <label className="form-label">Mật khẩu</label>
                 {isLogin && (
-                  <a href="#forgot" className="forgot-password" onClick={e => { e.preventDefault(); alert('Chức năng quên mật khẩu đang được phát triển. Bạn vui lòng sử dụng tài khoản mẫu customer@gmail.com / mật khẩu 123456 VNDể đăng nhập.'); }}>
+                  <a href="#forgot" className="forgot-password" onClick={e => { e.preventDefault(); alert('Chức năng quên mật khẩu đang được phát triển. Bạn vui lòng sử dụng tài khoản mẫu customer@gmail.com / mật khẩu 123456 để đăng nhập.'); }}>
                     Quên mật khẩu?
                   </a>
                 )}

@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import { createContext, useState, useEffect, useContext, useCallback } from 'react';
 
 const AuthContext = createContext();
 
@@ -8,7 +8,16 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const API_URL = window.location.port === '5173' ? 'http://localhost:5000/api' : '/api';
+  const API_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:5000/api'
+    : '/api';
+
+  // Khai báo logout TRƯỚC useEffect để tránh ReferenceError
+  const logout = useCallback(() => {
+    localStorage.removeItem('techcycle_token');
+    setToken(null);
+    setUser(null);
+  }, []);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -28,7 +37,7 @@ export const AuthProvider = ({ children }) => {
           const userData = await response.json();
           setUser(userData);
         } else {
-          // Token expired or invalid
+          // Token hết hạn hoặc không hợp lệ
           logout();
         }
       } catch (err) {
@@ -39,7 +48,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     fetchUser();
-  }, [token]);
+  }, [token, logout]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const login = async (email, password) => {
     setError(null);
@@ -95,12 +104,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('techcycle_token');
-    setToken(null);
-    setUser(null);
-  };
-
   return (
     <AuthContext.Provider value={{ user, token, loading, error, login, register, logout }}>
       {children}
@@ -108,4 +111,4 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => useContext(AuthContext); // eslint-disable-line react-refresh/only-export-components

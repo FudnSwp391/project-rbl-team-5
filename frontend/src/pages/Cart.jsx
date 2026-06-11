@@ -1,4 +1,3 @@
-import React from 'react';
 import { useCart } from '../context/CartContext';
 import { Trash2, ArrowLeft, ShoppingBag, CreditCard, Recycle, ShieldAlert } from 'lucide-react';
 import './Cart.css';
@@ -58,7 +57,7 @@ const Cart = ({ setActivePage }) => {
                 </div>
                 <h3 className="item-title">{item.name}</h3>
                 <p className="item-price">
-                  {item.price.toLocaleString('en-US')} <span className="currency">VND</span>
+                  {(item.price || 0).toLocaleString('en-US')} <span className="currency">VND</span>
                 </p>
               </div>
 
@@ -112,7 +111,7 @@ const Cart = ({ setActivePage }) => {
 
           <div className="safety-warning-box">
             <ShieldAlert size={18} className="warn-icon" />
-            <p>Thiết bị công nghệ cũ đã qua kiểm VNDịnh chất lượng nghiêm ngặt bởi chuyên viên TechCycle.</p>
+            <p>Thiết bị công nghệ cũ đã qua kiểm định chất lượng nghiêm ngặt bởi chuyên viên TechCycle.</p>
           </div>
 
           <button 

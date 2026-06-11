@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import ProductCard from '../components/ProductCard';
 import { useCart } from '../context/CartContext';
-import { Search, SlidersHorizontal, Check, ShieldCheck, Truck, RefreshCw, X, ShoppingCart, Send, Sparkles } from 'lucide-react';
+import { Search, SlidersHorizontal, ShieldCheck, Truck, RefreshCw, X, ShoppingCart, Send, Sparkles } from 'lucide-react';
 import './Shop.css';
 
-const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5005' : '';
+const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000' : '';
 
 const Shop = ({ selectedProduct, setSelectedProduct }) => {
   const [products, setProducts] = useState([]);
@@ -25,7 +25,7 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
   const [aiChat, setAiChat] = useState([
     {
       sender: 'ai',
-      text: 'Xin chào! Tôi là Trợ lý AI tư vấn mua sắm TechCycle. Bạn cần tìm thiết bị nào? (ví dụ: "tìm VNDiện thoại dưới 10 triệu", "laptop học tập", "ipad giá rẻ"). Tôi sẽ đề xuất các máy phù hợp đang có trong kho!'
+      text: 'Xin chào! Tôi là Trợ lý AI tư vấn mua sắm TechCycle. Bạn cần tìm thiết bị nào? (ví dụ: "tìm điện thoại dưới 10 triệu", "laptop học tập", "ipad giá rẻ"). Tôi sẽ đề xuất các máy phù hợp đang có trong kho!'
     }
   ]);
   const [aiInput, setAiInput] = useState('');
@@ -47,40 +47,46 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
   }, []);
 
   useEffect(() => {
-    let result = [...products];
+    let result = [...products].filter(p => {
+      const status = (p.status || '').toLowerCase();
+      return status !== 'sold' && status !== 'sold_out' && status !== 'inactive';
+    });
 
     // 1. Search Filter
     if (search) {
       const q = search.toLowerCase();
-      result = result.filter(p => 
-        (p.product_name && p.product_name.toLowerCase().includes(q)) || 
+      result = result.filter(p =>
+        (p.name && p.name.toLowerCase().includes(q)) ||
+        (p.title && p.title.toLowerCase().includes(q)) ||
+        (p.user_description && p.user_description.toLowerCase().includes(q)) ||
         (p.description && p.description.toLowerCase().includes(q))
       );
     }
 
     // 2. Category Filter
     if (category !== 'All') {
-      result = result.filter(p => p.category === category);
+      result = result.filter(p => p.category_id === parseInt(category) || p.category === category);
     }
 
-    // 3. Condition Filter
+    // 3. Condition Filter (ai_condition field)
     result = result.filter(p => {
-      if (p.condition === 'excellent' && !conditions.excellent) return false;
-      if (p.condition === 'good' && !conditions.good) return false;
-      if (p.condition === 'fair' && !conditions.fair) return false;
+      const cond = (p.ai_condition || p.condition || '').toLowerCase();
+      if (cond.includes('excellent') && !conditions.excellent) return false;
+      if (cond.includes('good') && !conditions.good) return false;
+      if (cond.includes('fair') && !conditions.fair) return false;
       return true;
     });
 
     // 4. Sort Logic
     if (sortBy === 'price-asc') {
-      result.sort((a, b) => a.price - b.price);
+      result.sort((a, b) => (a.price || a.listed_price || 0) - (b.price || b.listed_price || 0));
     } else if (sortBy === 'price-desc') {
-      result.sort((a, b) => b.price - a.price);
+      result.sort((a, b) => (b.price || b.listed_price || 0) - (a.price || a.listed_price || 0));
     } else if (sortBy === 'newest') {
-      result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     }
 
-    setFilteredProducts(result);
+    setFilteredProducts(result); // eslint-disable-line react-hooks/set-state-in-effect
   }, [products, search, category, conditions, sortBy]);
 
   // AI scroll trigger
@@ -108,16 +114,16 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
       const data = await response.json();
 
       if (data.text) {
-        setAiChat(prev => [...prev, { 
-          sender: 'ai', 
-          text: data.text 
+        setAiChat(prev => [...prev, {
+          sender: 'ai',
+          text: data.text
         }]);
       }
     } catch (err) {
       console.error('Lỗi kết nối AI:', err);
-      setAiChat(prev => [...prev, { 
-        sender: 'ai', 
-        text: '🤖 Rất tiếc, tôi đang gặp lỗi kết nối. Vui lòng thử lại sau!' 
+      setAiChat(prev => [...prev, {
+        sender: 'ai',
+        text: '🤖 Rất tiếc, tôi đang gặp lỗi kết nối. Vui lòng thử lại sau!'
       }]);
     }
   };
@@ -156,7 +162,7 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
             <SlidersHorizontal size={18} />
             <h3 className="m-0 fw-bold">Bộ lọc</h3>
           </div>
-          
+
           <hr className="filter-divider" />
 
           {/* Search box */}
@@ -164,9 +170,9 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
             <label className="form-label">Tìm sản phẩm</label>
             <div className="search-input-wrapper">
               <Search className="search-icon" size={16} />
-              <input 
-                type="text" 
-                className="form-control filter-search" 
+              <input
+                type="text"
+                className="form-control filter-search"
                 placeholder="Nhập tên máy..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
@@ -179,26 +185,26 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
             <label className="form-label">Tình trạng máy</label>
             <div className="checkbox-list">
               <label className="checkbox-item">
-                <input 
-                  type="checkbox" 
-                  checked={conditions.excellent} 
-                  onChange={() => handleConditionChange('excellent')} 
+                <input
+                  type="checkbox"
+                  checked={conditions.excellent}
+                  onChange={() => handleConditionChange('excellent')}
                 />
                 <span>Như mới (99%)</span>
               </label>
               <label className="checkbox-item">
-                <input 
-                  type="checkbox" 
-                  checked={conditions.good} 
-                  onChange={() => handleConditionChange('good')} 
+                <input
+                  type="checkbox"
+                  checked={conditions.good}
+                  onChange={() => handleConditionChange('good')}
                 />
                 <span>Rất tốt (&gt;90%)</span>
               </label>
               <label className="checkbox-item">
-                <input 
-                  type="checkbox" 
-                  checked={conditions.fair} 
-                  onChange={() => handleConditionChange('fair')} 
+                <input
+                  type="checkbox"
+                  checked={conditions.fair}
+                  onChange={() => handleConditionChange('fair')}
                 />
                 <span>Khá tốt (&gt;80%)</span>
               </label>
@@ -226,7 +232,7 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
             {/* Sort selector */}
             <div className="sort-wrapper">
               <span className="sort-label">Sắp xếp:</span>
-              <select 
+              <select
                 className="form-select sort-select"
                 value={sortBy}
                 onChange={e => setSortBy(e.target.value)}
@@ -245,7 +251,7 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
             <div className="empty-shop-state glass-panel text-center p-5">
               <h3>Không tìm thấy sản phẩm nào</h3>
               <p className="text-muted">Thử đổi bộ lọc hoặc từ khóa tìm kiếm khác nhé.</p>
-              <button 
+              <button
                 className="btn btn-primary"
                 onClick={() => {
                   setSearch('');
@@ -258,14 +264,16 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
             </div>
           ) : (
             <div className="row row-cols-1 row-cols-md-2 g-4">
-              {filteredProducts.map(product => (
-                <div className="col" key={product.product_id}>
-                  <ProductCard 
+              {filteredProducts.map((product, index) => (
+                <div className="col" key={product.id || index}>
+                  <ProductCard
                     product={{
                       ...product,
-                      name: product.product_name, // Map for ProductCard
-                      image: product.image_url // Map for ProductCard
-                    }} 
+                      id: product.id,
+                      name: product.name || product.title,
+                      price: product.price || product.listed_price,
+                      image: product.image || product.image_url
+                    }}
                     onViewDetails={setSelectedProduct}
                   />
                 </div>
@@ -283,7 +291,7 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
               <span className="ai-badge-tag">MOCK LLM</span>
             </div>
           </div>
-          
+
           <div className="ai-chat-body">
             {aiChat.map((msg, idx) => (
               <div key={idx} className={`ai-chat-bubble-row ${msg.sender}`}>
@@ -292,15 +300,15 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
                   {msg.recommendations && msg.recommendations.length > 0 && (
                     <div className="ai-recommendations-list">
                       {msg.recommendations.map(prod => (
-                        <div 
-                          key={prod.id} 
+                        <div
+                          key={prod.id}
                           className="ai-recommend-card"
                           onClick={() => setSelectedProduct(prod)}
                         >
                           <img src={prod.image_url} alt={prod.product_name} className="rec-img" />
                           <div className="rec-info">
-                            <h5>{prod.product_name}</h5>
-                            <span className="rec-price">{prod.price.toLocaleString('en-US')} <span className="currency">VND</span></span>
+                         <h5>{prod.title || prod.product_name}</h5>
+                            <span className="rec-price">{(prod.listed_price || prod.price || 0).toLocaleString('en-US')} <span className="currency">VND</span></span>
                           </div>
                         </div>
                       ))}
@@ -313,9 +321,9 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
           </div>
 
           <form onSubmit={handleSendAiMessage} className="ai-chat-footer">
-            <input 
-              type="text" 
-              className="form-control ai-input-control" 
+            <input
+              type="text"
+              className="form-control ai-input-control"
               placeholder="Hỏi AI chọn máy..."
               value={aiInput}
               onChange={e => setAiInput(e.target.value)}
@@ -334,18 +342,18 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
             <button className="modal-close-btn" onClick={closeDetailModal}>
               <X size={24} />
             </button>
-            
+
             <div className="modal-body-grid">
               <div className="modal-image-panel">
                 <img src={selectedProduct.image_url || selectedProduct.image} alt={selectedProduct.product_name || selectedProduct.name} className="modal-product-img" />
               </div>
-              
+
               <div className="modal-info-panel">
                 <span className="modal-cat">{selectedProduct.category_name || selectedProduct.category}</span>
                 <h2 className="modal-title">{selectedProduct.product_name || selectedProduct.name}</h2>
-                
+
                 <div className="modal-price">
-                  {selectedProduct.price.toLocaleString('en-US')} <span className="currency">VND</span>
+                  {(selectedProduct.listed_price || selectedProduct.price || 0).toLocaleString('en-US')} <span className="currency">VND</span>
                   {selectedProduct.old_price > selectedProduct.price && (
                     <span className="modal-old-price ms-2 text-decoration-line-through text-muted" style={{ fontSize: '1rem' }}>
                       {selectedProduct.old_price.toLocaleString('en-US')} VND
@@ -353,14 +361,14 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
                   )}
                 </div>
 
-                <div className={`modal-condition-card cond-${selectedProduct.condition}`}>
-                  <h4>Tình trạng kiểm VNDịnh:</h4>
-                  <p>{getConditionText(selectedProduct.condition)}</p>
+                <div className={`modal-condition-card cond-excellent`}>
+                  <h4>Tình trạng kiểm định:</h4>
+                  <p>{selectedProduct.ai_condition || getConditionText(selectedProduct.condition)}</p>
                 </div>
 
                 <div className="modal-description">
                   <h3>Mô tả sản phẩm</h3>
-                  <p>{selectedProduct.description}</p>
+                  <p>{selectedProduct.user_description || selectedProduct.description}</p>
                 </div>
 
                 <div className="guarantees-grid">
@@ -379,8 +387,8 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
                 </div>
 
                 <div className="modal-actions">
-                  {selectedProduct.status === 'available' ? (
-                    <button 
+                  {(!selectedProduct.status || selectedProduct.status.toLowerCase() === 'active' || selectedProduct.status.toLowerCase() === 'available') ? (
+                    <button
                       className={`btn btn-primary modal-cart-btn ${cartItems.some(i => i.id === selectedProduct.id) ? 'disabled' : ''}`}
                       disabled={cartItems.some(i => i.id === selectedProduct.id)}
                       onClick={() => {
@@ -393,7 +401,7 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
                     </button>
                   ) : (
                     <button className="btn btn-secondary modal-cart-btn" disabled>
-                      Sản phẩm VNDã bán
+                      Sản phẩm đã bán
                     </button>
                   )}
                 </div>

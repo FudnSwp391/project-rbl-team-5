@@ -1,1 +1,10 @@
-node_modules  
+node_modules/
+.env
+*.env
+.env.local
+.env.*.local
+dist/
+build/
+*.txt
+.system_generated/
+.tempmediaStorage/

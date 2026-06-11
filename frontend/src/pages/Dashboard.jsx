@@ -1,15 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import io from 'socket.io-client';
 import { 
   LayoutDashboard, ShoppingBag, Calendar, MessageSquare, Plus, Trash2, 
-  UserCheck, RefreshCw, Send, ShieldAlert, Award, DollarSign, Users, Tag, AlertTriangle,
+  Send, Users, Tag,
   Sun, Moon, Eye, Search, Bell, Settings, HelpCircle, LogOut,
-  MapPin, CreditCard, Pencil, Mail, Shield, ArrowLeft
+  MapPin, CreditCard, Pencil, Shield, ArrowLeft
 } from 'lucide-react';
 import './Dashboard.css';
 
-const API_BASE = window.location.port === '5173' ? 'http://localhost:5000' : '';
+const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000' : '';
 
 const Dashboard = ({ setActivePage, theme, setTheme }) => {
   const { user, token } = useAuth();
@@ -27,11 +27,11 @@ const Dashboard = ({ setActivePage, theme, setTheme }) => {
   const [viewingUser, setViewingUser] = useState(null);
   
   // Set default tab based on user role
-  useEffect(() => {
+  useEffect(() => {  
     if (user) {
-      if (user.role === 'admin') setSubTab('stats');
-      else if (user.role === 'technician') setSubTab('repairs');
-      else setSubTab('overview');
+      if (user.role === 'admin') setSubTab('stats'); // eslint-disable-line react-hooks/set-state-in-effect
+      else if (user.role === 'technician') setSubTab('repairs');  
+      else setSubTab('overview');  
     }
   }, [user]);
 
@@ -42,7 +42,8 @@ const Dashboard = ({ setActivePage, theme, setTheme }) => {
   const [bookingsList, setBookingsList] = useState([]);
   const [ordersList, setOrdersList] = useState([]);
   const [techsList, setTechsList] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
+  const fetchConversationsListRef = useRef(null);
 
   // --- SELLER HOMEPAGE STATES ---
   const [estimatedValue, setEstimatedValue] = useState(null);
@@ -89,7 +90,8 @@ const Dashboard = ({ setActivePage, theme, setTheme }) => {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const dataBookings = await resBookings.json();
-      setBookingsList(dataBookings);
+      if (Array.isArray(dataBookings)) setBookingsList(dataBookings);
+      else setBookingsList([]);
 
       // 2. Role specific fetches
       if (user.role === 'admin') {
@@ -98,33 +100,37 @@ const Dashboard = ({ setActivePage, theme, setTheme }) => {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const dataStats = await resStats.json();
-        setStats(dataStats);
+        if (resStats.ok) setStats(dataStats);
 
         // Fetch users list
         const resUsers = await fetch(`${API_BASE}/api/users/list`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const dataUsers = await resUsers.json();
-        setUsersList(dataUsers);
+        if (Array.isArray(dataUsers)) setUsersList(dataUsers);
+        else setUsersList([]);
 
         // Fetch all products
         const resProducts = await fetch(`${API_BASE}/api/products`);
         const dataProducts = await resProducts.json();
-        setProductsList(dataProducts);
+        if (Array.isArray(dataProducts)) setProductsList(dataProducts);
+        else setProductsList([]);
 
         // Fetch technician list (for assignment dropdown)
         const resTechs = await fetch(`${API_BASE}/api/users/technicians`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const dataTechs = await resTechs.json();
-        setTechsList(dataTechs);
+        if (Array.isArray(dataTechs)) setTechsList(dataTechs);
+        else setTechsList([]);
 
         // Fetch all orders for admin too (needed for customer lists)
         const resOrders = await fetch(`${API_BASE}/api/orders`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const dataOrders = await resOrders.json();
-        setOrdersList(dataOrders);
+        if (Array.isArray(dataOrders)) setOrdersList(dataOrders);
+        else setOrdersList([]);
       } 
       
       if (user.role === 'customer') {
@@ -133,7 +139,8 @@ const Dashboard = ({ setActivePage, theme, setTheme }) => {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const dataOrders = await resOrders.json();
-        setOrdersList(dataOrders);
+        if (Array.isArray(dataOrders)) setOrdersList(dataOrders);
+        else setOrdersList([]);
       }
     } catch (err) {
       console.error('Lỗi tải dữ liệu bảng điều khiển:', err);
@@ -143,8 +150,8 @@ const Dashboard = ({ setActivePage, theme, setTheme }) => {
   };
 
   useEffect(() => {
-    fetchData();
-  }, [user, token, subTab]);
+    fetchData(); // eslint-disable-line react-hooks/set-state-in-effect
+  }, [user, token, subTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- WEBSOCKET CHAT LOGIC ---
   useEffect(() => {
@@ -163,7 +170,7 @@ const Dashboard = ({ setActivePage, theme, setTheme }) => {
       }
       
       // Update sidebar chat status immediately
-      fetchConversationsList();
+      if (fetchConversationsListRef.current) fetchConversationsListRef.current();
     });
 
     return () => {
@@ -178,17 +185,22 @@ const Dashboard = ({ setActivePage, theme, setTheme }) => {
     }
   }, [chatMessages]);
 
-  const fetchConversationsList = () => {
+  const fetchConversationsList = useCallback(() => {
     // A customer or technician's chat conversations are derived from their repair bookings
     // Customer can talk about any booking. Technician can talk about bookings assigned to them.
     if (bookingsList.length === 0) return;
     const chats = bookingsList.filter(b => b.status !== 'pending'); // Can only chat once technician is assigned
     setChatConversations(chats);
-  };
+  }, [bookingsList]);
+
+  // Keep a ref to fetchConversationsList so the socket effect can call it without re-registering listeners
+  useEffect(() => {
+    fetchConversationsListRef.current = fetchConversationsList;
+  }, [fetchConversationsList]);
 
   useEffect(() => {
-    fetchConversationsList();
-  }, [bookingsList]);
+    fetchConversationsList(); // eslint-disable-line react-hooks/set-state-in-effect
+  }, [fetchConversationsList]);
 
   const handleSelectConversation = (booking) => {
     setSelectedBooking(booking);
@@ -246,7 +258,7 @@ const Dashboard = ({ setActivePage, theme, setTheme }) => {
         alert('Phân công kỹ thuật viên thành công.');
         fetchData();
       }
-    } catch (err) {
+    } catch {
       alert('Không thể phân công.');
     }
   };
@@ -265,7 +277,7 @@ const Dashboard = ({ setActivePage, theme, setTheme }) => {
         alert('Cập nhật chi phí sửa chữa thành công.');
         fetchData();
       }
-    } catch (err) {
+    } catch {
       alert('Không thể cập nhật.');
     }
   };
@@ -323,7 +335,7 @@ const Dashboard = ({ setActivePage, theme, setTheme }) => {
         alert('Xóa thành công.');
         fetchData();
       }
-    } catch (err) {
+    } catch {
       alert('Lỗi xóa.');
     }
   };
@@ -343,7 +355,7 @@ const Dashboard = ({ setActivePage, theme, setTheme }) => {
         alert(`Đã cập nhật trạng thái sửa chữa: ${status}`);
         fetchData();
       }
-    } catch (err) {
+    } catch {
       alert('Lỗi cập nhật trạng thái.');
     }
   };
@@ -474,10 +486,10 @@ const Dashboard = ({ setActivePage, theme, setTheme }) => {
     else if (nameLower.includes("13")) basePrice = 13000000;
     else if (nameLower.includes("macbook")) basePrice = 18000000;
 
-    let multiplier = 1.0;
-    if (valuationCondition.includes("Grade A") || valuationCondition.includes("Cấp A")) multiplier = 1.0;
-    else if (valuationCondition.includes("Grade B") || valuationCondition.includes("Cấp B")) multiplier = 0.85;
-    else multiplier = 0.7;
+    const multiplier =
+      valuationCondition.includes('Grade A') || valuationCondition.includes('Cấp A') ? 1.0
+      : valuationCondition.includes('Grade B') || valuationCondition.includes('Cấp B') ? 0.85
+      : 0.7;
 
     let capacityAdd = 0;
     if (valuationCapacity.includes("256")) capacityAdd = 1500000;
@@ -518,7 +530,7 @@ const Dashboard = ({ setActivePage, theme, setTheme }) => {
     setNewPromoCode('');
     setNewPromoDiscount('');
     setNewPromoExpiry('');
-    alert(isSeller ? `Mã khuyến mãi ${newCode.code} VNDã được tạo thành công!` : `Promo Code ${newCode.code} has been created successfully!`);
+    alert(isSeller ? `Mã khuyến mãi ${newCode.code} đã được tạo thành công!` : `Promo Code ${newCode.code} has been created successfully!`);
   };
 
   const handleDeletePromoCode = (codeToDelete) => {

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { MapPin, CreditCard, CheckCircle2, FileText, ArrowRight, ShieldCheck, Printer, Calendar } from 'lucide-react';
+import { MapPin, CreditCard, CheckCircle2, ArrowRight, ShieldCheck, Printer, Calendar } from 'lucide-react';
 import './Checkout.css';
 
 const Checkout = ({ setActivePage }) => {
@@ -72,7 +72,7 @@ const Checkout = ({ setActivePage }) => {
     setLoading(true);
     setError('');
 
-    const API_BASE = window.location.port === '5173' ? 'http://localhost:5000' : '';
+    const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000' : '';
 
     const orderPayload = {
       items: cartItems.map(item => ({
@@ -163,7 +163,7 @@ const Checkout = ({ setActivePage }) => {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Số <span className="currency">VND</span>iện thoại</label>
+                <label className="form-label">Số điện thoại</label>
                 <input 
                   type="tel" 
                   className="form-control" 
@@ -367,9 +367,9 @@ const Checkout = ({ setActivePage }) => {
                   {completedOrder.items.map((item, idx) => (
                     <tr key={idx}>
                       <td>{item.name}</td>
-                      <td className="text-right">{item.price.toLocaleString('en-US')} <span className="currency">VND</span></td>
+                      <td className="text-right">{(item.price || 0).toLocaleString('en-US')} <span className="currency">VND</span></td>
                       <td className="text-right">1</td>
-                      <td className="text-right">{item.price.toLocaleString('en-US')} <span className="currency">VND</span></td>
+                      <td className="text-right">{(item.price || 0).toLocaleString('en-US')} <span className="currency">VND</span></td>
                     </tr>
                   ))}
                 </tbody>
@@ -429,7 +429,7 @@ const Checkout = ({ setActivePage }) => {
                     <span>{item.name}</span>
                     <span className="item-cond">{item.condition === 'excellent' ? 'Như mới' : item.condition === 'good' ? 'Rất tốt' : 'Khá'}</span>
                   </div>
-                  <span className="checkout-item-price">{item.price.toLocaleString('en-US')} <span className="currency">VND</span></span>
+                  <span className="checkout-item-price">{(item.price || 0).toLocaleString('en-US')} <span className="currency">VND</span></span>
                 </div>
               ))}
             </div>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import ProductCard from '../components/ProductCard';
 import { ArrowRight, Recycle, ShieldCheck, Sparkles, TrendingUp, Cpu, Check, AlertCircle } from 'lucide-react';
 import './Home.css';
@@ -8,13 +8,20 @@ const Home = ({ setActivePage, setSelectedProduct }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const API_BASE = window.location.port === '5173' ? 'http://localhost:5000' : '';
+    const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000' : '';
     fetch(`${API_BASE}/api/products`)
       .then(res => res.json())
       .then(data => {
-        // Get available items
-        const available = data.filter(p => p.status === 'available');
-        setRecentProducts(available.slice(0, 4)); // Show up to 4 items
+        // DB dùng status = 'active'
+        const available = data.filter(p => p.status && ['active', 'available'].includes(p.status.toLowerCase()));
+        // Map các field cho ProductCard
+        const mapped = available.slice(0, 4).map(p => ({
+          ...p,
+          name: p.name || p.title,
+          price: p.price || p.listed_price,
+          image: p.image || p.image_url
+        }));
+        setRecentProducts(mapped);
         setLoading(false);
       })
       .catch(err => {

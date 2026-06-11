@@ -1,44 +1,51 @@
-import React from 'react';
 import { useCart } from '../context/CartContext';
 import { ShoppingCart, Heart, Eye } from 'lucide-react';
 import './ProductCard.css';
 
+const CONDITION_LABELS = {
+  excellent: 'Như mới',
+  good: 'Rất tốt',
+  fair: 'Khá tốt',
+};
+
+const CATEGORY_LABELS = {
+  AirConditioner: 'Máy lạnh',
+  WashingMachine: 'Máy giặt',
+  Refrigerator: 'Tủ lạnh',
+  Microwave: 'Lò vi sóng',
+  Phone: 'Điện thoại',
+  Laptop: 'Máy tính xách tay',
+  Tablet: 'Máy tính bảng',
+  Watch: 'Đồng hồ',
+  Accessories: 'Phụ kiện',
+};
+
+const getConditionLabel = (cond) => {
+  if (!cond) return '';
+  const key = Object.keys(CONDITION_LABELS).find((k) => cond.toLowerCase().includes(k));
+  return key ? CONDITION_LABELS[key] : cond;
+};
+
+const getCategoryLabel = (cat) => CATEGORY_LABELS[cat] ?? cat;
+
 const ProductCard = ({ product, onViewDetails }) => {
   const { addToCart, cartItems } = useCart();
-  const isAlreadyInCart = cartItems.some(item => item.id === product.id);
+  const isAlreadyInCart = cartItems.some((item) => item.id === product.id);
 
-  const getConditionLabel = (cond) => {
-    switch (cond) {
-      case 'excellent': return 'Như mới (99%)';
-      case 'good': return 'Rất tốt (>90%)';
-      case 'fair': return 'Khá tốt (>80%)';
-      default: return cond;
-    }
-  };
-
-  const getCategoryLabel = (cat) => {
-    switch (cat) {
-      case 'AirConditioner': return 'Máy lạnh';
-      case 'WashingMachine': return 'Máy giặt';
-      case 'Refrigerator': return 'Tủ lạnh';
-      case 'Microwave': return 'Lò vi sóng';
-      case 'Phone': return 'Điện thoại';
-      case 'Laptop': return 'Máy tính xách tay';
-      case 'Tablet': return 'Máy tính bảng';
-      case 'Watch': return 'Đồng hồ';
-      case 'Accessories': return 'Phụ kiện';
-      default: return cat;
-    }
-  };
+  const rawCondition = product.ai_condition || product.condition;
+  const condLabel = getConditionLabel(rawCondition);
+  const status = product.status?.toLowerCase();
+  const isSold = status === 'sold' || status === 'inactive';
+  const displayPrice = product.price || product.listed_price || 0;
 
   return (
-    <div className={`product-card ${product.status === 'sold' ? 'sold-out' : ''}`}>
+    <div className={`product-card ${isSold ? 'sold-out' : ''}`}>
       <div className="product-image-wrapper">
-        <img src={product.image} alt={product.name} className="product-image" />
-        <span className={`product-condition-badge badge-${product.condition}`}>
-          {getConditionLabel(product.condition)}
+        <img src={product.image || product.image_url} alt={product.name || product.title} className="product-image" />
+        <span className={`product-condition-badge badge-excellent`}>
+          {condLabel}
         </span>
-        {product.status === 'sold' && (
+        {isSold && (
           <div className="sold-overlay">
             <span>Đã bán</span>
           </div>
@@ -58,16 +65,16 @@ const ProductCard = ({ product, onViewDetails }) => {
       </div>
 
       <div className="product-details">
-        <span className="product-category">{getCategoryLabel(product.category)}</span>
-        <h4 className="product-title" onClick={() => onViewDetails(product)}>{product.name}</h4>
-        <p className="product-description">{product.description}</p>
+        <span className="product-category">{getCategoryLabel(product.category) || `Danh mục ${product.category_id || ''}`}</span>
+        <h4 className="product-title" onClick={() => onViewDetails(product)}>{product.name || product.title}</h4>
+        <p className="product-description">{product.user_description || product.description}</p>
         
         <div className="product-footer-price">
           <div className="price-tag">
-            {product.price.toLocaleString('en-US')} <span className="currency">VND</span>
+            {displayPrice.toLocaleString('en-US')} <span className="currency">VND</span>
           </div>
           
-          {product.status === 'available' ? (
+          {!isSold ? (
             <button 
               className={`add-cart-btn ${isAlreadyInCart ? 'in-cart' : ''}`}
               onClick={() => addToCart(product)}
