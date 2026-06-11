@@ -72,12 +72,18 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
-    return res.status(400).json({ message: 'Vui lòng nhập email và mật khẩu.' });
+    return res.status(400).json({ message: 'Vui lòng nhập tài khoản hoặc email và mật khẩu.' });
   }
 
   try {
-    // Tìm kiếm người dùng trong SQL Server dựa trên email
-    const user = await db.findOne('users', { email });
+    // Tìm kiếm người dùng trong SQL Server dựa trên email hoặc username
+    let user;
+    if (email.includes('@')) {
+      user = await db.findOne('users', { email });
+    } else {
+      user = await db.findOne('users', { username: email });
+    }
+    
     if (!user) {
       return res.status(400).json({ message: 'Tài khoản không tồn tại.' });
     }

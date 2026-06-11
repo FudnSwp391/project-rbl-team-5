@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Calendar, Clock, Laptop, Phone, PenTool, CheckCircle, ArrowRight, ShieldCheck, Send, Sparkles } from 'lucide-react';
 import './Booking.css';
@@ -54,13 +54,13 @@ const Booking = ({ setActivePage }) => {
           issue: `Thay pin do: ${userMsg}. (Chẩn đoán bởi TechCycle AI: Chai pin cell cần thay mới)`
         };
       } else if (lowerMsg.includes('màn hình') || lowerMsg.includes('sọc') || lowerMsg.includes('vỡ kính') || lowerMsg.includes('bể')) {
-        responseText = '🤖 TechCycle AI Chẩn đoán:\n\n• Lỗi phát hiện: Hỏng màn hình LCD hiển thị hoặc nứt kính cảm ứng ngoài.\n• Hướng xử lý: Thay màn hình nguyên bộ hoặc ép kính cảm ứng mới.\n• Thời gian sửa: 45 - 60 phút.\n• Giá tham khảo: 900.000 VND - 2.800.000 VND.\n\nNhấn nút dưới đây để áp dụng thông tin chẩn đoán này vào form VNDăng ký!';
+        responseText = '🤖 TechCycle AI Chẩn đoán:\n\n• Lỗi phát hiện: Hỏng màn hình LCD hiển thị hoặc nứt kính cảm ứng ngoài.\n• Hướng xử lý: Thay màn hình nguyên bộ hoặc ép kính cảm ứng mới.\n• Thời gian sửa: 45 - 60 phút.\n• Giá tham khảo: 900.000 VND - 2.800.000 VND.\n\nNhấn nút dưới đây để áp dụng thông tin chẩn đoán này vào form đăng ký!';
         suggestion = {
           deviceType: 'Điện thoại (iPhone/Android)',
           issue: `Thay màn hình/ép kính do: ${userMsg}. (Chẩn đoán bởi TechCycle AI: Vỡ kính hiển thị cần thay thế)`
         };
       } else if (lowerMsg.includes('macbook') || lowerMsg.includes('laptop') || lowerMsg.includes('nguồn') || lowerMsg.includes('sập')) {
-        responseText = '🤖 TechCycle AI Chẩn đoán:\n\n• Lỗi phát hiện: Hỏng IC nguồn, đứt mạch sạc hoặc lỗi mainboard chủ.\n• Hướng xử lý: Đo đạc dòng điện, đóng chip nguồn IC hoặc sửa lỗi nguồn trên mainboard.\n• Thời gian sửa: 1 - 2 ngày (cần đo đạc mạch).\n• Giá tham khảo: 600.000 VND - 1.800.000 VND.\n\nBạn có muốn tự động điền thông tin này vào form VNDặt lịch?';
+        responseText = '🤖 TechCycle AI Chẩn đoán:\n\n• Lỗi phát hiện: Hỏng IC nguồn, đứt mạch sạc hoặc lỗi mainboard chủ.\n• Hướng xử lý: Đo đạc dòng điện, đóng chip nguồn IC hoặc sửa lỗi nguồn trên mainboard.\n• Thời gian sửa: 1 - 2 ngày (cần đo đạc mạch).\n• Giá tham khảo: 600.000 VND - 1.800.000 VND.\n\nBạn có muốn tự động điền thông tin này vào form đặt lịch?';
         suggestion = {
           deviceType: 'Laptop (Macbook/Windows)',
           issue: `Sửa lỗi nguồn/phần cứng do: ${userMsg}. (Chẩn đoán bởi TechCycle AI: Lỗi nguồn chập nguồn IC main)`
@@ -72,7 +72,7 @@ const Booking = ({ setActivePage }) => {
           issue: `Sửa chữa máy tính bảng do: ${userMsg}. (Chẩn đoán bởi TechCycle AI: Hỏng chân sạc/lỏng cổng kết nối)`
         };
       } else {
-        responseText = '🤖 TechCycle AI Chẩn đoán:\n\nGhi nhận hiện tượng hỏng hóc: "' + userMsg + '". Để có kết quả chẩn đoán chính xác nhất, TechCycle hỗ trợ kiểm VNDịnh phần cứng hoàn toàn miễn phí tại cửa hàng.\n\nNhấn nút bên dưới để áp dụng thông tin và đăng ký lịch hẹn, KTV sẽ kiểm VNDịnh trực tiếp cho bạn nhé!';
+        responseText = '🤖 TechCycle AI Chẩn đoán:\n\nGhi nhận hiện tượng hỏng hóc: "' + userMsg + '". Để có kết quả chẩn đoán chính xác nhất, TechCycle hỗ trợ kiểm định phần cứng hoàn toàn miễn phí tại cửa hàng.\n\nNhấn nút bên dưới để áp dụng thông tin và đăng ký lịch hẹn, KTV sẽ kiểm định trực tiếp cho bạn nhé!';
         suggestion = {
           deviceType: 'Thiết bị khác',
           issue: `Yêu cầu kiểm tra lỗi: ${userMsg}. (Ghi nhận thông qua TechCycle AI)`
@@ -99,7 +99,7 @@ const Booking = ({ setActivePage }) => {
     setError('');
     setLoading(true);
 
-    const API_BASE = window.location.port === '5173' ? 'http://localhost:5000' : '';
+    const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000' : '';
 
     if (!user) {
       setError('Vui lòng đăng nhập trước khi đặt lịch.');
@@ -173,7 +173,7 @@ const Booking = ({ setActivePage }) => {
                 <ShieldCheck size={20} />
               </div>
               <div>
-                <h4>Linh kiện kiểm VNDịnh zin</h4>
+                <h4>Linh kiện kiểm định zin</h4>
                 <p>Mọi linh kiện thay thế đều là linh kiện chính hãng hoặc zin bóc máy chất lượng.</p>
               </div>
             </div>
@@ -209,7 +209,7 @@ const Booking = ({ setActivePage }) => {
                         className="btn btn-secondary btn-sm ai-apply-btn"
                         onClick={() => handleApplySuggestion(msg.suggestion)}
                       >
-                        Áp dụng chẩn đoán vào Form VNDặt lịch
+                        Áp dụng chẩn đoán vào Form đặt lịch
                       </button>
                     )}
                   </div>

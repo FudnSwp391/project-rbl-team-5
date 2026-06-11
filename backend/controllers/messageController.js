@@ -1,18 +1,24 @@
-const db = require('../db');
+const { db } = require('../db');
 
-exports.getMessages = (req, res) => {
-  const { bookingId } = req.params;
-  const messages = db.find('messages', { bookingId });
-  
-  const users = db.find('users');
-  const enrichedMessages = messages.map(m => {
-    const sender = users.find(u => u.id === m.senderId);
-    return {
-      ...m,
-      senderName: sender ? sender.username : 'Ẩn danh',
-      senderAvatar: sender ? sender.avatar : ''
-    };
-  });
+// GET /api/messages/:bookingId
+exports.getMessages = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const messages = await db.find('Messages', { booking_id: bookingId });
 
-  res.json(enrichedMessages);
+    // Enrich với thông tin người gửi
+    const enrichedMessages = await Promise.all(messages.map(async (m) => {
+      const sender = m.sender_id ? await db.findOne('Users', { user_id: m.sender_id }) : null;
+      return {
+        ...m,
+        senderName: sender ? sender.username : 'Ẩn danh',
+        senderAvatar: sender ? sender.avatar : ''
+      };
+    }));
+
+    res.json(enrichedMessages);
+  } catch (err) {
+    console.error('Lỗi lấy tin nhắn:', err);
+    res.status(500).json({ message: 'Lỗi lấy tin nhắn.', error: err.message });
+  }
 };

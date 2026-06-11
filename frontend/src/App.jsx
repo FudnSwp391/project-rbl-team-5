@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Home from './pages/Home';
@@ -44,7 +44,7 @@ function MainApp() {
     }
   };
 
-  const isAdminDashboard = activePage === 'dashboard' && user && user.role === 'admin';
+  const isAdminDashboard = activePage === 'dashboard' && user && user.role === 'Admin';
 
   return (
     <div className="app-container">

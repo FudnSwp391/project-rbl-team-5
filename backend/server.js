@@ -1,8 +1,9 @@
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
-const path = require('path');
 const db = require('./db');
 
 // Import modular routes
@@ -54,31 +55,35 @@ io.on('connection', (socket) => {
   });
 
   // Send messaging event
-  socket.on('sendMessage', (messageData) => {
+  socket.on('sendMessage', async (messageData) => {
     const { senderId, receiverId, bookingId, text } = messageData;
     
-    // Save to database
-    const savedMsg = db.insert('messages', {
-      senderId,
-      receiverId,
-      bookingId,
-      text,
-      timestamp: new Date().toISOString()
-    });
+    try {
+      // Save to database (await vì đây là hàm async)
+      const savedMsg = await db.insert('messages', {
+        senderId,
+        receiverId,
+        bookingId,
+        text,
+        timestamp: new Date().toISOString()
+      });
 
-    const sender = db.findOne('users', { id: senderId });
-    const enrichedMsg = {
-      ...savedMsg,
-      senderName: sender ? sender.username : 'Ẩn danh',
-      senderAvatar: sender ? sender.avatar : ''
-    };
+      const sender = await db.findOne('users', { id: senderId });
+      const enrichedMsg = {
+        ...savedMsg,
+        senderName: sender ? sender.username : 'Ẩn danh',
+        senderAvatar: sender ? sender.avatar : ''
+      };
 
-    // Emit to booking room
-    io.to(`booking_${bookingId}`).emit('receiveMessage', enrichedMsg);
-    
-    // Also emit directly to individual user rooms to notify/push notifications
-    io.to(receiverId).emit('newMessageNotification', enrichedMsg);
-    io.to(senderId).emit('messageSentConfirmation', enrichedMsg);
+      // Emit to booking room
+      io.to(`booking_${bookingId}`).emit('receiveMessage', enrichedMsg);
+      
+      // Also emit directly to individual user rooms to notify/push notifications
+      io.to(receiverId).emit('newMessageNotification', enrichedMsg);
+      io.to(senderId).emit('messageSentConfirmation', enrichedMsg);
+    } catch (err) {
+      console.error('Lỗi xử lý tin nhắn socket:', err);
+    }
   });
 
   socket.on('disconnect', () => {
