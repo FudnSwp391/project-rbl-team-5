@@ -10,12 +10,15 @@ import Dashboard from './pages/Dashboard';
 import Auth from './pages/Auth';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
+import ChatBot from "./components/chatbot/ChatBot";
+
+
 
 function MainApp() {
   const [activePage, setActivePage] = useState('home');
   const [selectedProduct, setSelectedProduct] = useState(null);
   const { user } = useAuth();
-  
+
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
 
   useEffect(() => {
@@ -53,12 +56,14 @@ function MainApp() {
         {renderPage()}
       </main>
       {!isAdminDashboard && <Footer />}
+      {!isAdminDashboard && <ChatBot />}
     </div>
   );
 }
 
 function App() {
   return (
+
     <AuthProvider>
       <CartProvider>
         <MainApp />
