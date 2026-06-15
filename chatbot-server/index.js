@@ -27,52 +27,41 @@ const dbConfig = {
     }
 };
 
+
+let pool;
+
+const initDB = async () => {
+    pool = await sql.connect(dbConfig);
+    console.log('✅ Connected to SQL Server');
+};
+
 const getStoreData = async () => {
     try {
-        const pool = await sql.connect(dbConfig);
-
-        // Dùng view có sẵn — sản phẩm active, còn hàng
         const productsResult = await pool.request().query(`
             SELECT 
-                id,
-                title,
-                listed_price,
-                ai_condition,
-                ai_min_price,
-                ai_max_price,
-                category_name,
-                seller_name
+                id, title, listed_price, ai_condition,
+                ai_min_price, ai_max_price, category_name, seller_name
             FROM v_active_products
             ORDER BY created_at DESC
         `);
 
-        // Dùng view có sẵn — thợ sửa chữa + kỹ năng
         const techniciansResult = await pool.request().query(`
             SELECT 
-                full_name,
-                phone,
-                experience_years,
-                rating_avg,
-                is_available,
-                total_repairs,
-                skills
+                full_name, phone, experience_years,
+                rating_avg, is_available, total_repairs, skills
             FROM v_technician_info
             WHERE is_available = 1
         `);
 
-        // Danh mục sửa chữa
         const servicesResult = await pool.request().query(`
             SELECT category_name, description 
             FROM service_categories
         `);
 
-        // Thông tin hệ thống
         const systemResult = await pool.request().query(`
             SELECT system_name, founder_name, support_email, hotline, description
             FROM system_info
         `);
-
-        await sql.close();
 
         return {
             products: productsResult.recordset,
@@ -81,7 +70,7 @@ const getStoreData = async () => {
             systemInfo: systemResult.recordset[0] || {}
         };
     } catch (err) {
-        console.error("Lỗi kết nối SQL:", err.message);
+        console.error("Lỗi query:", err.message);
         return { products: [], technicians: [], services: [], systemInfo: {} };
     }
 };
@@ -147,4 +136,12 @@ ${JSON.stringify(storeData.services, null, 2)}
     }
 });
 
-app.listen(3001, () => console.log('✅ Chatbot server chạy tại http://localhost:3001'));
+// ✅ Khởi động server SAU KHI kết nối DB thành công
+initDB()
+    .then(() => {
+        app.listen(3001, () => console.log('✅ Chatbot server chạy tại http://localhost:3001'));
+    })
+    .catch(err => {
+        console.error('❌ Không thể kết nối SQL Server:', err.message);
+        process.exit(1);
+    });
