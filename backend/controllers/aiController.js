@@ -2,7 +2,7 @@ const { db } = require("../db");
 
 function generateMockResponseForProducts(userMessage, products) {
   const msg = userMessage.toLowerCase();
-  
+
   // Try to find matching products
   let matchedProducts = [];
   if (msg.includes('máy giặt') || msg.includes('giặt')) {
@@ -18,7 +18,7 @@ function generateMockResponseForProducts(userMessage, products) {
   } else if (msg.includes('apple watch') || msg.includes('watch') || msg.includes('đồng hồ')) {
     matchedProducts = products.filter(p => p.title.toLowerCase().includes('watch') || p.title.toLowerCase().includes('đồng hồ') || (p.user_description && p.user_description.toLowerCase().includes('watch')));
   }
-  
+
   if (matchedProducts.length > 0) {
     const list = matchedProducts.map(p => {
       const price = Number(p.listed_price) || 0;
@@ -58,7 +58,7 @@ exports.chatWithAI = async (req, res) => {
     }
 
     // Dùng bản Flash Latest - thường có quota tốt nhất cho tài khoản cá nhân
-    const modelName = "models/gemini-flash-latest"; 
+    const modelName = "models/gemini-flash-latest";
     const url = `https://generativelanguage.googleapis.com/v1beta/${modelName}:generateContent?key=${apiKey}`;
 
     const productsContext = products.map(p => {
@@ -72,16 +72,16 @@ exports.chatWithAI = async (req, res) => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{ 
-          parts: [{ text: `${systemPrompt}\n\nKhách hỏi: ${message}` }] 
+        contents: [{
+          parts: [{ text: `${systemPrompt}\n\nKhách hỏi: ${message}` }]
         }]
       })
     });
 
     const data = await response.json();
-    
+
     if (data.error) {
-       throw new Error(`Google API Error: ${data.error.message}`);
+      throw new Error(`Google API Error: ${data.error.message}`);
     }
 
     const aiText = data.candidates[0].content.parts[0].text;
