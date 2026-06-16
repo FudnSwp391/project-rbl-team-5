@@ -48,7 +48,9 @@ exports.deleteUser = async (req, res) => {
     return res.status(400).json({ message: 'Bạn không thể tự xóa tài khoản của chính mình.' });
   }
   try {
-    await db.query('DELETE FROM users WHERE id = @id', [{ name: 'id', value: userId }]);
+    // Thay vì xóa cứng (gây lỗi khóa ngoại nếu user đã có đơn hàng/lịch hẹn/tin nhắn),
+    // chúng ta sẽ cập nhật trạng thái (status) thành 'inactive'.
+    await db.update('users', 'id', userId, { status: 'inactive' });
     res.json({ message: 'Xóa người dùng thành công.' });
   } catch (err) {
     res.status(500).json({ message: 'Lỗi xóa người dùng.', error: err.message });
@@ -69,11 +71,11 @@ exports.getStats = async (req, res) => {
 
     const totalRevenue =
       orders
-        .filter(o => o.status === 'Completed' || o.status === 'completed' || o.status === 'Shipping')
+        .filter(o => ['completed', 'Completed', 'Shipping', 'shipping', 'delivered', 'processing'].includes(o.status))
         .reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0) +
       bookings
-        .filter(b => b.status === 'Completed' || b.status === 'completed')
-        .reduce((sum, b) => sum + (Number(b.cost) || 0), 0);
+        .filter(b => ['completed', 'Completed'].includes(b.status))
+        .reduce((sum, b) => sum + (Number(b.quoted_price) || 0), 0);
 
     const completedBookings = bookings.filter(b =>
       b.status === 'Completed' || b.status === 'completed'

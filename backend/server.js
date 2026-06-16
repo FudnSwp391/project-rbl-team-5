@@ -57,27 +57,37 @@ io.on('connection', (socket) => {
   // Send messaging event
   socket.on('sendMessage', async (messageData) => {
     const { senderId, receiverId, bookingId, text } = messageData;
-    
+
+    if (!senderId || !receiverId || !bookingId || !text) {
+      console.warn('Bỏ qua tin nhắn không hợp lệ (thiếu senderId, receiverId, bookingId hoặc text):', messageData);
+      return;
+    }
+
     try {
       // Save to database (await vì đây là hàm async)
       const savedMsg = await db.insert('messages', {
-        senderId,
-        receiverId,
-        bookingId,
-        text,
+        sender_id: senderId,
+        receiver_id: receiverId,
+        booking_id: bookingId,
+        text_content: text,
         timestamp: new Date().toISOString()
       });
 
       const sender = await db.findOne('users', { id: senderId });
       const enrichedMsg = {
-        ...savedMsg,
+        id: savedMsg.id,
+        senderId,
+        receiverId,
+        bookingId,
+        text,
+        timestamp: savedMsg.timestamp,
         senderName: sender ? sender.username : 'Ẩn danh',
         senderAvatar: sender ? sender.avatar : ''
       };
 
       // Emit to booking room
       io.to(`booking_${bookingId}`).emit('receiveMessage', enrichedMsg);
-      
+
       // Also emit directly to individual user rooms to notify/push notifications
       io.to(receiverId).emit('newMessageNotification', enrichedMsg);
       io.to(senderId).emit('messageSentConfirmation', enrichedMsg);
@@ -95,9 +105,10 @@ io.on('connection', (socket) => {
 app.use(express.static(path.join(__dirname, '../frontend/dist')));
 
 app.get('*', (req, res) => {
-  if (!req.url.startsWith('/api')) {
-    res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
+  if (req.url.startsWith('/api')) {
+    return res.status(404).json({ message: 'API endpoint không tồn tại.' });
   }
+  res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
 });
 
 // --- START SERVER ---
