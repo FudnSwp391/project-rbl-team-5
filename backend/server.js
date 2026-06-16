@@ -4,7 +4,7 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
-const db = require('./db');
+const prisma = require('./prismaClient');
 
 // Import modular routes
 const authRoutes = require('./routes/authRoutes');
@@ -64,16 +64,17 @@ io.on('connection', (socket) => {
     }
 
     try {
-      // Save to database (await vì đây là hàm async)
-      const savedMsg = await db.insert('messages', {
-        sender_id: senderId,
-        receiver_id: receiverId,
-        booking_id: bookingId,
-        text_content: text,
-        timestamp: new Date().toISOString()
+      // Lưu tin nhắn vào DB qua Prisma ORM
+      const savedMsg = await prisma.messages.create({
+        data: {
+          sender_id: senderId,
+          receiver_id: receiverId,
+          booking_id: bookingId,
+          text_content: text
+        }
       });
 
-      const sender = await db.findOne('users', { id: senderId });
+      const sender = await prisma.users.findUnique({ where: { id: senderId } });
       const enrichedMsg = {
         id: savedMsg.id,
         senderId,
@@ -88,7 +89,7 @@ io.on('connection', (socket) => {
       // Emit to booking room
       io.to(`booking_${bookingId}`).emit('receiveMessage', enrichedMsg);
 
-      // Also emit directly to individual user rooms to notify/push notifications
+      // Also emit directly to individual user rooms
       io.to(receiverId).emit('newMessageNotification', enrichedMsg);
       io.to(senderId).emit('messageSentConfirmation', enrichedMsg);
     } catch (err) {

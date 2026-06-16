@@ -1,9 +1,8 @@
-const { db } = require("../db");
+const prisma = require('../prismaClient');
 
 function generateMockResponseForProducts(userMessage, products) {
   const msg = userMessage.toLowerCase();
   
-  // Try to find matching products
   let matchedProducts = [];
   if (msg.includes('máy giặt') || msg.includes('giặt')) {
     matchedProducts = products.filter(p => p.title.toLowerCase().includes('giặt') || (p.user_description && p.user_description.toLowerCase().includes('giặt')));
@@ -27,7 +26,6 @@ function generateMockResponseForProducts(userMessage, products) {
     return `Chào bạn! TechCycle hiện đang có các sản phẩm phù hợp với yêu cầu của bạn:\n\n${list}\n\nBạn có muốn tìm hiểu thêm hay đặt mua sản phẩm nào không ạ?`;
   }
 
-  // Fallback to list some available products if they ask generally or nothing matched
   if (products.length > 0) {
     const randomProducts = products.slice(0, 3);
     const list = randomProducts.map(p => {
@@ -43,10 +41,10 @@ function generateMockResponseForProducts(userMessage, products) {
 exports.chatWithAI = async (req, res) => {
   let products = [];
   try {
-    // Lấy context sản phẩm để AI tư vấn
-    products = await db.find("products");
+    // Lấy context sản phẩm qua Prisma ORM
+    products = await prisma.products.findMany();
   } catch (dbErr) {
-    console.error("Lỗi truy vấn DB sản phẩm:", dbErr.message);
+    console.error('Lỗi truy vấn DB sản phẩm:', dbErr.message);
   }
 
   try {
@@ -54,42 +52,42 @@ exports.chatWithAI = async (req, res) => {
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey || apiKey === 'your_gemini_api_key_here') {
-      throw new Error("Chưa cấu hình GEMINI_API_KEY hoặc đang sử dụng key mặc định.");
+      throw new Error('Chưa cấu hình GEMINI_API_KEY hoặc đang sử dụng key mặc định.');
     }
 
-    // Dùng bản Flash Latest - thường có quota tốt nhất cho tài khoản cá nhân
-    const modelName = "models/gemini-flash-latest"; 
+    const modelName = 'models/gemini-flash-latest';
     const url = `https://generativelanguage.googleapis.com/v1beta/${modelName}:generateContent?key=${apiKey}`;
 
     const productsContext = products.map(p => {
       const price = Number(p.listed_price) || 0;
       return `- ${p.title}: Giá ${price.toLocaleString('en-US')} VND, Tình trạng: ${p.ai_condition || 'N/A'}, Mô tả: ${p.user_description || ''}`;
-    }).join("\n");
+    }).join('\n');
 
     const systemPrompt = `Bạn là Trợ lý AI của TechCycle. Hãy tư vấn khách hàng dựa trên dữ liệu sản phẩm này:\n${productsContext}`;
 
     const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ 
-          parts: [{ text: `${systemPrompt}\n\nKhách hỏi: ${message}` }] 
+        contents: [{
+          parts: [{ text: `${systemPrompt}\n\nKhách hỏi: ${message}` }]
         }]
       })
     });
 
     const data = await response.json();
-    
+
     if (data.error) {
-       throw new Error(`Google API Error: ${data.error.message}`);
+      throw new Error(`Google API Error: ${data.error.message}`);
     }
 
     const aiText = data.candidates[0].content.parts[0].text;
     res.json({ text: aiText });
 
   } catch (error) {
-    console.warn("AI Chat Error (chuyển sang Mock AI):", error.message);
-    const mockReply = generateMockResponseForProducts(req.body.message || "", products);
+    // Fallback sang Mock AI nếu Gemini API lỗi
+    console.warn('AI Chat Error (chuyển sang Mock AI):', error.message);
+    const mockReply = generateMockResponseForProducts(req.body.message || '', products);
     res.json({ text: mockReply });
   }
 };

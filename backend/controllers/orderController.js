@@ -36,7 +36,7 @@ exports.getOrders = async (req, res) => {
         'SELECT * FROM order_items WHERE order_id = @orderId',
         [{ name: 'orderId', value: ord.id }]
       );
-      
+
       const enrichedItems = await Promise.all(itemsResult.recordset.map(async (item) => {
         const prod = await db.findOne('products', { id: item.product_id });
         return {

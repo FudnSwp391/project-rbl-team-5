@@ -3,7 +3,7 @@ const { db, sql } = require('../db');
 const formatProduct = async (prod) => {
   // Fetch primary image from product_images table if it exists
   const imgResult = await db.findOne('product_images', { product_id: prod.id });
-  
+
   // Find category name
   const cat = await db.findOne('product_categories', { id: prod.category_id });
   const categoryName = cat ? cat.category_name : 'Gia dụng';
@@ -48,14 +48,14 @@ exports.createProduct = async (req, res) => {
   if (req.user.role !== 'Admin' && req.user.role !== 'admin') {
     return res.status(403).json({ message: 'Không có quyền thực hiện hành động này.' });
   }
-  
+
   const { name, product_name, description, user_description, price, listed_price, category, category_id, condition, image, image_url } = req.body;
-  
+
   try {
     const finalTitle = name || product_name || 'Thiết bị mới';
     const finalDesc = description || user_description || '';
     const finalPrice = Number(price || listed_price || 0);
-    
+
     const categoryMap = {
       'WashingMachine': 1,
       'Refrigerator': 2,
@@ -65,7 +65,7 @@ exports.createProduct = async (req, res) => {
       'Smartwatch': 6
     };
     const finalCatId = categoryMap[category] || Number(category_id) || 1;
-    
+
     let sellerProfile = await db.findOne('seller_profiles', { user_id: req.user.id });
     if (!sellerProfile) {
       sellerProfile = await db.insert('seller_profiles', {
@@ -75,7 +75,7 @@ exports.createProduct = async (req, res) => {
         total_products_sold: 0
       });
     }
-    
+
     const newProd = await db.insert('products', {
       seller_id: sellerProfile.id,
       category_id: finalCatId,
@@ -88,7 +88,7 @@ exports.createProduct = async (req, res) => {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     });
-    
+
     const finalImage = image || image_url || '/images/products/default.jpg';
     await db.insert('product_images', {
       product_id: newProd.id,
@@ -96,7 +96,7 @@ exports.createProduct = async (req, res) => {
       is_primary: 1,
       created_at: new Date().toISOString()
     });
-    
+
     res.status(201).json({ message: 'Thêm sản phẩm thành công.', product: newProd });
   } catch (err) {
     console.error('Lỗi thêm sản phẩm:', err);
@@ -109,20 +109,20 @@ exports.updateProduct = async (req, res) => {
   if (req.user.role !== 'Admin' && req.user.role !== 'admin') {
     return res.status(403).json({ message: 'Không có quyền thực hiện.' });
   }
-  
+
   try {
     const { name, description, price, category, condition, image, status } = req.body;
     const updates = {};
-    
+
     if (name !== undefined) updates.title = name;
     if (description !== undefined) updates.user_description = description;
     if (price !== undefined) updates.listed_price = Number(price);
     if (condition !== undefined) updates.ai_condition = condition;
-    
+
     if (status !== undefined) {
       updates.status = (status === 'available') ? 'active' : 'sold_out';
     }
-    
+
     if (category !== undefined) {
       const categoryMap = {
         'WashingMachine': 1,
@@ -136,11 +136,11 @@ exports.updateProduct = async (req, res) => {
         updates.category_id = categoryMap[category];
       }
     }
-    
+
     updates.updated_at = new Date().toISOString();
-    
+
     await db.update('products', 'id', req.params.id, updates);
-    
+
     if (image !== undefined) {
       const img = await db.findOne('product_images', { product_id: req.params.id });
       if (img) {
@@ -154,7 +154,7 @@ exports.updateProduct = async (req, res) => {
         });
       }
     }
-    
+
     res.json({ message: 'Cập nhật sản phẩm thành công.' });
   } catch (err) {
     console.error('Lỗi cập nhật sản phẩm:', err);
@@ -167,7 +167,7 @@ exports.deleteProduct = async (req, res) => {
   if (req.user.role !== 'Admin' && req.user.role !== 'admin') {
     return res.status(403).json({ message: 'Không có quyền thực hiện.' });
   }
-  
+
   try {
     await db.query('DELETE FROM products WHERE id = @id', [{ name: 'id', value: req.params.id }]);
     res.json({ message: 'Xóa sản phẩm thành công.' });

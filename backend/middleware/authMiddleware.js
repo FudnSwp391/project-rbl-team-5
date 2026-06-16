@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const JWT_SECRET = 'techcycle_secret_key_2026';
+const JWT_SECRET = process.env.JWT_SECRET || 'techcycle_secret_key_2026';
 
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -13,5 +13,22 @@ const authenticateToken = (req, res, next) => {
     next();
   });
 };
+
+const authorizeRoles = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Người dùng chưa xác thực.' });
+    }
+    const userRole = req.user.role ? req.user.role.toLowerCase() : '';
+    const hasRole = roles.map(r => r.toLowerCase()).includes(userRole);
+    if (!hasRole) {
+      return res.status(403).json({ message: 'Bạn không có quyền thực hiện hành động này.' });
+    }
+    next();
+  };
+};
+
+authenticateToken.authenticateToken = authenticateToken;
+authenticateToken.authorizeRoles = authorizeRoles;
 
 module.exports = authenticateToken;

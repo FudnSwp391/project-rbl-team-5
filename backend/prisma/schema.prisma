@@ -1,0 +1,325 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+model ai_chat_history {
+  id          Int       @id(map: "PK__ai_chat___3213E83FDC8621EA") @default(autoincrement())
+  user_id     Int
+  message     String    @db.NVarChar(Max)
+  sender_type String    @db.VarChar(10)
+  created_at  DateTime? @default(now(), map: "DF__ai_chat_h__creat__1BC821DD") @db.DateTime
+  users       users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK__ai_chat_h__user___1CBC4616")
+}
+
+model ai_logs {
+  id                Int       @id(map: "PK__ai_logs__3213E83F50D9091F") @default(autoincrement())
+  user_id           Int
+  ai_type           String    @db.VarChar(30)
+  prompt_tokens     Int?
+  completion_tokens Int?
+  execution_time_ms Int?
+  status            String    @db.VarChar(20)
+  error_message     String?   @db.NVarChar(Max)
+  created_at        DateTime? @default(now(), map: "DF__ai_logs__created__1F98B2C1") @db.DateTime
+  users             users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK__ai_logs__user_id__208CD6FA")
+}
+
+model audit_logs {
+  id           Int       @id(map: "PK__audit_lo__3213E83F2CE100C7") @default(autoincrement())
+  admin_id     Int
+  action       String    @db.NVarChar(255)
+  target_table String    @db.VarChar(50)
+  created_at   DateTime? @default(now(), map: "DF__audit_log__creat__236943A5") @db.DateTime
+  users        users     @relation(fields: [admin_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK__audit_log__admin__245D67DE")
+}
+
+model cart_items {
+  id         Int       @id(map: "PK__cart_ite__3213E83F9B196B3F") @default(autoincrement())
+  cart_id    Int
+  product_id Int
+  quantity   Int?      @default(1, map: "DF__cart_item__quant__74AE54BC")
+  added_at   DateTime? @default(now(), map: "DF__cart_item__added__75A278F5") @db.DateTime
+  carts      carts     @relation(fields: [cart_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK__cart_item__cart___76969D2E")
+  products   products  @relation(fields: [product_id], references: [id], onUpdate: NoAction, map: "FK__cart_item__produ__778AC167")
+
+  @@unique([cart_id, product_id], map: "UQ__cart_ite__6A850DF9A4492DE4")
+}
+
+model carts {
+  id                Int               @id(map: "PK__carts__3213E83F436EA715") @default(autoincrement())
+  customer_id       Int               @unique(map: "UQ__carts__CD65CB84321FBFA2")
+  created_at        DateTime?         @default(now(), map: "DF__carts__created_a__6EF57B66") @db.DateTime
+  updated_at        DateTime?         @default(now(), map: "DF__carts__updated_a__6FE99F9F") @db.DateTime
+  cart_items        cart_items[]
+  customer_profiles customer_profiles @relation(fields: [customer_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK__carts__customer___70DDC3D8")
+}
+
+model customer_profiles {
+  id              Int               @id(map: "PK__customer__3213E83FEF4D2C58") @default(autoincrement())
+  user_id         Int               @unique(map: "UQ__customer__B9BE370EC2372324")
+  address         String            @db.NVarChar(255)
+  total_spent     Decimal?          @default(0.00, map: "DF__customer___total__31EC6D26") @db.Decimal(12, 2)
+  created_at      DateTime?         @default(now(), map: "DF__customer___creat__32E0915F") @db.DateTime
+  carts           carts?
+  users           users             @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK__customer___user___33D4B598")
+  orders          orders[]
+  repair_requests repair_requests[]
+  reviews         reviews[]
+}
+
+model deliveries {
+  id                    Int       @id(map: "PK__deliveri__3213E83F8DFB83B7") @default(autoincrement())
+  order_id              Int       @unique(map: "UQ__deliveri__46596228FF061820")
+  delivery_service_name String?   @db.NVarChar(100)
+  tracking_number       String?   @unique(map: "UQ__deliveri__B2C338B71A96D446") @db.VarChar(100)
+  status                String    @default("pending", map: "DF__deliverie__statu__05D8E0BE") @db.VarChar(50)
+  estimated_delivery    DateTime? @db.DateTime
+  actual_delivery       DateTime? @db.DateTime
+  created_at            DateTime? @default(now(), map: "DF__deliverie__creat__06CD04F7") @db.DateTime
+  orders                orders    @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK__deliverie__order__07C12930")
+}
+
+model messages {
+  id                                Int       @id(map: "PK__messages__3213E83F2A73B2AE") @default(autoincrement())
+  sender_id                         Int
+  receiver_id                       Int
+  booking_id                        Int?
+  text_content                      String    @db.NVarChar(Max)
+  timestamp                         DateTime? @default(now(), map: "DF__messages__timest__17036CC0") @db.DateTime
+  users_messages_receiver_idTousers users     @relation("messages_receiver_idTousers", fields: [receiver_id], references: [id], onUpdate: NoAction, map: "FK__messages__receiv__18EBB532")
+  users_messages_sender_idTousers   users     @relation("messages_sender_idTousers", fields: [sender_id], references: [id], onUpdate: NoAction, map: "FK__messages__sender__17F790F9")
+}
+
+model order_items {
+  id         Int      @id(map: "PK__order_it__3213E83FFE4E281C") @default(autoincrement())
+  order_id   Int
+  product_id Int
+  price      Decimal  @db.Decimal(12, 2)
+  quantity   Int
+  orders     orders   @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK__order_ite__order__00200768")
+  products   products @relation(fields: [product_id], references: [id], onUpdate: NoAction, map: "FK__order_ite__produ__01142BA1")
+}
+
+model orders {
+  id                Int               @id(map: "PK__orders__3213E83FFC9DA7FB") @default(autoincrement())
+  customer_id       Int
+  total_amount      Decimal           @db.Decimal(12, 2)
+  shipping_address  String            @db.NVarChar(255)
+  status            String?           @default("pending", map: "DF__orders__status__7A672E12") @db.VarChar(20)
+  notes             String?           @db.NVarChar(Max)
+  created_at        DateTime?         @default(now(), map: "DF__orders__created___7B5B524B") @db.DateTime
+  updated_at        DateTime?         @default(now(), map: "DF__orders__updated___7C4F7684") @db.DateTime
+  deliveries        deliveries?
+  order_items       order_items[]
+  customer_profiles customer_profiles @relation(fields: [customer_id], references: [id], onUpdate: NoAction, map: "FK__orders__customer__7D439ABD")
+  payments          payments[]
+}
+
+model payments {
+  id              Int              @id(map: "PK__payments__3213E83F7D9D996C") @default(autoincrement())
+  order_id        Int?
+  booking_id      Int?
+  payment_method  String           @db.VarChar(20)
+  transaction_id  String?          @db.VarChar(100)
+  amount          Decimal          @db.Decimal(12, 2)
+  status          String?          @default("pending", map: "DF__payments__status__0A9D95DB") @db.VarChar(20)
+  paid_at         DateTime?        @db.DateTime
+  created_at      DateTime?        @default(now(), map: "DF__payments__create__0B91BA14") @db.DateTime
+  repair_bookings repair_bookings? @relation(fields: [booking_id], references: [id], onUpdate: NoAction, map: "FK__payments__bookin__0D7A0286")
+  orders          orders?          @relation(fields: [order_id], references: [id], onUpdate: NoAction, map: "FK__payments__order___0C85DE4D")
+}
+
+model product_categories {
+  id            Int        @id(map: "PK__product___3213E83FD737B56A") @default(autoincrement())
+  category_name String     @db.NVarChar(100)
+  description   String?    @db.NVarChar(Max)
+  created_at    DateTime?  @default(now(), map: "DF__product_c__creat__5EBF139D") @db.DateTime
+  products      products[]
+}
+
+model product_images {
+  id         Int       @id(map: "PK__product___3213E83F4BFF27B2") @default(autoincrement())
+  product_id Int
+  image_url  String    @db.VarChar(255)
+  is_primary Boolean?  @default(false, map: "DF__product_i__is_pr__693CA210")
+  created_at DateTime? @default(now(), map: "DF__product_i__creat__6A30C649") @db.DateTime
+  products   products  @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK__product_i__produ__6B24EA82")
+}
+
+model products {
+  id                 Int                @id(map: "PK__products__3213E83F3A6C479E") @default(autoincrement())
+  seller_id          Int
+  category_id        Int
+  title              String             @db.NVarChar(255)
+  user_description   String             @db.NVarChar(Max)
+  ai_condition       String?            @db.NVarChar(50)
+  ai_min_price       Decimal?           @db.Decimal(12, 2)
+  ai_max_price       Decimal?           @db.Decimal(12, 2)
+  ai_analysis        String?            @db.NVarChar(Max)
+  listed_price       Decimal            @db.Decimal(12, 2)
+  stock              Int?               @default(1, map: "DF__products__stock__619B8048")
+  status             String?            @default("active", map: "DF__products__status__628FA481") @db.VarChar(20)
+  created_at         DateTime?          @default(now(), map: "DF__products__create__6383C8BA") @db.DateTime
+  updated_at         DateTime?          @default(now(), map: "DF__products__update__6477ECF3") @db.DateTime
+  cart_items         cart_items[]
+  order_items        order_items[]
+  product_images     product_images[]
+  product_categories product_categories @relation(fields: [category_id], references: [id], onUpdate: NoAction, map: "FK__products__catego__66603565")
+  seller_profiles    seller_profiles    @relation(fields: [seller_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK__products__seller__656C112C")
+  reviews            reviews[]
+
+  @@index([category_id, status], map: "idx_products_search")
+}
+
+model repair_bookings {
+  id                  Int                  @id(map: "PK__repair_b__3213E83F7F40EFE8") @default(autoincrement())
+  repair_request_id   Int                  @unique(map: "UQ__repair_b__C6FD02A7D3CE9B72")
+  technician_id       Int?
+  appointment_date    DateTime             @db.DateTime
+  quoted_price        Decimal?             @db.Decimal(12, 2)
+  address             String               @db.NVarChar(255)
+  notes               String?              @db.NVarChar(Max)
+  status              String?              @default("pending_confirm", map: "DF__repair_bo__statu__5441852A") @db.VarChar(30)
+  created_at          DateTime?            @default(now(), map: "DF__repair_bo__creat__5535A963") @db.DateTime
+  updated_at          DateTime?            @default(now(), map: "DF__repair_bo__updat__5629CD9C") @db.DateTime
+  payments            payments[]
+  repair_requests     repair_requests      @relation(fields: [repair_request_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK__repair_bo__repai__571DF1D5")
+  technician_profiles technician_profiles? @relation(fields: [technician_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK__repair_bo__techn__5812160E")
+  repair_status_logs  repair_status_logs[]
+}
+
+model repair_requests {
+  id                 Int                 @id(map: "PK__repair_r__3213E83FC409B9B5") @default(autoincrement())
+  customer_id        Int
+  category_id        Int?
+  user_description   String              @db.NVarChar(Max)
+  ai_raw_response    String?             @db.NVarChar(Max)
+  ai_damage_level    String?             @db.VarChar(20)
+  ai_conclusion      String?             @db.NVarChar(255)
+  ai_recommendation  String?             @db.NVarChar(Max)
+  status             String?             @default("pending_ai", map: "DF__repair_re__statu__4CA06362") @db.VarChar(20)
+  created_at         DateTime?           @default(now(), map: "DF__repair_re__creat__4D94879B") @db.DateTime
+  updated_at         DateTime?           @default(now(), map: "DF__repair_re__updat__4E88ABD4") @db.DateTime
+  repair_bookings    repair_bookings?
+  service_categories service_categories? @relation(fields: [category_id], references: [id], onUpdate: NoAction, map: "FK__repair_re__categ__5070F446")
+  customer_profiles  customer_profiles   @relation(fields: [customer_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK__repair_re__custo__4F7CD00D")
+}
+
+model repair_status_logs {
+  id              Int             @id(map: "PK__repair_s__3213E83FA4DDA5B8") @default(autoincrement())
+  booking_id      Int
+  status          String          @db.VarChar(50)
+  notes           String?         @db.NVarChar(Max)
+  changed_at      DateTime?       @default(now(), map: "DF__repair_st__chang__5AEE82B9") @db.DateTime
+  repair_bookings repair_bookings @relation(fields: [booking_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK__repair_st__booki__5BE2A6F2")
+}
+
+model reviews {
+  id                  Int                  @id(map: "PK__reviews__3213E83F6A30F90A") @default(autoincrement())
+  customer_id         Int
+  product_id          Int?
+  technician_id       Int?
+  rating              Int
+  comment             String?              @db.NVarChar(Max)
+  created_at          DateTime?            @default(now(), map: "DF__reviews__created__114A936A") @db.DateTime
+  customer_profiles   customer_profiles    @relation(fields: [customer_id], references: [id], onUpdate: NoAction, map: "FK__reviews__custome__123EB7A3")
+  products            products?            @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK__reviews__product__1332DBDC")
+  technician_profiles technician_profiles? @relation(fields: [technician_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK__reviews__technic__14270015")
+}
+
+model roles {
+  id         Int       @id(map: "PK__roles__3213E83F4F147BC6") @default(autoincrement())
+  role_name  String    @unique(map: "UQ__roles__783254B1E9CA4D6C") @db.VarChar(50)
+  created_at DateTime? @default(now(), map: "DF__roles__created_a__25869641") @db.DateTime
+  users      users[]
+}
+
+model seller_profiles {
+  id                  Int        @id(map: "PK__seller_p__3213E83FC8D4F20F") @default(autoincrement())
+  user_id             Int        @unique(map: "UQ__seller_p__B9BE370E5323CF84")
+  shop_name           String     @db.NVarChar(100)
+  balance             Decimal?   @default(0.00, map: "DF__seller_pr__balan__3F466844") @db.Decimal(12, 2)
+  total_products_sold Int?       @default(0, map: "DF__seller_pr__total__403A8C7D")
+  created_at          DateTime?  @default(now(), map: "DF__seller_pr__creat__412EB0B6") @db.DateTime
+  products            products[]
+  users               users      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK__seller_pr__user___4222D4EF")
+}
+
+model service_categories {
+  id                Int                 @id(map: "PK__service___3213E83F816F748B") @default(autoincrement())
+  category_name     String              @db.NVarChar(100)
+  description       String?             @db.NVarChar(Max)
+  created_at        DateTime?           @default(now(), map: "DF__service_c__creat__44FF419A") @db.DateTime
+  repair_requests   repair_requests[]
+  technician_skills technician_skills[]
+}
+
+model system_info {
+  system_id        Int       @id(map: "PK__system_i__7C45FE7F594D7342") @default(autoincrement())
+  system_name      String    @db.NVarChar(100)
+  founder_name     String    @db.NVarChar(100)
+  founder_role     String?   @default("CEO", map: "DF__system_in__found__2739D489") @db.NVarChar(50)
+  founder_age      Int?
+  support_email    String?   @db.VarChar(100)
+  hotline          String?   @db.VarChar(20)
+  established_date DateTime? @db.Date
+  description      String?   @db.NVarChar(Max)
+}
+
+model technician_profiles {
+  id                Int                 @id(map: "PK__technici__3213E83F3AA195BD") @default(autoincrement())
+  user_id           Int                 @unique(map: "UQ__technici__B9BE370E5140884B")
+  experience_years  Int
+  bio               String?             @db.NVarChar(Max)
+  rating_avg        Decimal?            @default(0.00, map: "DF__technicia__ratin__37A5467C") @db.Decimal(3, 2)
+  is_available      Boolean?            @default(true, map: "DF__technicia__is_av__38996AB5")
+  total_repairs     Int?                @default(0, map: "DF__technicia__total__398D8EEE")
+  created_at        DateTime?           @default(now(), map: "DF__technicia__creat__3A81B327") @db.DateTime
+  repair_bookings   repair_bookings[]
+  reviews           reviews[]
+  users             users               @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK__technicia__user___3B75D760")
+  technician_skills technician_skills[]
+
+  @@index([is_available], map: "idx_tech_availability")
+}
+
+model technician_skills {
+  technician_id       Int
+  category_id         Int
+  expertise_level     String?             @default("beginner", map: "DF__technicia__exper__47DBAE45") @db.VarChar(20)
+  service_categories  service_categories  @relation(fields: [category_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK__technicia__categ__49C3F6B7")
+  technician_profiles technician_profiles @relation(fields: [technician_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK__technicia__techn__48CFD27E")
+
+  @@id([technician_id, category_id], map: "PK__technici__E722B37B9B12A70B")
+}
+
+model users {
+  id                                   Int                  @id(map: "PK__users__3213E83F57382462") @default(autoincrement())
+  role_id                              Int
+  username                             String               @unique(map: "UQ__users__F3DBC57272CDCD70") @db.NVarChar(50)
+  email                                String               @unique(map: "UQ__users__AB6E616478BD2565") @db.VarChar(100)
+  password                             String               @db.VarChar(255)
+  full_name                            String               @db.NVarChar(100)
+  phone                                String               @unique(map: "UQ__users__B43B145FC743E7E3") @db.VarChar(15)
+  avatar                               String?              @db.VarChar(255)
+  status                               String?              @default("active", map: "DF__users__status__2B3F6F97") @db.VarChar(20)
+  created_at                           DateTime?            @default(now(), map: "DF__users__created_a__2C3393D0") @db.DateTime
+  updated_at                           DateTime?            @default(now(), map: "DF__users__updated_a__2D27B809") @db.DateTime
+  ai_chat_history                      ai_chat_history[]
+  ai_logs                              ai_logs[]
+  audit_logs                           audit_logs[]
+  customer_profiles                    customer_profiles?
+  messages_messages_receiver_idTousers messages[]           @relation("messages_receiver_idTousers")
+  messages_messages_sender_idTousers   messages[]           @relation("messages_sender_idTousers")
+  seller_profiles                      seller_profiles?
+  technician_profiles                  technician_profiles?
+  roles                                roles                @relation(fields: [role_id], references: [id], onUpdate: NoAction, map: "FK__users__role_id__2E1BDC42")
+
+  @@index([email], map: "idx_login_email")
+  @@index([username], map: "idx_login_username")
+}

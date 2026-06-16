@@ -1,10 +1,11 @@
-const { db } = require('../db');
+const prisma = require('../prismaClient');
+
+const REVERSE_ROLE_MAP = { 1: 'admin', 2: 'customer', 3: 'technician', 4: 'seller' };
 
 // GET /api/users/technicians
 exports.getTechnicians = async (req, res) => {
   try {
-    // 3 is usually technician role_id
-    const techs = await db.find('users', { role_id: 3 });
+    const techs = await prisma.users.findMany({ where: { role_id: 3 } });
     res.json(techs.map(t => ({
       id: t.id,
       username: t.username,
@@ -19,12 +20,11 @@ exports.getTechnicians = async (req, res) => {
 
 // GET /api/users - Admin xem tất cả user
 exports.getUsersList = async (req, res) => {
-  if (req.user.role !== 'Admin' && req.user.role !== 'admin') {
+  if (!['admin', 'Admin', 'seller'].includes(req.user.role)) {
     return res.status(403).json({ message: 'Không có quyền truy cập.' });
   }
   try {
-    const users = await db.find('users');
-    const REVERSE_ROLE_MAP = { 1: 'admin', 2: 'customer', 3: 'technician', 4: 'seller' };
+    const users = await prisma.users.findMany({ orderBy: { created_at: 'desc' } });
     res.json(users.map(u => ({
       id: u.id,
       username: u.username,
@@ -40,17 +40,15 @@ exports.getUsersList = async (req, res) => {
 
 // DELETE /api/users/:id
 exports.deleteUser = async (req, res) => {
-  if (req.user.role !== 'Admin' && req.user.role !== 'admin') {
+  if (!['admin', 'Admin'].includes(req.user.role)) {
     return res.status(403).json({ message: 'Không có quyền thực hiện.' });
   }
-  const userId = req.params.id;
-  if (String(userId) === String(req.user.id)) {
+  const userId = Number(req.params.id);
+  if (userId === req.user.id) {
     return res.status(400).json({ message: 'Bạn không thể tự xóa tài khoản của chính mình.' });
   }
   try {
-    // Thay vì xóa cứng (gây lỗi khóa ngoại nếu user đã có đơn hàng/lịch hẹn/tin nhắn),
-    // chúng ta sẽ cập nhật trạng thái (status) thành 'inactive'.
-    await db.update('users', 'id', userId, { status: 'inactive' });
+    await prisma.users.delete({ where: { id: userId } });
     res.json({ message: 'Xóa người dùng thành công.' });
   } catch (err) {
     res.status(500).json({ message: 'Lỗi xóa người dùng.', error: err.message });
@@ -59,26 +57,29 @@ exports.deleteUser = async (req, res) => {
 
 // GET /api/users/stats - Admin thống kê
 exports.getStats = async (req, res) => {
-  if (req.user.role !== 'Admin' && req.user.role !== 'admin') {
+  if (!['admin', 'Admin', 'seller'].includes(req.user.role)) {
     return res.status(403).json({ message: 'Không có quyền truy cập.' });
   }
 
   try {
-    const orders   = await db.find('orders');
-    const bookings = await db.find('repair_bookings');
-    const products = await db.find('products');
-    const users    = await db.find('users');
+    const [totalUsers, totalProducts, totalBookings, orders, bookings] = await Promise.all([
+      prisma.users.count(),
+      prisma.products.count(),
+      prisma.repair_bookings.count(),
+      prisma.orders.findMany(),
+      prisma.repair_bookings.findMany()
+    ]);
 
     const totalRevenue =
       orders
-        .filter(o => ['completed', 'Completed', 'Shipping', 'shipping', 'delivered', 'processing'].includes(o.status))
+        .filter(o => ['Completed', 'completed', 'Shipping'].includes(o.status))
         .reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0) +
       bookings
-        .filter(b => ['completed', 'Completed'].includes(b.status))
+        .filter(b => ['Completed', 'completed'].includes(b.status))
         .reduce((sum, b) => sum + (Number(b.quoted_price) || 0), 0);
 
     const completedBookings = bookings.filter(b =>
-      b.status === 'Completed' || b.status === 'completed'
+      ['Completed', 'completed'].includes(b.status)
     ).length;
 
     const pendingBookings = bookings.filter(b =>
@@ -86,9 +87,9 @@ exports.getStats = async (req, res) => {
     ).length;
 
     res.json({
-      totalUsers: users.length,
-      totalProducts: products.length,
-      totalBookings: bookings.length,
+      totalUsers,
+      totalProducts,
+      totalBookings,
       totalRevenue,
       completedBookings,
       pendingBookings,
@@ -103,5 +104,32 @@ exports.getStats = async (req, res) => {
   } catch (err) {
     console.error('Lỗi lấy thống kê:', err);
     res.status(500).json({ message: 'Lỗi lấy thống kê.', error: err.message });
+  }
+};
+
+// PUT /api/users/:id/status
+exports.updateUserStatus = async (req, res) => {
+  const userId = Number(req.params.id);
+  const { status } = req.body;
+
+  if (!status || !['active', 'suspended', 'inactive'].includes(status.toLowerCase())) {
+    return res.status(400).json({ message: 'Trạng thái không hợp lệ. Phải là active, suspended hoặc inactive.' });
+  }
+
+  try {
+    const user = await prisma.users.findUnique({ where: { id: userId } });
+    if (!user) {
+      return res.status(404).json({ message: 'Không tìm thấy người dùng.' });
+    }
+
+    await prisma.users.update({
+      where: { id: userId },
+      data: { status: status.toLowerCase() }
+    });
+
+    res.json({ message: `Cập nhật trạng thái người dùng sang '${status.toLowerCase()}' thành công.` });
+  } catch (err) {
+    console.error('Lỗi cập nhật trạng thái người dùng:', err);
+    res.status(500).json({ message: 'Lỗi cập nhật trạng thái người dùng.', error: err.message });
   }
 };
