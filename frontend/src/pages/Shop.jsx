@@ -1,10 +1,31 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import ProductCard, { getProductImage } from '../components/ProductCard';
 import { useCart } from '../context/CartContext';
-import { Search, SlidersHorizontal, ShieldCheck, Truck, RefreshCw, X, ShoppingCart } from 'lucide-react';
+import { Search, SlidersHorizontal, ShieldCheck, Truck, RefreshCw, X, ShoppingCart, ChevronLeft, ChevronRight } from 'lucide-react';
 import './Shop.css';
 
 const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000' : '';
+
+// 16 danh mục + icon đẹp, khớp với product_categories trong DB
+const CATEGORIES = [
+  { key: 'All',           label: 'Tất cả',        icon: '🏠' },
+  { key: 'Smartphone',    label: 'Điện thoại',    icon: '📱' },
+  { key: 'Laptop',        label: 'Laptop',         icon: '💻' },
+  { key: 'Tablet',        label: 'Máy tính bảng', icon: '📓' },
+  { key: 'Audio',         label: 'Âm thanh',       icon: '🎧' },
+  { key: 'Smartwatch',    label: 'Smartwatch',     icon: '⌚' },
+  { key: 'TV',            label: 'TV',             icon: '📺' },
+  { key: 'Monitor',       label: 'Màn hình',      icon: '🖥️' },
+  { key: 'Camera',        label: 'Máy ảnh',       icon: '📷' },
+  { key: 'GamingConsole', label: 'Gaming',         icon: '🎮' },
+  { key: 'PC',            label: 'PC',             icon: '🖧' },
+  { key: 'WashingMachine',label: 'Máy giặt',      icon: '🩺' },
+  { key: 'Refrigerator',  label: 'Tủ lạnh',       icon: '🢧' },
+  { key: 'AirConditioner',label: 'Máy lạnh',      icon: '❄️' },
+  { key: 'Printer',       label: 'Máy in',        icon: '🖨️' },
+  { key: 'Router',        label: 'Thiết bị mạng',icon: '📶' },
+  { key: 'Accessory',     label: 'Phụ kiện',      icon: '🔌' },
+];
 
 const Shop = ({ selectedProduct, setSelectedProduct, showFilters, setShowFilters }) => {
   const [products, setProducts] = useState([]);
@@ -24,6 +45,43 @@ const Shop = ({ selectedProduct, setSelectedProduct, showFilters, setShowFilters
   const [currentPage, setCurrentPage] = useState(1);
 
   const itemsPerPage = 6;
+
+  const tabsRef = useRef(null);
+  const [showLeftArrow, setShowLeftArrow] = useState(false);
+  const [showRightArrow, setShowRightArrow] = useState(true);
+
+  const checkScroll = () => {
+    if (tabsRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = tabsRef.current;
+      setShowLeftArrow(scrollLeft > 5);
+      setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 5);
+    }
+  };
+
+  useEffect(() => {
+    const tabs = tabsRef.current;
+    if (tabs) {
+      tabs.addEventListener('scroll', checkScroll);
+      checkScroll();
+      window.addEventListener('resize', checkScroll);
+    }
+    return () => {
+      if (tabs) {
+        tabs.removeEventListener('scroll', checkScroll);
+      }
+      window.removeEventListener('resize', checkScroll);
+    };
+  }, [products]);
+
+  const scrollTabs = (direction) => {
+    if (tabsRef.current) {
+      const scrollAmount = 250;
+      tabsRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  };
 
   const { addToCart, cartItems } = useCart();
 
@@ -65,10 +123,18 @@ const Shop = ({ selectedProduct, setSelectedProduct, showFilters, setShowFilters
     // 3. Condition Filter (ai_condition field)
     result = result.filter(p => {
       const cond = (p.ai_condition || p.condition || '').toLowerCase();
-      if (cond.includes('excellent') && !conditions.excellent) return false;
-      if (cond.includes('good') && !conditions.good) return false;
-      if (cond.includes('fair') && !conditions.fair) return false;
-      return true;
+      
+      let categoryType = '';
+      if (cond.includes('excellent') || cond.includes('99%') || cond.includes('như mới')) {
+        categoryType = 'excellent';
+      } else if (cond.includes('good') || cond.includes('90%') || cond.includes('rất tốt')) {
+        categoryType = 'good';
+      } else if (cond.includes('fair') || cond.includes('80%') || cond.includes('khá tốt')) {
+        categoryType = 'fair';
+      }
+      
+      if (!categoryType) return true;
+      return conditions[categoryType];
     });
 
     // 3.5 Price Range Filter
@@ -249,22 +315,47 @@ const Shop = ({ selectedProduct, setSelectedProduct, showFilters, setShowFilters
 
         {/* Shop Content (Column 2) */}
         <main className="shop-main-content">
-          {/* Top Bar Navigation / Sort */}
+          {/* Top Bar Navigation (Category Tabs Only) */}
           <div className="shop-topbar">
-            {/* Category tabs */}
-            <div className="category-tabs">
-              {['All', 'AirConditioner', 'WashingMachine', 'Refrigerator', 'Microwave'].map(cat => (
-                <button
-                  key={cat}
-                  className={`category-tab-btn ${category === cat ? 'active' : ''}`}
-                  onClick={() => setCategory(cat)}
-                >
-                  {cat === 'All' ? 'Tất cả' : cat === 'AirConditioner' ? 'Máy lạnh' : cat === 'WashingMachine' ? 'Máy giặt' : cat === 'Refrigerator' ? 'Tủ lạnh' : 'Lò vi sóng'}
-                </button>
-              ))}
-            </div>
+            {/* Category tabs container with scroll arrows on the sides */}
+            <div className="category-tabs-wrapper">
+              <button 
+                className={`scroll-arrow-btn left ${!showLeftArrow ? 'hidden' : ''}`} 
+                onClick={() => scrollTabs('left')} 
+                disabled={!showLeftArrow}
+                title="Cuộn sang trái"
+              >
+                <ChevronLeft size={18} />
+              </button>
+              
+              <div className="category-tabs" ref={tabsRef}>
+                {CATEGORIES.map(cat => (
+                  <button
+                    key={cat.key}
+                    className={`category-tab-btn ${category === cat.key ? 'active' : ''}`}
+                    onClick={() => setCategory(cat.key)}
+                  >
+                    {cat.icon} {cat.label}
+                  </button>
+                ))}
+              </div>
 
-            {/* Sort selector */}
+              <button 
+                className={`scroll-arrow-btn right ${!showRightArrow ? 'hidden' : ''}`} 
+                onClick={() => scrollTabs('right')} 
+                disabled={!showRightArrow}
+                title="Cuộn sang phải"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          </div>
+
+          {/* Sub Bar (Results Count & Sort Selector) */}
+          <div className="shop-subbar">
+            <div className="results-count">
+              Tìm thấy <strong>{filteredProducts.length}</strong> sản phẩm
+            </div>
             <div className="sort-wrapper">
               <span className="sort-label">Sắp xếp:</span>
               <select

@@ -22,7 +22,12 @@ const CATEGORY_LABELS = {
 
 const getConditionLabel = (cond) => {
   if (!cond) return '';
-  const key = Object.keys(CONDITION_LABELS).find((k) => cond.toLowerCase().includes(k));
+  const c = cond.toLowerCase();
+  if (c.includes('99%') || c.includes('excellent')) return 'Như mới';
+  if (c.includes('90%') || c.includes('good') || c.includes('rất tốt')) return 'Rất tốt';
+  if (c.includes('80%') || c.includes('fair') || c.includes('khá tốt')) return 'Khá tốt';
+  
+  const key = Object.keys(CONDITION_LABELS).find((k) => c.includes(k));
   return key ? CONDITION_LABELS[key] : cond;
 };
 
@@ -31,9 +36,9 @@ const getCategoryLabel = (cat) => CATEGORY_LABELS[cat] ?? cat;
 const getConditionClass = (cond) => {
   if (!cond) return 'badge-excellent';
   const c = cond.toLowerCase();
-  if (c.includes('excellent') || c.includes('như mới') || c.includes('mới')) return 'badge-excellent';
-  if (c.includes('good') || c.includes('rất tốt')) return 'badge-good';
-  if (c.includes('fair') || c.includes('khá')) return 'badge-fair';
+  if (c.includes('excellent') || c.includes('như mới') || c.includes('mới') || c.includes('99%')) return 'badge-excellent';
+  if (c.includes('good') || c.includes('rất tốt') || c.includes('90%')) return 'badge-good';
+  if (c.includes('fair') || c.includes('khá') || c.includes('80%')) return 'badge-fair';
   return 'badge-excellent';
 };
 

@@ -19,7 +19,7 @@ const ChatBot = () => {
         };
 
         try {
-            const response = await axios.post("http://localhost:3001/api/chat", {
+            const response = await axios.post("http://localhost:5000/api/ai/chat", {
                 history,
             });
             updateHistory(response.data.reply);
