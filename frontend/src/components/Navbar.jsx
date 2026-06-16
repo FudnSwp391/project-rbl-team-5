@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
-import { Recycle, ShoppingCart, User, LogOut, LayoutDashboard, ShoppingBag, Calendar, Menu, X, Sun, Moon } from 'lucide-react';
+import { Recycle, ShoppingCart, User, LogOut, LayoutDashboard, ShoppingBag, Calendar, Menu, X, Sun, Moon, Bell, Search, MessageSquare } from 'lucide-react';
 import './Navbar.css';
 
-const Navbar = ({ activePage, setActivePage, theme, setTheme }) => {
+const Navbar = ({ activePage, setActivePage, theme, setTheme, setDashboardSubTab, dashboardSubTab }) => {
   const { user, logout } = useAuth();
   const { cartItems } = useCart();
   const [showDropdown, setShowDropdown] = useState(false);
@@ -16,11 +16,16 @@ const Navbar = ({ activePage, setActivePage, theme, setTheme }) => {
     setActivePage('home');
   };
 
-  const navItems = [
+  const navItems = user && user.role === 'technician' ? [
+    { id: 'shop', label: 'Marketplace', icon: ShoppingBag },
+    { id: 'repairs', label: 'Repairs', icon: Calendar },
+    { id: 'chat', label: 'Workplace', icon: MessageSquare },
+  ] : [
     { id: 'home', label: 'Trang chủ', icon: Recycle },
     { id: 'shop', label: 'Chợ đồ cũ', icon: ShoppingBag },
     { id: 'booking', label: 'Đặt lịch sửa chữa', icon: Calendar },
   ];
+
 
   return (
     <nav className="navbar">
@@ -33,26 +38,53 @@ const Navbar = ({ activePage, setActivePage, theme, setTheme }) => {
         </div>
 
         {/* Desktop Menu */}
-        <div className="navbar-links">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                className={`nav-link ${activePage === item.id ? 'active' : ''}`}
-                onClick={() => {
-                  setActivePage(item.id);
-                  setMobileMenuOpen(false);
-                }}
-              >
-                <Icon size={18} />
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
-        </div>
+        {user && user.role === 'technician' && activePage === 'dashboard' && (dashboardSubTab === 'overview' || !dashboardSubTab || dashboardSubTab === '') ? (
+          <div className="navbar-search-centered">
+            <Search size={18} className="search-icon" />
+            <input type="text" placeholder="Search tasks..." className="nav-search-input" />
+          </div>
+        ) : (
+          <div className="navbar-links">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = (user && user.role === 'technician')
+                ? (activePage === 'dashboard' && dashboardSubTab === item.id) || (activePage === 'shop' && item.id === 'shop')
+                : activePage === item.id;
+              return (
+                <button
+                  key={item.id}
+                  className={`nav-link ${isActive ? 'active' : ''}`}
+                  onClick={() => {
+                    if (user && user.role === 'technician') {
+                      if (item.id === 'shop') {
+                        setActivePage('shop');
+                      } else {
+                        if (setDashboardSubTab) setDashboardSubTab(item.id);
+                        setActivePage('dashboard');
+                      }
+                    } else {
+                      setActivePage(item.id);
+                    }
+                    setMobileMenuOpen(false);
+                  }}
+                >
+                  <Icon size={18} />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         <div className="navbar-actions">
+          {/* Right search input for technician when not on overview page */}
+          {user && user.role === 'technician' && !(activePage === 'dashboard' && (dashboardSubTab === 'overview' || !dashboardSubTab || dashboardSubTab === '')) && (
+            <div className="navbar-search-right">
+              <Search size={16} className="search-icon" />
+              <input type="text" placeholder="Search tickets..." className="nav-search-input-sm" />
+            </div>
+          )}
+
           {/* Theme Toggle */}
           <div 
             className="theme-toggle-wrapper nav-action-item" 
@@ -61,6 +93,12 @@ const Navbar = ({ activePage, setActivePage, theme, setTheme }) => {
             title="Toggle Light/Dark Theme"
           >
             {theme === 'light' ? <Moon className="action-icon" /> : <Sun className="action-icon" />}
+          </div>
+
+          {/* Bell Icon */}
+          <div className="bell-icon-wrapper nav-action-item" onClick={() => alert("Không có thông báo mới.")} title="Thông báo">
+            <Bell className="action-icon" />
+            <span className="bell-badge-dot"></span>
           </div>
 
           {/* Cart Icon */}
@@ -80,7 +118,7 @@ const Navbar = ({ activePage, setActivePage, theme, setTheme }) => {
               >
                 <img src={user.avatar} alt={user.username} className="user-avatar" />
                 <span className="user-name">{user.username}</span>
-                <span className={`user-role-tag role-${user.role}`}>{user.role === 'admin' ? 'Admin' : user.role === 'technician' ? 'Kỹ thuật' : 'Khách'}</span>
+                <span className={`user-role-tag role-${user.role}`}>{user.role === 'admin' ? 'Admin' : user.role === 'technician' ? 'Kỹ thuật' : user.role === 'seller' ? 'Người bán' : 'Khách'}</span>
               </div>
 
               {showDropdown && (
@@ -100,6 +138,19 @@ const Navbar = ({ activePage, setActivePage, theme, setTheme }) => {
                     <LayoutDashboard size={16} />
                     Bảng điều khiển
                   </button>
+                  {user.role === 'customer' && (
+                    <button 
+                      className="dropdown-item" 
+                      onClick={() => {
+                        if (setDashboardSubTab) setDashboardSubTab('orders');
+                        setActivePage('dashboard');
+                        setShowDropdown(false);
+                      }}
+                    >
+                      <ShoppingBag size={16} />
+                      Lịch sử mua hàng
+                    </button>
+                  )}
                   <button className="dropdown-item logout" onClick={handleLogout}>
                     <LogOut size={16} />
                     Đăng xuất
@@ -152,6 +203,20 @@ const Navbar = ({ activePage, setActivePage, theme, setTheme }) => {
               >
                 <LayoutDashboard size={20} />
                 <span>Bảng điều khiển</span>
+              </button>
+            )}
+            
+            {user && user.role === 'customer' && (
+              <button
+                className="mobile-nav-link"
+                onClick={() => {
+                  if (setDashboardSubTab) setDashboardSubTab('orders');
+                  setActivePage('dashboard');
+                  setMobileMenuOpen(false);
+                }}
+              >
+                <ShoppingBag size={20} />
+                <span>Lịch sử mua hàng</span>
               </button>
             )}
 

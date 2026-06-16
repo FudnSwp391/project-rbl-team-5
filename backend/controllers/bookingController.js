@@ -5,7 +5,7 @@ exports.getBookings = async (req, res) => {
   try {
     let bookings = [];
 
-    if (req.user.role === 'admin') {
+    if (req.user.role === 'admin' || req.user.role === 'seller') {
       // Admin thấy tất cả repair_bookings JOIN repair_requests
       const result = await db.query(`
         SELECT rb.*, rr.customer_id, rr.user_description, rr.status AS req_status

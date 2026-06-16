@@ -15,9 +15,21 @@ import ChatBot from "./components/chatbot/ChatBot";
 
 
 function MainApp() {
-  const [activePage, setActivePage] = useState('home');
+  const parseHash = () => {
+    const hash = window.location.hash;
+    if (!hash.startsWith('#/')) {
+      return { page: 'home', subTab: null };
+    }
+    const path = hash.slice(2); // remove '#/'
+    const parts = path.split('/');
+    return { page: parts[0] || 'home', subTab: parts[1] || null };
+  };
+
+  const initial = parseHash();
+  const [activePage, setActivePage] = useState(initial.page);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const { user } = useAuth();
+  const [dashboardSubTab, setDashboardSubTab] = useState(initial.subTab);
 
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
 
@@ -25,6 +37,40 @@ function MainApp() {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
   }, [theme]);
+
+  // Sync hash changes with react state
+  useEffect(() => {
+    if (window.location.hash === '') {
+      window.location.hash = '#/home';
+    }
+
+    const handleHashChange = () => {
+      const { page, subTab } = parseHash();
+      setActivePage(page);
+      setDashboardSubTab(subTab);
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  // Reset dashboard sub-tab when navigating away from dashboard
+  useEffect(() => {
+    if (activePage !== 'dashboard' && dashboardSubTab !== null) {
+      setDashboardSubTab(null);
+    }
+  }, [activePage, dashboardSubTab]);
+
+  // Sync state changes back to hash
+  useEffect(() => {
+    const current = parseHash();
+    if (current.page !== activePage || current.subTab !== dashboardSubTab) {
+      const isDashboard = activePage === 'dashboard';
+      const actualSubTab = isDashboard ? dashboardSubTab : null;
+      const newHash = actualSubTab ? `#/${activePage}/${actualSubTab}` : `#/${activePage}`;
+      window.location.hash = newHash;
+    }
+  }, [activePage, dashboardSubTab]);
 
   const renderPage = () => {
     switch (activePage) {
@@ -39,7 +85,7 @@ function MainApp() {
       case 'checkout':
         return <Checkout setActivePage={setActivePage} />;
       case 'dashboard':
-        return <Dashboard setActivePage={setActivePage} theme={theme} setTheme={setTheme} />;
+        return <Dashboard setActivePage={setActivePage} theme={theme} setTheme={setTheme} initialSubTab={dashboardSubTab} setInitialSubTab={setDashboardSubTab} />;
       case 'auth':
         return <Auth setActivePage={setActivePage} />;
       default:
@@ -51,7 +97,7 @@ function MainApp() {
 
   return (
     <div className="app-container">
-      {!isAdminDashboard && <Navbar activePage={activePage} setActivePage={setActivePage} theme={theme} setTheme={setTheme} />}
+      {!isAdminDashboard && <Navbar activePage={activePage} setActivePage={setActivePage} theme={theme} setTheme={setTheme} setDashboardSubTab={setDashboardSubTab} dashboardSubTab={dashboardSubTab} />}
       <main className={isAdminDashboard ? "" : "main-content"}>
         {renderPage()}
       </main>

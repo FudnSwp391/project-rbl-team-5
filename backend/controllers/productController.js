@@ -45,7 +45,7 @@ exports.getProductById = async (req, res) => {
 
 // POST /api/products
 exports.createProduct = async (req, res) => {
-  if (req.user.role !== 'Admin' && req.user.role !== 'admin') {
+  if (req.user.role !== 'Admin' && req.user.role !== 'admin' && req.user.role !== 'seller') {
     return res.status(403).json({ message: 'Không có quyền thực hiện hành động này.' });
   }
   
@@ -106,7 +106,7 @@ exports.createProduct = async (req, res) => {
 
 // PUT /api/products/:id
 exports.updateProduct = async (req, res) => {
-  if (req.user.role !== 'Admin' && req.user.role !== 'admin') {
+  if (req.user.role !== 'Admin' && req.user.role !== 'admin' && req.user.role !== 'seller') {
     return res.status(403).json({ message: 'Không có quyền thực hiện.' });
   }
   
@@ -164,7 +164,7 @@ exports.updateProduct = async (req, res) => {
 
 // DELETE /api/products/:id
 exports.deleteProduct = async (req, res) => {
-  if (req.user.role !== 'Admin' && req.user.role !== 'admin') {
+  if (req.user.role !== 'Admin' && req.user.role !== 'admin' && req.user.role !== 'seller') {
     return res.status(403).json({ message: 'Không có quyền thực hiện.' });
   }
   

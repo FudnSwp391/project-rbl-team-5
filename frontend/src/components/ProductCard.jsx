@@ -28,6 +28,76 @@ const getConditionLabel = (cond) => {
 
 const getCategoryLabel = (cat) => CATEGORY_LABELS[cat] ?? cat;
 
+const getConditionClass = (cond) => {
+  if (!cond) return 'badge-excellent';
+  const c = cond.toLowerCase();
+  if (c.includes('excellent') || c.includes('như mới') || c.includes('mới')) return 'badge-excellent';
+  if (c.includes('good') || c.includes('rất tốt')) return 'badge-good';
+  if (c.includes('fair') || c.includes('khá')) return 'badge-fair';
+  return 'badge-excellent';
+};
+
+export const getProductImage = (product) => {
+  if (!product) return 'https://images.unsplash.com/photo-1526738549149-8e07eca6c147?w=500';
+  const imgUrl = product.image || product.image_url;
+  
+  // If it's a valid remote URL (starts with http/https or data:), return it
+  if (imgUrl && (imgUrl.startsWith('http') || imgUrl.startsWith('data:'))) {
+    return imgUrl;
+  }
+  
+  // Map categories to high-quality Unsplash image URLs
+  const cat = (product.category || '').toLowerCase();
+  const name = (product.name || product.title || product.product_name || '').toLowerCase();
+  
+  if (cat.includes('phone') || cat.includes('điện thoại')) {
+    return 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=500';
+  }
+  if (cat.includes('laptop') || cat.includes('máy tính xách tay') || cat.includes('computer')) {
+    return 'https://images.unsplash.com/photo-1496181130204-755241524eab?w=500';
+  }
+  if (cat.includes('tablet') || cat.includes('máy tính bảng') || cat.includes('ipad')) {
+    return 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=500';
+  }
+  if (cat.includes('watch') || cat.includes('đồng hồ')) {
+    return 'https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?w=500';
+  }
+  if (cat.includes('air') || cat.includes('máy lạnh') || cat.includes('conditioner')) {
+    return 'https://images.unsplash.com/photo-1621905252507-b354bc25edac?w=500';
+  }
+  if (cat.includes('wash') || cat.includes('máy giặt') || cat.includes('laundry')) {
+    return 'https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?w=500';
+  }
+  if (cat.includes('fridge') || cat.includes('tủ lạnh') || cat.includes('refrigerator')) {
+    return 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=500';
+  }
+  if (cat.includes('microwave') || cat.includes('vi sóng') || cat.includes('oven')) {
+    return 'https://images.unsplash.com/photo-1574269909862-7e1d70bb8078?w=500';
+  }
+  if (cat.includes('audio') || cat.includes('tai nghe') || cat.includes('headphone') || cat.includes('speaker')) {
+    return 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500';
+  }
+  
+  // Check name as fallback
+  if (name.includes('iphone') || name.includes('samsung') || name.includes('điện thoại') || name.includes('phone')) {
+    return 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=500';
+  }
+  if (name.includes('macbook') || name.includes('laptop') || name.includes('thinkpad') || name.includes('dell')) {
+    return 'https://images.unsplash.com/photo-1496181130204-755241524eab?w=500';
+  }
+  if (name.includes('air') || name.includes('máy lạnh') || name.includes('sharp') || name.includes('daikin')) {
+    return 'https://images.unsplash.com/photo-1621905252507-b354bc25edac?w=500';
+  }
+  if (name.includes('washing') || name.includes('máy giặt') || name.includes('electrolux') || name.includes('lg')) {
+    return 'https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?w=500';
+  }
+  if (name.includes('tủ lạnh') || name.includes('fridge') || name.includes('refrigerator')) {
+    return 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=500';
+  }
+  
+  return 'https://images.unsplash.com/photo-1526738549149-8e07eca6c147?w=500'; // Default tech image
+};
+
 const ProductCard = ({ product, onViewDetails }) => {
   const { addToCart, cartItems } = useCart();
   const isAlreadyInCart = cartItems.some((item) => item.id === product.id);
@@ -41,8 +111,8 @@ const ProductCard = ({ product, onViewDetails }) => {
   return (
     <div className={`product-card ${isSold ? 'sold-out' : ''}`}>
       <div className="product-image-wrapper">
-        <img src={product.image || product.image_url} alt={product.name || product.title} className="product-image" />
-        <span className={`product-condition-badge badge-excellent`}>
+        <img src={getProductImage(product)} alt={product.name || product.title} className="product-image" />
+        <span className={`product-condition-badge badge ${getConditionClass(rawCondition)}`}>
           {condLabel}
         </span>
         {isSold && (

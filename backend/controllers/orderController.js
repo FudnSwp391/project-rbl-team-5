@@ -4,7 +4,7 @@ const { db } = require('../db');
 exports.getOrders = async (req, res) => {
   try {
     let orders;
-    if (req.user.role === 'Admin' || req.user.role === 'admin') {
+    if (req.user.role === 'Admin' || req.user.role === 'admin' || req.user.role === 'seller') {
       orders = await db.find('orders');
     } else {
       let customerProfile = await db.findOne('customer_profiles', { user_id: req.user.id });

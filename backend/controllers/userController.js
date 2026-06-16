@@ -19,7 +19,7 @@ exports.getTechnicians = async (req, res) => {
 
 // GET /api/users - Admin xem tất cả user
 exports.getUsersList = async (req, res) => {
-  if (req.user.role !== 'Admin' && req.user.role !== 'admin') {
+  if (req.user.role !== 'Admin' && req.user.role !== 'admin' && req.user.role !== 'seller') {
     return res.status(403).json({ message: 'Không có quyền truy cập.' });
   }
   try {
@@ -59,7 +59,7 @@ exports.deleteUser = async (req, res) => {
 
 // GET /api/users/stats - Admin thống kê
 exports.getStats = async (req, res) => {
-  if (req.user.role !== 'Admin' && req.user.role !== 'admin') {
+  if (req.user.role !== 'Admin' && req.user.role !== 'admin' && req.user.role !== 'seller') {
     return res.status(403).json({ message: 'Không có quyền truy cập.' });
   }
 
