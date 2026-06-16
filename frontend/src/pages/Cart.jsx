@@ -1,4 +1,5 @@
 import { useCart } from '../context/CartContext';
+import { getProductImage } from '../components/ProductCard';
 import { Trash2, ArrowLeft, ShoppingBag, CreditCard, Recycle, ShieldAlert } from 'lucide-react';
 import './Cart.css';
 
@@ -45,7 +46,7 @@ const Cart = ({ setActivePage }) => {
           {cartItems.map((item) => (
             <div key={item.id} className="cart-item glass-panel animate-slide-up">
               <div className="item-img-wrapper">
-                <img src={item.image} alt={item.name} className="item-img" />
+                <img src={getProductImage(item)} alt={item.name} className="item-img" />
               </div>
               
               <div className="item-details">
