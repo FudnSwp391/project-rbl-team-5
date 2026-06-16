@@ -113,6 +113,7 @@ exports.login = async (req, res) => {
         email: user.email,
         full_name: user.full_name,
         phone: user.phone,
+        description: user.description || '',
         role: clientRole,
         avatar: user.avatar
       }
@@ -136,11 +137,68 @@ exports.getMe = async (req, res) => {
       email: user.email,
       full_name: user.full_name,
       phone: user.phone,
+      description: user.description || '',
       role: clientRole,
       avatar: user.avatar
     });
   } catch (error) {
     console.error('Lỗi getMe:', error);
     res.status(500).json({ message: 'Lỗi lấy dữ liệu người dùng.' });
+  }
+};
+
+exports.updateProfile = async (req, res) => {
+  const { username, email, description, phone } = req.body;
+  
+  if (!username || !email) {
+    return res.status(400).json({ message: 'Tên đăng nhập và email là bắt buộc.' });
+  }
+
+  try {
+    // Check if email is already taken by another user
+    const existingUser = await db.findOne('users', { email });
+    if (existingUser && String(existingUser.id) !== String(req.user.id)) {
+      return res.status(400).json({ message: 'Email đã được sử dụng bởi tài khoản khác.' });
+    }
+
+    // Check if username is already taken by another user
+    const existingUsername = await db.findOne('users', { username });
+    if (existingUsername && String(existingUsername.id) !== String(req.user.id)) {
+      return res.status(400).json({ message: 'Tên đăng nhập đã được sử dụng bởi tài khoản khác.' });
+    }
+
+    await db.query(
+      `UPDATE users 
+       SET username = @username, email = @email, description = @description, phone = @phone 
+       WHERE id = @id`,
+      [
+        { name: 'username', value: username },
+        { name: 'email', value: email },
+        { name: 'description', value: description || null },
+        { name: 'phone', value: phone || null },
+        { name: 'id', value: req.user.id }
+      ]
+    );
+
+    // Fetch updated user
+    const updatedUser = await db.findOne('users', { id: req.user.id });
+    const clientRole = REVERSE_ROLE_MAP[updatedUser.role_id] || 'customer';
+
+    res.json({
+      message: 'Cập nhật thông tin cá nhân thành công.',
+      user: {
+        id: updatedUser.id,
+        username: updatedUser.username,
+        email: updatedUser.email,
+        full_name: updatedUser.full_name,
+        phone: updatedUser.phone,
+        description: updatedUser.description || '',
+        role: clientRole,
+        avatar: updatedUser.avatar
+      }
+    });
+  } catch (error) {
+    console.error('Lỗi cập nhật profile:', error);
+    res.status(500).json({ message: 'Lỗi xử lý cập nhật thông tin cá nhân.' });
   }
 };

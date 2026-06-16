@@ -6,7 +6,7 @@ import './Shop.css';
 
 const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000' : '';
 
-const Shop = ({ selectedProduct, setSelectedProduct }) => {
+const Shop = ({ selectedProduct, setSelectedProduct, showFilters, setShowFilters }) => {
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -125,15 +125,29 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
 
   return (
     <div className="shop-page container py-4 animate-fade">
-      <div className="shop-header text-center mb-5">
-        <div className="shop-badge-premium">Chợ Công Nghệ Xanh</div>
-        <h1 className="shop-title fw-bold">Chợ Thiết Bị Công Nghệ Cũ</h1>
-        <p className="shop-subtitle text-muted">Mua sắm thiết bị chính hãng, giá tiết kiệm, bảo hành đổi trả uy tín và góp phần bảo vệ môi trường.</p>
+      
+      <div className="shop-header-row mb-5" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '20px' }}>
+        <button className={`toggle-filters-btn ${showFilters ? 'active' : ''}`} onClick={() => setShowFilters(!showFilters)}>
+          <SlidersHorizontal size={16} />
+          <span>Bộ lọc</span>
+        </button>
+        
+        <div className="shop-header text-center" style={{ flex: 1, minWidth: '280px' }}>
+          <div className="shop-badge-premium">Chợ Công Nghệ Xanh</div>
+          <h1 className="shop-title fw-bold" style={{ margin: '0 0 10px 0' }}>Chợ Thiết Bị Công Nghệ Cũ</h1>
+          <p className="shop-subtitle text-muted" style={{ margin: '0 auto', maxWidth: '600px' }}>Mua sắm thiết bị chính hãng, giá tiết kiệm, bảo hành đổi trả uy tín và góp phần bảo vệ môi trường.</p>
+        </div>
+        
+        <div className="header-placeholder" style={{ width: '120px' }}></div>
       </div>
 
-      <div className="shop-layout">
+      <div className={`shop-layout ${showFilters ? 'filters-open' : ''}`}>
         {/* Sidebar Filters (Column 1) */}
-        <aside className="shop-filters-sidebar glass-panel">
+        <aside className={`shop-filters-sidebar glass-panel ${showFilters ? 'show' : ''}`}>
+          <button className="close-filters-btn" onClick={() => setShowFilters(false)} title="Đóng bộ lọc">
+            <X size={18} />
+          </button>
+          
           <div className="sidebar-section-header mb-3">
             <SlidersHorizontal size={18} />
             <h3 className="m-0 fw-bold">Bộ lọc</h3>

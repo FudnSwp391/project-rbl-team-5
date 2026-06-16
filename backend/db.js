@@ -23,6 +23,20 @@ const poolPromise = new sql.ConnectionPool(config)
   .connect()
   .then(pool => {
     console.log('Connected to MS SQL Server');
+    // Automigration to add description column to Users table
+    pool.request().query(`
+      IF NOT EXISTS (
+        SELECT * FROM sys.columns 
+        WHERE object_id = OBJECT_ID('dbo.Users') AND name = 'description'
+      )
+      BEGIN
+        ALTER TABLE dbo.Users ADD description NVARCHAR(MAX) NULL;
+      END
+    `).then(() => {
+      console.log('Database schema checked/updated successfully.');
+    }).catch(err => {
+      console.error('Error running description column migration:', err);
+    });
     return pool;
   })
   .catch(err => {

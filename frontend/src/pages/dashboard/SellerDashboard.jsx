@@ -1,19 +1,31 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import io from 'socket.io-client';
 import { 
   LayoutDashboard, ShoppingBag, Calendar, Plus, Trash2, 
   Users, Sun, Moon, Search, Bell, Settings, HelpCircle, LogOut,
-  MapPin, CreditCard, Pencil, Tag, ArrowLeft, MessageSquare
+  MapPin, CreditCard, Pencil, Tag, ArrowLeft, MessageSquare, Send
 } from 'lucide-react';
+import ProfileSettings from '../../components/ProfileSettings';
+import { getProductImage } from '../../components/ProductCard';
 
 const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000' : '';
 
 const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInitialSubTab }) => {
-  const { user, token } = useAuth();
+  const { user, token, getAvatarUrl, logout } = useAuth();
   const subTab = initialSubTab || 'stats';
   const setSubTab = setInitialSubTab;
   const [viewingUser, setViewingUser] = useState(null);
   const fileInputRef = useRef(null);
+
+  // --- CHAT SYSTEM STATES ---
+  const [chatConversations, setChatConversations] = useState([]);
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const socketRef = useRef(null);
+  const chatEndRef = useRef(null);
+  const fetchConversationsListRef = useRef(null);
 
   // --- DATA STATES ---
   const [stats, setStats] = useState(null);
@@ -43,6 +55,8 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
   // --- FORM STATES FOR EDITING PRODUCTS ---
   const [editingProduct, setEditingProduct] = useState(null);
   const [editProdName, setEditProdName] = useState('');
+  const [inventorySearch, setInventorySearch] = useState('');
+  const [productsSearch, setProductsSearch] = useState('');
   const [editProdPrice, setEditProdPrice] = useState('');
   const [editProdCategory, setEditProdCategory] = useState('AirConditioner');
   const [editProdCondition, setEditProdCondition] = useState('excellent');
@@ -98,6 +112,84 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
     }
   };
 
+  // --- WEBSOCKET CHAT LOGIC ---
+  useEffect(() => {
+    if (!user) return;
+    socketRef.current = io(`${API_BASE}`);
+    socketRef.current.emit('registerUser', user.id);
+
+    socketRef.current.on('receiveMessage', (message) => {
+      if (selectedBooking && message.bookingId === selectedBooking.id) {
+        setChatMessages(prev => Array.isArray(prev) ? [...prev, message] : [message]);
+      }
+      if (fetchConversationsListRef.current) fetchConversationsListRef.current();
+    });
+
+    return () => {
+      if (socketRef.current) socketRef.current.disconnect();
+    };
+  }, [user, selectedBooking]);
+
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages]);
+
+  const fetchConversationsList = useCallback(() => {
+    if (bookingsList.length === 0) return;
+    const chats = bookingsList.filter(b => b.status !== 'pending');
+    setChatConversations(chats);
+  }, [bookingsList]);
+
+  useEffect(() => {
+    fetchConversationsListRef.current = fetchConversationsList;
+  }, [fetchConversationsList]);
+
+  useEffect(() => {
+    fetchConversationsList();
+  }, [fetchConversationsList]);
+
+  const handleSelectConversation = (booking) => {
+    setSelectedBooking(booking);
+    setChatMessages([]);
+    if (socketRef.current) {
+      socketRef.current.emit('joinBookingRoom', booking.id);
+    }
+    fetch(`${API_BASE}/api/messages/${booking.id}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setChatMessages(data);
+        } else {
+          setChatMessages([]);
+          console.error('Expected array of messages, got:', data);
+        }
+      })
+      .catch(err => {
+        console.error('Lỗi tải lịch sử chat:', err);
+        setChatMessages([]);
+      });
+  };
+
+  const handleSendMessage = (e) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !selectedBooking) return;
+    const receiverId = selectedBooking.customerId;
+    const messagePayload = {
+      senderId: user.id,
+      receiverId,
+      bookingId: selectedBooking.id,
+      text: newMessage
+    };
+    if (socketRef.current) {
+      socketRef.current.emit('sendMessage', messagePayload);
+      setNewMessage('');
+    }
+  };
+
 
 
   useEffect(() => {
@@ -105,8 +197,8 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
   }, [user, token, subTab]);
 
   const handleLogout = () => {
+    logout();
     setActivePage('home');
-    window.location.reload();
   };
 
   const handleEstimateValue = (e) => {
@@ -325,7 +417,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
           <nav className="sidebar-nav-menu">
             <button className={`sidebar-nav-btn ${subTab === 'stats' ? 'active' : ''}`} onClick={() => setSubTab('stats')}>
               <LayoutDashboard size={18} />
-              Bảng điều khiển
+              Dashboard
             </button>
             <button className={`sidebar-nav-btn ${subTab === 'products' ? 'active' : ''}`} onClick={() => setSubTab('products')}>
               <ShoppingBag size={18} />
@@ -350,7 +442,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
           </button>
 
           <div className="sidebar-bottom-nav">
-            <button className="sidebar-nav-btn bottom-btn" onClick={() => alert("Settings menu is managed by Eco Seller administration.")}>
+            <button className={`sidebar-nav-btn bottom-btn ${subTab === 'settings' ? 'active' : ''}`} onClick={() => setSubTab('settings')}>
               <Settings size={18} />
               Settings
             </button>
@@ -372,12 +464,17 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
         {/* Dashboard Main Content Area */}
         <main className="dashboard-main-content">
           <header className="dashboard-top-bar glass-panel">
-            <h2 className="topbar-page-title">Bảng Điều Khiển</h2>
+            <h2 className="topbar-page-title">
+              {subTab === 'stats' ? 'Dashboard' : 
+               subTab === 'products' ? 'Inventory' : 
+               subTab === 'bookings' ? 'Orders' : 
+               subTab === 'customers' ? 'Customers' : 
+               subTab === 'marketing' ? 'Marketing' : 
+               subTab === 'chat' ? 'Messages' : 
+               subTab === 'settings' ? 'Settings' : 'Dashboard'}
+            </h2>
 
-            <div className="topbar-search-box seller-search-box">
-              <Search size={18} className="search-icon" />
-              <input type="text" placeholder="Tìm kiếm sản phẩm..." />
-            </div>
+            <div style={{ flex: 1 }}></div>
 
             <div className="topbar-actions-profile">
               <button className="topbar-action-btn theme-toggle" onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')} title="Toggle Light/Dark theme">
@@ -398,7 +495,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                   <h4>Nhân Viên Bán Hàng</h4>
                   <span>seller</span>
                 </div>
-                <img src={user.avatar} alt={user.username} className="profile-avatar-circle" />
+                <img src={getAvatarUrl(user.avatar, user.username)} alt={user.username} className="profile-avatar-circle" />
               </div>
             </div>
           </header>
@@ -408,6 +505,13 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
               <div className="spinner-border text-primary" role="status">
                 <span className="visually-hidden">Loading...</span>
               </div>
+            </div>
+          )}
+
+          {!loading && subTab === 'settings' && (
+            <div className="settings-view animate-fade container py-4">
+              <h2 className="mb-4 text-center" style={{ fontWeight: 800 }}>Account Settings</h2>
+              <ProfileSettings />
             </div>
           )}
 
@@ -533,55 +637,6 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                       </div>
                     </div>
                   </div>
-
-                  {/* Inventory Management list */}
-                  <div className="stats-card-widget glass-panel seller-inventory-widget">
-                    <div className="widget-header-row">
-                      <h3>Quản Lý Kho Hàng</h3>
-                      <div className="action-icons">
-                        <button className="icon-btn" onClick={() => alert("Lọc danh sách...")}>🔍</button>
-                        <button className="icon-btn" onClick={() => alert("Xuất báo cáo...")}>📥</button>
-                      </div>
-                    </div>
-
-                    <div className="transactions-table-wrapper">
-                      <table className="transactions-table">
-                        <thead>
-                          <tr>
-                            <th>TÊN THIẾT BỊ</th>
-                            <th>DANH MỤC</th>
-                            <th>TỒN KHO</th>
-                            <th>GIÁ BÁN</th>
-                            <th>TRẠNG THÁI</th>
-                            <th>THAO TÁC</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {productsList.length > 0 ? (
-                            productsList.slice(0, 4).map((prod, idx) => (
-                              <tr key={prod.id || idx}>
-                                <td className="prod-cell">
-                                  <img src={prod.image || 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=80'} alt={prod.name} className="mini-prod-thumb" />
-                                  <strong>{prod.name}</strong>
-                                </td>
-                                <td>{prod.category === 'AirConditioner' ? 'Máy lạnh' : prod.category === 'WashingMachine' ? 'Máy giặt' : prod.category === 'Refrigerator' ? 'Tủ lạnh' : 'Gia dụng'}</td>
-                                <td>{idx === 0 ? '12' : idx === 1 ? '03' : '05'} chiếc</td>
-                                <td>{prod.price.toLocaleString('en-US')} VND</td>
-                                <td><span className={`badge badge-${prod.status === 'available' ? 'completed' : 'pending'}`}>{prod.status === 'available' ? 'Còn hàng' : 'Hết hàng'}</span></td>
-                                <td>
-                                  <button className="table-edit-btn" onClick={() => setSubTab('products')}>✏️</button>
-                                </td>
-                              </tr>
-                            ))
-                          ) : (
-                            <tr>
-                              <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>Không có sản phẩm nào.</td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
                 </div>
 
                 {/* Right Column */}
@@ -619,6 +674,86 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                       </div>
                     </div>
                   </div>
+                </div>
+              </div>
+
+              {/* Inventory Management list */}
+              <div className="stats-card-widget glass-panel seller-inventory-widget" style={{ marginTop: '24px' }}>
+                <div className="widget-header-row" style={{ flexWrap: 'wrap', gap: '10px' }}>
+                  <h3>Quản Lý Kho Hàng</h3>
+                  <div className="d-flex align-items-center gap-2" style={{ marginLeft: 'auto' }}>
+                    <div className="search-input-wrapper" style={{ position: 'relative' }}>
+                      <input 
+                        type="text" 
+                        placeholder="Tìm kiếm..." 
+                        value={inventorySearch}
+                        onChange={(e) => setInventorySearch(e.target.value)}
+                        style={{
+                          padding: '6px 12px 6px 30px',
+                          fontSize: '0.85rem',
+                          borderRadius: '20px',
+                          border: '1px solid var(--border-color)',
+                          width: '180px',
+                          backgroundColor: 'var(--white)',
+                          color: 'var(--neutral-darkest)'
+                        }}
+                      />
+                      <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--neutral-medium)' }} />
+                    </div>
+                    <button className="icon-btn" onClick={() => alert("Xuất báo cáo...")}>📥</button>
+                  </div>
+                </div>
+
+                <div className="transactions-table-wrapper">
+                  <table className="transactions-table">
+                    <thead>
+                      <tr>
+                        <th>TÊN THIẾT BỊ</th>
+                        <th>DANH MỤC</th>
+                        <th>TỒN KHO</th>
+                        <th>GIÁ BÁN</th>
+                        <th>TRẠNG THÁI</th>
+                        <th>THAO TÁC</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(() => {
+                        const filtered = productsList.filter(prod => 
+                          prod.name.toLowerCase().includes(inventorySearch.toLowerCase()) ||
+                          (prod.category || '').toLowerCase().includes(inventorySearch.toLowerCase())
+                        );
+                        return filtered.length > 0 ? (
+                          filtered.map((prod, idx) => (
+                            <tr key={prod.id || idx}>
+                              <td className="prod-cell">
+                                <img src={getProductImage(prod)} alt={prod.name} className="mini-prod-thumb" />
+                                <strong>{prod.name}</strong>
+                              </td>
+                              <td>
+                                {prod.category === 'AirConditioner' ? 'Máy lạnh' : 
+                                 prod.category === 'WashingMachine' ? 'Máy giặt' : 
+                                 prod.category === 'Refrigerator' ? 'Tủ lạnh' : 
+                                 prod.category === 'Audio' ? 'Tai nghe' : 
+                                 prod.category === 'Laptop' ? 'Laptop' : 
+                                 prod.category === 'Smartwatch' ? 'Đồng hồ' : 
+                                 prod.category || 'Gia dụng'}
+                              </td>
+                              <td>{idx === 0 ? '12' : idx === 1 ? '03' : '05'} chiếc</td>
+                              <td>{prod.price.toLocaleString('en-US')} VND</td>
+                              <td><span className={`badge badge-${prod.status === 'available' ? 'completed' : 'pending'}`}>{prod.status === 'available' ? 'Còn hàng' : 'Hết hàng'}</span></td>
+                              <td>
+                                <button className="table-edit-btn" onClick={() => setSubTab('products')}>✏️</button>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>Không tìm thấy sản phẩm nào.</td>
+                          </tr>
+                        );
+                      })()}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
@@ -716,7 +851,29 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
               </form>
 
               {/* Product catalog list */}
-              <div className="table-responsive" style={{ marginTop: '30px' }}>
+              <div className="d-flex align-items-center justify-content-between" style={{ marginTop: '40px', marginBottom: '15px', flexWrap: 'wrap', gap: '10px' }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>Product Listings</h3>
+                <div className="search-input-wrapper" style={{ position: 'relative' }}>
+                  <input 
+                    type="text" 
+                    placeholder="Tìm kiếm sản phẩm..." 
+                    value={productsSearch}
+                    onChange={(e) => setProductsSearch(e.target.value)}
+                    style={{
+                      padding: '8px 16px 8px 36px',
+                      fontSize: '0.9rem',
+                      borderRadius: '20px',
+                      border: '1px solid var(--border-color)',
+                      width: '250px',
+                      backgroundColor: 'var(--white)',
+                      color: 'var(--neutral-darkest)'
+                    }}
+                  />
+                  <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--neutral-medium)' }} />
+                </div>
+              </div>
+
+              <div className="table-responsive">
                 <table className="dashboard-table">
                   <thead>
                     <tr>
@@ -730,11 +887,17 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                     </tr>
                   </thead>
                   <tbody>
-                    {productsList.map(prod => (
-                      <tr key={prod.id}>
-                        <td>
-                          <img src={prod.image} alt={prod.name} className="tbl-prod-thumb" />
-                        </td>
+                    {(() => {
+                      const filtered = productsList.filter(prod => 
+                        prod.name.toLowerCase().includes(productsSearch.toLowerCase()) ||
+                        (prod.category || '').toLowerCase().includes(productsSearch.toLowerCase())
+                      );
+                      return filtered.length > 0 ? (
+                        filtered.map(prod => (
+                          <tr key={prod.id}>
+                            <td>
+                              <img src={getProductImage(prod)} alt={prod.name} className="tbl-prod-thumb" />
+                            </td>
                         <td>
                           <strong>{prod.name}</strong>
                           <div className="tbl-subtext" style={{ maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{prod.description}</div>
@@ -802,7 +965,13 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                           </div>
                         </td>
                       </tr>
-                    ))}
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>Không tìm thấy sản phẩm nào.</td>
+                      </tr>
+                    );
+                  })()}
                   </tbody>
                 </table>
               </div>
@@ -889,7 +1058,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                       <div className="profile-card-body">
                         <div className="profile-avatar-container">
                           <img 
-                            src={viewingUser.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${viewingUser.username}`} 
+                            src={getAvatarUrl(viewingUser.avatar, viewingUser.username)} 
                             alt={viewingUser.username} 
                             className="detail-avatar" 
                           />
@@ -1048,7 +1217,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                           <tr key={c.id} onClick={() => setViewingUser(c)} style={{ cursor: 'pointer' }} className="customer-row-hover">
                             <td>
                               <div className="tbl-user-cell">
-                                <img src={c.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${c.username}`} alt={c.username} className="tbl-avatar-circle" />
+                                <img src={getAvatarUrl(c.avatar, c.username)} alt={c.username} className="tbl-avatar-circle" />
                                 <strong>{c.username}</strong>
                               </div>
                             </td>
@@ -1153,6 +1322,132 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {!loading && subTab === 'chat' && (
+            <div className="chat-view-layout glass-panel animate-fade">
+              <div className="chat-conversations-sidebar">
+                <h3>Repair Tickets</h3>
+                <p className="chat-sub-lbl">Select a ticket to begin consultation</p>
+                <div className="chat-conversations-list">
+                  {chatConversations.map(conv => (
+                    <div 
+                      key={conv.id} 
+                      className={`conv-item-card ${selectedBooking?.id === conv.id ? 'active' : ''}`}
+                      onClick={() => handleSelectConversation(conv)}
+                    >
+                      <div className="conv-item-info">
+                        <h4>{conv.deviceType}</h4>
+                        <p className="conv-user-name">
+                          Client: {conv.customerName}
+                        </p>
+                      </div>
+                      <span className="conv-id">#{conv.id}</span>
+                    </div>
+                  ))}
+                  {chatConversations.length === 0 && (
+                    <p className="empty-text">No assigned repairs available to start messaging.</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="chat-thread-panel">
+                {selectedBooking ? (
+                  <>
+                    <div className="thread-header">
+                      <div>
+                        <h4>{selectedBooking.deviceType}</h4>
+                        <p>#{selectedBooking.id} • Customer: {selectedBooking.customerName}</p>
+                      </div>
+                    </div>
+
+                    <div className="chat-messages-thread">
+                      {Array.isArray(chatMessages) && chatMessages.map(msg => {
+                        const isMe = msg.senderId === user.id;
+                        return (
+                          <div key={msg.id} className={`chat-message-bubble ${isMe ? 'mine' : 'theirs'}`}>
+                            {!isMe && <img src={getAvatarUrl(msg.senderAvatar, msg.senderName)} alt={msg.senderName} className="msg-avatar" />}
+                            <div className="msg-bubble-content">
+                              {!isMe && <span className="sender-name">{msg.senderName}</span>}
+                              <p className="msg-text">{msg.text}</p>
+                              <span className="msg-time">{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <div ref={chatEndRef} />
+                    </div>
+
+                    <form className="chat-input-form" onSubmit={handleSendMessage}>
+                      <input 
+                        type="text" 
+                        placeholder="Type your message..." 
+                        value={newMessage}
+                        onChange={e => setNewMessage(e.target.value)}
+                      />
+                      <button type="submit" className="chat-send-btn">
+                        <Send size={18} />
+                      </button>
+                    </form>
+                  </>
+                ) : (
+                  <div className="no-chat-selected">
+                    <p>Select a conversation from the sidebar to view chat logs.</p>
+                  </div>
+                )}
+              </div>
+
+              {selectedBooking && (
+                <div className="chat-case-details-panel">
+                  <h3>Repair Ticket</h3>
+                  <hr className="details-divider" />
+                  <div className="details-content">
+                    <div className="details-device-header">
+                      <h4>{selectedBooking.deviceType}</h4>
+                      <span className="details-id">#{selectedBooking.id}</span>
+                    </div>
+                    
+                    <div className="details-progress-stepper">
+                      <div className={`stepper-step ${['assigned', 'inspecting', 'repairing', 'completed'].includes(selectedBooking.status) ? 'active' : ''}`}>
+                        <div className="step-bullet">1</div>
+                        <div className="step-info"><span className="step-name">Assigned</span></div>
+                      </div>
+                      <div className={`stepper-step ${['inspecting', 'repairing', 'completed'].includes(selectedBooking.status) ? 'active' : ''}`}>
+                        <div className="step-bullet">2</div>
+                        <div className="step-info"><span className="step-name">Inspect</span></div>
+                      </div>
+                      <div className={`stepper-step ${['repairing', 'completed'].includes(selectedBooking.status) ? 'active' : ''}`}>
+                        <div className="step-bullet">3</div>
+                        <div className="step-info"><span className="step-name">Repairing</span></div>
+                      </div>
+                      <div className={`stepper-step ${selectedBooking.status === 'completed' ? 'active' : ''}`}>
+                        <div className="step-bullet">4</div>
+                        <div className="step-info"><span className="step-name">Done</span></div>
+                      </div>
+                    </div>
+
+                    <hr className="details-divider" />
+
+                    <div className="details-row">
+                      <span>Estimated Cost:</span>
+                      <span className="details-cost-val">
+                        {selectedBooking.cost > 0 ? `${selectedBooking.cost.toLocaleString('en-US')} VND` : 'Inspect pending'}
+                      </span>
+                    </div>
+
+                    <div className="details-row-vertical">
+                      <span>Customer Fault Report:</span>
+                      <p className="details-issue-text">{selectedBooking.issueDescription}</p>
+                    </div>
+
+                    <div className="details-row-vertical">
+                      <span>Technician Notes:</span>
+                      <p className="details-notes-text">{selectedBooking.notes || 'No notes added yet.'}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </main>

@@ -30,8 +30,16 @@ function MainApp() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const { user } = useAuth();
   const [dashboardSubTab, setDashboardSubTab] = useState(initial.subTab);
+  const [showFilters, setShowFilters] = useState(false);
 
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
+
+  // Reset showFilters when navigating away from shop
+  useEffect(() => {
+    if (activePage !== 'shop') {
+      setShowFilters(false);
+    }
+  }, [activePage]);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -72,12 +80,14 @@ function MainApp() {
     }
   }, [activePage, dashboardSubTab]);
 
+
+
   const renderPage = () => {
     switch (activePage) {
       case 'home':
         return <Home setActivePage={setActivePage} setSelectedProduct={setSelectedProduct} />;
       case 'shop':
-        return <Shop selectedProduct={selectedProduct} setSelectedProduct={setSelectedProduct} />;
+        return <Shop selectedProduct={selectedProduct} setSelectedProduct={setSelectedProduct} showFilters={showFilters} setShowFilters={setShowFilters} />;
       case 'booking':
         return <Booking setActivePage={setActivePage} />;
       case 'cart':
@@ -93,16 +103,16 @@ function MainApp() {
     }
   };
 
-  const isAdminDashboard = activePage === 'dashboard' && user && user.role === 'Admin';
+  const isConsoleDashboard = activePage === 'dashboard' && user && ['admin', 'seller', 'technician'].includes(user.role?.toLowerCase());
 
   return (
     <div className="app-container">
-      {!isAdminDashboard && <Navbar activePage={activePage} setActivePage={setActivePage} theme={theme} setTheme={setTheme} setDashboardSubTab={setDashboardSubTab} dashboardSubTab={dashboardSubTab} />}
-      <main className={isAdminDashboard ? "" : "main-content"}>
+      {!isConsoleDashboard && <Navbar activePage={activePage} setActivePage={setActivePage} theme={theme} setTheme={setTheme} setDashboardSubTab={setDashboardSubTab} dashboardSubTab={dashboardSubTab} showFilters={showFilters} setShowFilters={setShowFilters} />}
+      <main className={isConsoleDashboard ? "" : "main-content"}>
         {renderPage()}
       </main>
-      {!isAdminDashboard && <Footer />}
-      {!isAdminDashboard && <ChatBot />}
+      {!isConsoleDashboard && <Footer />}
+      {!isConsoleDashboard && <ChatBot />}
     </div>
   );
 }

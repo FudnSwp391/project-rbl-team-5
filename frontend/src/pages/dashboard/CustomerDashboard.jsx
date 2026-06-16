@@ -3,13 +3,14 @@ import { useAuth } from '../../context/AuthContext';
 import io from 'socket.io-client';
 import { 
   LayoutDashboard, ShoppingBag, Calendar, MessageSquare,
-  Sun, Moon, Search, Bell, HelpCircle, LogOut, Send
+  Sun, Moon, Search, Bell, HelpCircle, LogOut, Send, Settings
 } from 'lucide-react';
+import ProfileSettings from '../../components/ProfileSettings';
 
 const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000' : '';
 
 const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInitialSubTab }) => {
-  const { user, token } = useAuth();
+  const { user, token, getAvatarUrl, logout } = useAuth();
   const subTab = initialSubTab || 'overview';
   const setSubTab = setInitialSubTab;
 
@@ -128,8 +129,8 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
   };
 
   const handleLogout = () => {
+    logout();
     setActivePage('home');
-    window.location.reload();
   };
 
   const getStatusLabel = (st) => {
@@ -179,6 +180,10 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
           </nav>
 
           <div className="sidebar-bottom-nav">
+            <button className={`sidebar-nav-btn bottom-btn ${subTab === 'settings' ? 'active' : ''}`} onClick={() => setSubTab('settings')}>
+              <Settings size={18} />
+              Settings
+            </button>
             <button className="sidebar-nav-btn bottom-btn" onClick={() => alert("Contact TechCycle support at support@techcycle.vn")}>
               <HelpCircle size={18} />
               Help
@@ -212,7 +217,7 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
                   <h4>{user.username}</h4>
                   <span>Customer</span>
                 </div>
-                <img src={user.avatar} alt={user.username} className="profile-avatar-circle" />
+                 <img src={getAvatarUrl(user.avatar, user.username)} alt={user.username} className="profile-avatar-circle" />
               </div>
             </div>
           </header>
@@ -427,7 +432,7 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
                         const isMe = msg.senderId === user.id;
                         return (
                           <div key={msg.id} className={`chat-message-bubble ${isMe ? 'mine' : 'theirs'}`}>
-                            {!isMe && <img src={msg.senderAvatar} alt={msg.senderName} className="msg-avatar" />}
+                             {!isMe && <img src={getAvatarUrl(msg.senderAvatar, msg.senderName)} alt={msg.senderName} className="msg-avatar" />}
                             <div className="msg-bubble-content">
                               {!isMe && <span className="sender-name">{msg.senderName}</span>}
                               <p className="msg-text">{msg.text}</p>
@@ -508,6 +513,12 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {!loading && subTab === 'settings' && (
+            <div className="settings-view animate-fade container py-4">
+              <ProfileSettings />
             </div>
           )}
         </main>

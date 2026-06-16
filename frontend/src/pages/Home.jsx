@@ -78,6 +78,10 @@ const Home = ({ setActivePage, setSelectedProduct }) => {
                 src="https://images.unsplash.com/photo-16219051189-08b45d6a269e?w=800" 
                 alt="Air Conditioner Diagnostics" 
                 className="hero-main-img"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = "https://images.unsplash.com/photo-1581092921461-eab62e97a780?w=800";
+                }}
               />
             </div>
           </div>
@@ -265,6 +269,10 @@ const Home = ({ setActivePage, setSelectedProduct }) => {
                 src="https://images.unsplash.com/photo-1604754742629-3e5728249d73?w=700" 
                 alt="Environmental electronic diagnostics" 
                 className="features-img w-100"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = "https://images.unsplash.com/photo-1596495578065-6e0763fa1178?w=700";
+                }}
               />
               <div className="features-overlay-card card position-absolute p-3 shadow-lg d-flex flex-row align-items-center gap-2">
                 <AlertCircle size={24} className="alert-icon" />
