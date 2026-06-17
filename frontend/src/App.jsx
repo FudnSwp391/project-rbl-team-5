@@ -80,6 +80,11 @@ function MainApp() {
     }
   }, [activePage, dashboardSubTab]);
 
+  // Scroll to top on page navigation
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [activePage]);
+
 
 
   const renderPage = () => {

@@ -653,9 +653,9 @@
 }
 
 .pagination-num-btn {
-  background-color: var(--white);
-  border: 1px solid rgba(229, 231, 235, 0.8);
-  color: var(--neutral-dark);
+  background-color: #F59E0B;
+  border: 1px solid #F59E0B;
+  color: #064E3B;
   width: 40px;
   height: 40px;
   border-radius: 12px;
@@ -669,17 +669,17 @@
 }
 
 .pagination-num-btn:hover {
-  background-color: var(--primary-light);
-  color: var(--primary);
-  border-color: rgba(16, 185, 129, 0.3);
+  background-color: #D97706;
+  color: #064E3B;
+  border-color: #D97706;
   transform: translateY(-1px);
 }
 
 .pagination-num-btn.active {
-  background-color: var(--primary);
-  color: var(--white);
-  border-color: var(--primary);
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+  background-color: #064E3B;
+  color: #F59E0B;
+  border-color: #064E3B;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35);
 }
 
 /* Responsive Shop styles */

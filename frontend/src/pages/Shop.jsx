@@ -251,19 +251,23 @@ const Shop = ({ selectedProduct, setSelectedProduct, showFilters, setShowFilters
         <main className="shop-main-content">
           {/* Top Bar Navigation / Sort */}
           <div className="shop-topbar">
-            {/* Category tabs */}
             <div className="category-tabs">
-              {['All', 'AirConditioner', 'WashingMachine', 'Refrigerator', 'Microwave'].map(cat => (
+              {['All', 'AirConditioner', 'WashingMachine', 'Refrigerator', 'Microwave', 'Audio', 'Laptop', 'Smartwatch'].map(cat => (
                 <button
                   key={cat}
                   className={`category-tab-btn ${category === cat ? 'active' : ''}`}
                   onClick={() => setCategory(cat)}
                 >
-                  {cat === 'All' ? 'Tất cả' : cat === 'AirConditioner' ? 'Máy lạnh' : cat === 'WashingMachine' ? 'Máy giặt' : cat === 'Refrigerator' ? 'Tủ lạnh' : 'Lò vi sóng'}
+                  {cat === 'All' ? 'Tất cả' : 
+                   cat === 'AirConditioner' ? 'Máy lạnh' : 
+                   cat === 'WashingMachine' ? 'Máy giặt' : 
+                   cat === 'Refrigerator' ? 'Tủ lạnh' : 
+                   cat === 'Microwave' ? 'Lò vi sóng' : 
+                   cat === 'Audio' ? 'Tai nghe' : 
+                   cat === 'Laptop' ? 'Laptop' : 'Đồng hồ'}
                 </button>
               ))}
             </div>
-
             {/* Sort selector */}
             <div className="sort-wrapper">
               <span className="sort-label">Sắp xếp:</span>

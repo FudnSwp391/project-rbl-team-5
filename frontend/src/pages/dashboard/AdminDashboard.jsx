@@ -6,7 +6,7 @@ import ProfileSettings from '../../components/ProfileSettings';
 import { 
   LayoutDashboard, ShoppingBag, Calendar, Plus, Trash2, 
   Users, Sun, Moon, Eye, Search, Bell, Settings, HelpCircle, LogOut,
-  MapPin, CreditCard, Pencil, Shield, ArrowLeft, MessageSquare, Tag, Send
+  MapPin, CreditCard, Pencil, Shield, ArrowLeft, MessageSquare, Tag, Send, Image, Paperclip
 } from 'lucide-react';
 
 const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000' : '';
@@ -37,6 +37,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
   const [newProdImage, setNewProdImage] = useState('');
   const [newProdDesc, setNewProdDesc] = useState('');
   const [productSuccess, setProductSuccess] = useState('');
+  const [selectedImageFiles, setSelectedImageFiles] = useState([]);
 
   // --- FORM STATES FOR EDITING PRODUCTS ---
   const [editingProduct, setEditingProduct] = useState(null);
@@ -49,23 +50,28 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
   const [editProdStatus, setEditProdStatus] = useState('available');
 
   // --- FORM STATES FOR PROMO CODES ---
-  const [promoCodes, setPromoCodes] = useState([
-    { code: 'CIGHENTER24', discount: '12', expiry: '15/06', status: 'active' },
-    { code: 'TECHREVIEW', discount: '10', expiry: 'Hết hạn', status: 'expired' }
-  ]);
+  const [promoCodes, setPromoCodes] = useState([]);
   const [newPromoCode, setNewPromoCode] = useState('');
   const [newPromoDiscount, setNewPromoDiscount] = useState('');
   const [newPromoActive, setNewPromoActive] = useState(true);
   const [newPromoExpiry, setNewPromoExpiry] = useState('');
+
+  // --- FORM STATES FOR NOTIFICATIONS ---
+  const [notifTitle, setNotifTitle] = useState('');
+  const [notifMessage, setNotifMessage] = useState('');
+  const [notifImage, setNotifImage] = useState('');
+  const [notifTargetRole, setNotifTargetRole] = useState('all');
 
   // --- CHAT SYSTEM STATES ---
   const [chatConversations, setChatConversations] = useState([]);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [chatMessages, setChatMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const socketRef = useRef(null);
   const chatEndRef = useRef(null);
   const fetchConversationsListRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const fetchData = async () => {
     if (!user || !token) return;
@@ -104,6 +110,14 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
       });
       const dataOrders = await resOrders.json();
       if (Array.isArray(dataOrders)) setOrdersList(dataOrders);
+
+      const resPromos = await fetch(`${API_BASE}/api/promocodes`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (resPromos.ok) {
+        const dataPromos = await resPromos.json();
+        setPromoCodes(dataPromos);
+      }
     } catch (err) {
       console.error('Lỗi tải dữ liệu bảng điều khiển:', err);
     } finally {
@@ -111,35 +125,106 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
     }
   };
 
-  const handleCreatePromoCode = (e) => {
+  const handleCreatePromoCode = async (e) => {
     e.preventDefault();
     if (!newPromoCode.trim() || !newPromoDiscount) {
       alert("Vui lòng nhập cả mã và tỷ lệ phần trăm giảm giá.");
       return;
     }
-    let formattedExpiry = '30/06';
-    if (newPromoExpiry) {
-      const parts = newPromoExpiry.split('-');
-      if (parts.length === 3) {
-        formattedExpiry = `${parts[2]}/${parts[1]}`;
-      }
+    
+    const discountNum = parseInt(newPromoDiscount);
+    if (isNaN(discountNum) || discountNum <= 0 || discountNum >= 100) {
+      alert("Phần trăm giảm giá phải từ 1% đến 99%!");
+      return;
     }
-    const newCode = {
-      code: newPromoCode.toUpperCase().replace(/\s+/g, ''),
-      discount: newPromoDiscount,
-      expiry: formattedExpiry,
-      status: newPromoActive ? 'active' : 'expired'
-    };
-    setPromoCodes(prev => [newCode, ...prev]);
-    setNewPromoCode('');
-    setNewPromoDiscount('');
-    setNewPromoExpiry('');
-    alert(`Mã khuyến mãi ${newCode.code} đã được tạo thành công!`);
+    
+    let formattedExpiry = '2026-12-31';
+    if (newPromoExpiry) {
+      formattedExpiry = newPromoExpiry;
+    }
+    
+    try {
+      const res = await fetch(`${API_BASE}/api/promocodes`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          code: newPromoCode.toUpperCase().replace(/\s+/g, ''),
+          discount: discountNum,
+          expiry: formattedExpiry,
+          status: newPromoActive ? 'active' : 'expired'
+        })
+      });
+      
+      if (res.ok) {
+        const newCode = await res.json();
+        setPromoCodes(prev => [newCode, ...prev]);
+        setNewPromoCode('');
+        setNewPromoDiscount('');
+        setNewPromoExpiry('');
+        alert(`Mã khuyến mãi ${newCode.code} đã được tạo thành công!`);
+      } else {
+        const err = await res.json();
+        alert(err.message || 'Lỗi tạo mã.');
+      }
+    } catch (err) {
+      alert('Lỗi kết nối.');
+    }
   };
 
-  const handleDeletePromoCode = (codeToDelete) => {
+  const handleCreateNotification = async (e) => {
+    e.preventDefault();
+    if (!notifTitle.trim() || !notifMessage.trim()) {
+      alert("Vui lòng điền đầy đủ tiêu đề và nội dung thông báo.");
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE}/api/notifications`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ 
+          title: notifTitle, 
+          message: notifMessage,
+          image: notifImage,
+          targetRole: notifTargetRole
+        })
+      });
+      if (res.ok) {
+        const targetText = notifTargetRole === 'all' ? 'toàn bộ người dùng' : 
+                          notifTargetRole === 'technician' ? 'các thợ kỹ thuật' : 'các seller';
+        alert(`Thông báo đã được gửi thành công đến ${targetText}!`);
+        setNotifTitle('');
+        setNotifMessage('');
+        setNotifImage('');
+        setNotifTargetRole('all');
+      } else {
+        const errData = await res.json();
+        alert(`Lỗi gửi thông báo: ${errData.message || 'Không xác định'}`);
+      }
+    } catch (err) {
+      console.error('Lỗi gửi thông báo:', err);
+      alert('Không thể kết nối đến máy chủ.');
+    }
+  };
+
+  const handleDeletePromoCode = async (codeToDelete) => {
     if (window.confirm(`Bạn có chắc chắn muốn xóa mã khuyến mãi ${codeToDelete}?`)) {
-      setPromoCodes(prev => prev.filter(p => p.code !== codeToDelete));
+      try {
+        const res = await fetch(`${API_BASE}/api/promocodes/${codeToDelete}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          setPromoCodes(prev => prev.filter(p => p.code !== codeToDelete));
+        }
+      } catch (err) {
+        alert('Lỗi xóa mã.');
+      }
     }
   };
 
@@ -203,6 +288,47 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
         console.error('Lỗi tải lịch sử chat:', err);
         setChatMessages([]);
       });
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !selectedBooking) return;
+
+    setIsUploadingImage(true);
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/upload-images`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ images: [reader.result] })
+        });
+        const data = await res.json();
+        if (res.ok && data.urls && data.urls.length > 0) {
+          const imageUrl = data.urls[0];
+          const receiverId = selectedBooking.customerId;
+          if (socketRef.current) {
+            socketRef.current.emit('sendMessage', {
+              senderId: user.id,
+              receiverId,
+              bookingId: selectedBooking.id,
+              text: `[IMG]${imageUrl}`
+            });
+          }
+        } else {
+          alert('Lỗi tải ảnh lên');
+        }
+      } catch (err) {
+        console.error('Lỗi tải ảnh:', err);
+      } finally {
+        setIsUploadingImage(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSendMessage = (e) => {
@@ -295,7 +421,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
 
   const handleLogout = () => {
     logout();
-    setActivePage('home');
+    window.location.hash = '#/auth';
   };
 
   const handleDeleteUser = async (userId) => {
@@ -379,6 +505,35 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
     }
   };
 
+  const handleImageFilesChange = (e) => {
+    if (e.target.files) {
+      const files = Array.from(e.target.files);
+      if (files.length + selectedImageFiles.length > 10) {
+        alert("Bạn chỉ có thể tải lên tối đa 10 hình ảnh.");
+        return;
+      }
+      
+      const promises = files.map(file => {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (ev) => resolve(ev.target.result);
+          reader.onerror = (err) => reject(err);
+          reader.readAsDataURL(file);
+        });
+      });
+      
+      Promise.all(promises).then(base64s => {
+        setSelectedImageFiles(prev => [...prev, ...base64s]);
+      }).catch(err => {
+        console.error("Lỗi đọc file:", err);
+      });
+    }
+  };
+
+  const handleRemoveSelectedImage = (indexToRemove) => {
+    setSelectedImageFiles(prev => prev.filter((_, idx) => idx !== indexToRemove));
+  };
+
   const handleAddProduct = async (e) => {
     e.preventDefault();
     setProductSuccess('');
@@ -387,6 +542,30 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
       return;
     }
     try {
+      let finalUrls = [];
+      if (selectedImageFiles.length > 0) {
+        const uploadRes = await fetch(`${API_BASE}/api/upload-images`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ images: selectedImageFiles })
+        });
+        if (uploadRes.ok) {
+          const uploadData = await uploadRes.json();
+          finalUrls = uploadData.urls;
+        } else {
+          const errData = await uploadRes.json();
+          alert(`Lỗi tải lên hình ảnh: ${errData.message || 'Không xác định'}`);
+          return;
+        }
+      }
+
+      if (newProdImage.trim()) {
+        finalUrls.push(newProdImage.trim());
+      }
+
       const res = await fetch(`${API_BASE}/api/products`, {
         method: 'POST',
         headers: {
@@ -398,7 +577,8 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
           price: Number(newProdPrice),
           category: newProdCategory,
           condition: newProdCondition,
-          image: newProdImage || undefined,
+          images: finalUrls,
+          image: finalUrls[0] || undefined,
           description: newProdDesc
         })
       });
@@ -408,6 +588,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
         setNewProdPrice('');
         setNewProdDesc('');
         setNewProdImage('');
+        setSelectedImageFiles([]);
         fetchData();
       } else {
         const d = await res.json();
@@ -415,6 +596,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
       }
     } catch (err) {
       console.error(err);
+      alert('Có lỗi xảy ra khi thêm sản phẩm.');
     }
   };
 
@@ -971,6 +1153,9 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                       <option value="WashingMachine">Washing Machine</option>
                       <option value="Refrigerator">Refrigerator</option>
                       <option value="Microwave">Microwave</option>
+                      <option value="Audio">Audio</option>
+                      <option value="Laptop">Laptop</option>
+                      <option value="Smartwatch">Smartwatch</option>
                     </select>
                   </div>
                   <div className="form-group">
@@ -987,16 +1172,48 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                   </div>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Image URL (leave blank for defaults)</label>
-                  <input 
-                    type="url" 
-                    className="form-control" 
-                    placeholder="https://images.unsplash.com/..." 
-                    value={newProdImage}
-                    onChange={e => setNewProdImage(e.target.value)}
-                  />
+                <div className="form-row-grid">
+                  <div className="form-group">
+                    <label className="form-label">Hoặc nhập link hình ảnh</label>
+                    <input 
+                      type="url" 
+                      className="form-control" 
+                      placeholder="https://images.unsplash.com/..." 
+                      value={newProdImage}
+                      onChange={e => setNewProdImage(e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Tải lên từ máy tính (Chọn nhiều ảnh, tối đa 10)</label>
+                    <input 
+                      type="file" 
+                      className="form-control" 
+                      multiple 
+                      accept="image/*"
+                      onChange={handleImageFilesChange}
+                    />
+                  </div>
                 </div>
+
+                {selectedImageFiles.length > 0 && (
+                  <div className="form-group">
+                    <label className="form-label">Hình ảnh đã chọn ({selectedImageFiles.length}/10):</label>
+                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '8px' }}>
+                      {selectedImageFiles.map((base64, idx) => (
+                        <div key={idx} style={{ position: 'relative', width: '70px', height: '70px', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+                          <img src={base64} alt={`Uploaded ${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <button 
+                            type="button" 
+                            onClick={() => handleRemoveSelectedImage(idx)} 
+                            style={{ position: 'absolute', top: '2px', right: '2px', background: 'rgba(239, 68, 68, 0.85)', color: '#fff', border: 'none', borderRadius: '50%', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', cursor: 'pointer', fontWeight: 'bold' }}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div className="form-group">
                   <label className="form-label">Detailed Description</label>
@@ -1390,11 +1607,11 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
               <h2>Quản Lý Chiến Dịch & Khuyến Mãi</h2>
               <p className="view-desc">Tạo mã giảm giá và quản lý các chương trình tiếp thị thu hút khách hàng.</p>
               
-              <div className="seller-main-layout-grid" style={{ gridTemplateColumns: '1.2fr 0.8fr', display: 'grid', gap: '28px' }}>
-                <div className="layout-col-left">
+              <div className="seller-main-layout-grid" style={{ gridTemplateColumns: '1fr', display: 'grid', gap: '28px' }}>
+                <div className="layout-col-left" style={{ width: '100%' }}>
                   <div className="stats-card-widget glass-panel">
                     <h3 className="mb-4">Danh Sách Mã Khuyến Mãi</h3>
-                    <div className="promos-list" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    <div className="promos-list" style={{ display: 'flex', flexDirection: 'column', gap: '14px', maxHeight: '300px', overflowY: 'auto', paddingRight: '8px' }}>
                       {promoCodes.map((p, idx) => (
                         <div key={idx} className="promo-code-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', background: 'var(--neutral-lightest)', borderRadius: '12px', border: '1px solid var(--border-color)', opacity: p.status === 'active' ? 1 : 0.6 }}>
                           <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -1417,7 +1634,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                   </div>
                 </div>
                 
-                <div className="layout-col-right">
+                <div className="layout-col-right" style={{ width: '100%', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '28px' }}>
                   <div className="stats-card-widget glass-panel">
                     <h3>Tạo Mã Khuyến Mãi Mới</h3>
                     <form onSubmit={handleCreatePromoCode} className="quick-code-form" style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -1437,6 +1654,8 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                           type="number" 
                           className="form-control" 
                           placeholder="10"
+                          min="1"
+                          max="99"
                           value={newPromoDiscount}
                           onChange={e => setNewPromoDiscount(e.target.value)}
                         />
@@ -1459,11 +1678,69 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                             checked={newPromoActive}
                             onChange={e => setNewPromoActive(e.target.checked)}
                           />
-                          <span className="switch-slider" style={{ position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: newPromoActive ? '#006D44' : '#ccc', borderRadius: '24px', transition: '0.4s' }}></span>
+                          <span className="switch-slider" style={{ position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: newPromoActive ? '#F59E03' : '#ffffff', border: '1px solid #E5E7EB', borderRadius: '24px', transition: '0.4s' }}></span>
                         </label>
                       </div>
                       <button type="submit" className="btn btn-primary" style={{ background: '#006D44', color: '#fff', width: '100%', border: 'none', padding: '12px', borderRadius: '8px', fontWeight: 'bold' }}>
                         Tạo Mã Khuyến Mãi
+                      </button>
+                    </form>
+                  </div>
+
+                  <div className="stats-card-widget glass-panel">
+                    <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>📢 Gửi Thông Báo</h3>
+                    <form onSubmit={handleCreateNotification} className="quick-code-form" style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      <div className="form-group">
+                        <label className="form-label-sm">ĐỐI TƯỢNG NHẬN</label>
+                        <select 
+                          className="form-control"
+                          value={notifTargetRole}
+                          onChange={e => setNotifTargetRole(e.target.value)}
+                        >
+                          <option value="all">Toàn bộ người dùng</option>
+                          <option value="technician">Thợ kỹ thuật</option>
+                          <option value="seller">Người bán (Seller)</option>
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label-sm">TIÊU ĐỀ THÔNG BÁO</label>
+                        <input 
+                          type="text" 
+                          className="form-control" 
+                          placeholder="Tiêu đề thông báo..."
+                          value={notifTitle}
+                          onChange={e => setNotifTitle(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label-sm">NỘI DUNG CHI TIẾT</label>
+                        <textarea 
+                          className="form-control" 
+                          rows="4"
+                          placeholder="Nội dung gửi đến người dùng..."
+                          value={notifMessage}
+                          onChange={e => setNotifMessage(e.target.value)}
+                          required
+                        ></textarea>
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label-sm">ẢNH MINH HỌA (URL)</label>
+                        <input 
+                          type="text" 
+                          className="form-control" 
+                          placeholder="https://example.com/image.jpg (tùy chọn)"
+                          value={notifImage}
+                          onChange={e => setNotifImage(e.target.value)}
+                        />
+                        {notifImage && (
+                          <div style={{ marginTop: '12px', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+                            <img src={notifImage} alt="Preview" style={{ width: '100%', height: 'auto', maxHeight: '200px', objectFit: 'cover' }} onError={(e) => { e.target.style.display = 'none'; }} />
+                          </div>
+                        )}
+                      </div>
+                      <button type="submit" className="btn btn-secondary" style={{ width: '100%', padding: '12px', borderRadius: '8px', fontWeight: 'bold' }}>
+                        Gửi Thông Báo
                       </button>
                     </form>
                   </div>
@@ -1517,8 +1794,12 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                              {!isMe && <img src={getAvatarUrl(msg.senderAvatar, msg.senderName)} alt={msg.senderName} className="msg-avatar" />}
                             <div className="msg-bubble-content">
                               {!isMe && <span className="sender-name">{msg.senderName}</span>}
-                              <p className="msg-text">{msg.text}</p>
-                              <span className="msg-time">{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                              {msg.text && msg.text.startsWith('[IMG]') ? (
+                                <img src={msg.text.replace('[IMG]', '')} alt="attachment" className="chat-image-attachment" onClick={() => window.open(msg.text.replace('[IMG]', ''), '_blank')} />
+                              ) : (
+                                <p className="msg-text">{msg.text}</p>
+                              )}
+                              <span className="msg-time">{new Date(msg.createdAt || msg.timestamp || new Date()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                             </div>
                           </div>
                         );
@@ -1528,12 +1809,28 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
 
                     <form className="chat-input-form" onSubmit={handleSendMessage}>
                       <input 
+                        type="file" 
+                        accept="image/*" 
+                        ref={fileInputRef} 
+                        style={{ display: 'none' }} 
+                        onChange={handleImageUpload}
+                      />
+                      <button 
+                        type="button" 
+                        className="chat-attach-btn" 
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploadingImage}
+                      >
+                        <Paperclip size={18} />
+                      </button>
+                      <input 
                         type="text" 
-                        placeholder="Type your message..." 
+                        placeholder={isUploadingImage ? "Đang tải ảnh lên..." : "Type your message..."}
                         value={newMessage}
                         onChange={e => setNewMessage(e.target.value)}
+                        disabled={isUploadingImage}
                       />
-                      <button type="submit" className="chat-send-btn">
+                      <button type="submit" className="chat-send-btn" disabled={isUploadingImage}>
                         <Send size={18} />
                       </button>
                     </form>

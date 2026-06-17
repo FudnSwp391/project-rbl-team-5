@@ -32,7 +32,10 @@ const Auth = ({ setActivePage }) => {
         const loggedInUser = await login(email, password);
         const role = loggedInUser?.role?.toLowerCase();
         if (role === 'admin' || role === 'technician' || role === 'seller') {
-          window.location.hash = '#/dashboard';
+          // Add 50ms delay to allow React state propagation before navigation
+          setTimeout(() => {
+            window.location.hash = '#/dashboard';
+          }, 50);
         } else {
           window.location.hash = '#/home';
         }

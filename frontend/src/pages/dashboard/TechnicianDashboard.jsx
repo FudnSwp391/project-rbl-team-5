@@ -5,7 +5,7 @@ import ProfileSettings from '../../components/ProfileSettings';
 import { 
   LayoutDashboard, ShoppingBag, MessageSquare, Plus,
   Sun, Moon, Search, Bell, Settings, HelpCircle, LogOut,
-  CreditCard, Pencil, Wrench, Package, Send
+  CreditCard, Pencil, Wrench, Package, Send, Image, Paperclip
 } from 'lucide-react';
 
 const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000' : '';
@@ -27,9 +27,11 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [chatMessages, setChatMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const socketRef = useRef(null);
   const chatEndRef = useRef(null);
   const fetchConversationsListRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const fetchData = async () => {
     if (!user || !token) return;
@@ -116,6 +118,49 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
       });
   };
 
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !selectedBooking) return;
+
+    setIsUploadingImage(true);
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/upload-images`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ images: [reader.result] })
+        });
+        const data = await res.json();
+        if (res.ok && data.urls && data.urls.length > 0) {
+          const imageUrl = data.urls[0];
+          const receiverId = user.role === 'customer' 
+            ? selectedBooking.technicianId 
+            : selectedBooking.customerId;
+          if (socketRef.current) {
+            socketRef.current.emit('sendMessage', {
+              senderId: user.id,
+              receiverId,
+              bookingId: selectedBooking.id,
+              text: `[IMG]${imageUrl}`
+            });
+          }
+        } else {
+          alert('Lỗi tải ảnh lên');
+        }
+      } catch (err) {
+        console.error('Lỗi tải ảnh:', err);
+      } finally {
+        setIsUploadingImage(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSendMessage = (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedBooking) return;
@@ -136,7 +181,7 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
 
   const handleLogout = () => {
     logout();
-    setActivePage('home');
+    window.location.hash = '#/auth';
   };
 
   const handleUpdateBookingStatus = async (bookingId, status) => {
@@ -678,8 +723,12 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
                             {!isMe && <img src={getAvatarUrl(msg.senderAvatar, msg.senderName)} alt={msg.senderName} className="msg-avatar" />}
                             <div className="msg-bubble-content">
                               {!isMe && <span className="sender-name">{msg.senderName}</span>}
-                              <p className="msg-text">{msg.text}</p>
-                              <span className="msg-time">{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                              {msg.text && msg.text.startsWith('[IMG]') ? (
+                                <img src={msg.text.replace('[IMG]', '')} alt="attachment" className="chat-image-attachment" onClick={() => window.open(msg.text.replace('[IMG]', ''), '_blank')} />
+                              ) : (
+                                <p className="msg-text">{msg.text}</p>
+                              )}
+                              <span className="msg-time">{new Date(msg.createdAt || msg.timestamp || new Date()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                             </div>
                           </div>
                         );
@@ -689,12 +738,28 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
 
                     <form className="chat-input-form" onSubmit={handleSendMessage}>
                       <input 
+                        type="file" 
+                        accept="image/*" 
+                        ref={fileInputRef} 
+                        style={{ display: 'none' }} 
+                        onChange={handleImageUpload}
+                      />
+                      <button 
+                        type="button" 
+                        className="chat-attach-btn" 
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploadingImage}
+                      >
+                        <Paperclip size={18} />
+                      </button>
+                      <input 
                         type="text" 
-                        placeholder="Type your message..." 
+                        placeholder={isUploadingImage ? "Đang tải ảnh lên..." : "Type your message..."}
                         value={newMessage}
                         onChange={e => setNewMessage(e.target.value)}
+                        disabled={isUploadingImage}
                       />
-                      <button type="submit" className="chat-send-btn">
+                      <button type="submit" className="chat-send-btn" disabled={isUploadingImage}>
                         <Send size={18} />
                       </button>
                     </form>

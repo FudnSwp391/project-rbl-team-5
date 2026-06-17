@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { Recycle, ShoppingCart, User, LogOut, LayoutDashboard, ShoppingBag, Calendar, Menu, X, Sun, Moon, Bell, SlidersHorizontal } from 'lucide-react';
@@ -12,10 +12,46 @@ const Navbar = ({ activePage, setActivePage, theme, setTheme, setDashboardSubTab
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [customAvatarUrl, setCustomAvatarUrl] = useState('');
 
+  // Notifications State
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifDropdown, setShowNotifDropdown] = useState(false);
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/notifications');
+      if (res.ok) {
+        const data = await res.json();
+        setNotifications(data);
+        const lastSeenId = localStorage.getItem('last_seen_notif_id') || '0';
+        if (data.length > 0) {
+          const unread = data.filter(n => Number(n.id) > Number(lastSeenId)).length;
+          setUnreadCount(unread);
+        }
+      }
+    } catch (err) {
+      console.error('Lỗi lấy thông báo:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 15000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleToggleDropdown = () => {
+    setShowNotifDropdown(!showNotifDropdown);
+    if (!showNotifDropdown && notifications.length > 0) {
+      setUnreadCount(0);
+      localStorage.setItem('last_seen_notif_id', notifications[0].id);
+    }
+  };
+
   const handleLogout = () => {
     logout();
     setShowDropdown(false);
-    setActivePage('home');
+    window.location.hash = '#/auth';
   };
 
   const navItems = [
@@ -83,9 +119,49 @@ const Navbar = ({ activePage, setActivePage, theme, setTheme, setDashboardSubTab
           </div>
 
           {/* Bell Icon */}
-          <div className="bell-icon-wrapper nav-action-item" onClick={() => alert("No new notifications.")} title="Notifications">
-            <Bell className="action-icon" />
-            <span className="bell-badge-count">3</span>
+          <div className="bell-icon-wrapper nav-action-item" style={{ position: 'relative' }}>
+            <div onClick={handleToggleDropdown} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }} title="Notifications">
+              <Bell className="action-icon" />
+              {unreadCount > 0 && <span className="bell-badge-count">{unreadCount}</span>}
+            </div>
+
+            {showNotifDropdown && (
+              <div className="notifications-dropdown-menu glass-panel animate-fade" style={{ position: 'absolute', top: '40px', right: '0', width: '380px', maxHeight: '500px', overflowY: 'auto', zIndex: 1000, padding: '16px', background: 'var(--white)', border: '1px solid var(--border-color)', borderRadius: '12px', boxShadow: 'var(--shadow-lg)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <h4 style={{ margin: 0, fontWeight: 700, fontSize: '1.1rem' }}>🔔 Thông báo</h4>
+                  <button style={{ background: 'none', border: 'none', fontSize: '0.8rem', color: 'var(--primary)', cursor: 'pointer', fontWeight: 600 }} onClick={() => setShowNotifDropdown(false)}>Đóng</button>
+                </div>
+                <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '0 -16px 12px -16px' }} />
+                {notifications.length === 0 ? (
+                  <p style={{ textAlign: 'center', color: 'var(--neutral-medium)', margin: '20px 0', fontSize: '0.9rem' }}>Không có thông báo mới.</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {notifications.map((n) => (
+                      <div key={n.id} style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', background: 'var(--neutral-bg)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px' }}>
+                          <span style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--primary-dark)' }}>{n.title}</span>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--neutral-medium)', flexShrink: 0 }}>{new Date(n.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                        {n.image && (
+                          <div style={{ marginTop: '4px', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+                            <img src={n.image} alt={n.title} style={{ width: '100%', height: 'auto', maxHeight: '180px', objectFit: 'cover' }} />
+                          </div>
+                        )}
+                        <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--neutral-dark)', lineHeight: '1.5' }}>{n.message}</p>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--secondary)', fontWeight: 600 }}>📨 Từ: {n.sender}</span>
+                          {n.targetRole && n.targetRole !== 'all' && (
+                            <span style={{ fontSize: '0.7rem', background: 'var(--primary-light)', color: 'var(--primary)', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>
+                              {n.targetRole === 'technician' ? '🔧 Thợ' : '🏪 Seller'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Cart Icon */}

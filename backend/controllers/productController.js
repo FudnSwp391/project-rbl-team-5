@@ -1,8 +1,9 @@
 const { db, sql } = require('../db');
 
 const formatProduct = async (prod) => {
-  // Fetch primary image from product_images table if it exists
-  const imgResult = await db.findOne('product_images', { product_id: prod.id });
+  // Fetch all images from product_images table if they exist
+  const images = await db.find('product_images', { product_id: prod.id });
+  const imageUrls = images.length > 0 ? images.map(img => img.image_url) : [prod.image || '/images/products/default.jpg'];
   
   // Find category name
   const cat = await db.findOne('product_categories', { id: prod.category_id });
@@ -12,7 +13,8 @@ const formatProduct = async (prod) => {
     id: prod.id,
     name: prod.title || prod.name || '',
     price: Number(prod.listed_price || prod.price || 0),
-    image: imgResult ? imgResult.image_url : (prod.image || '/images/products/default.jpg'),
+    image: imageUrls[0],
+    images: imageUrls,
     status: (prod.status === 'active') ? 'available' : 'sold',
     category: categoryName,
     condition: prod.ai_condition || prod.condition || 'good',
@@ -49,7 +51,7 @@ exports.createProduct = async (req, res) => {
     return res.status(403).json({ message: 'Không có quyền thực hiện hành động này.' });
   }
   
-  const { name, product_name, description, user_description, price, listed_price, category, category_id, condition, image, image_url } = req.body;
+  const { name, product_name, description, user_description, price, listed_price, category, category_id, condition, image, image_url, images } = req.body;
   
   try {
     const finalTitle = name || product_name || 'Thiết bị mới';
@@ -89,13 +91,29 @@ exports.createProduct = async (req, res) => {
       updated_at: new Date().toISOString()
     });
     
-    const finalImage = image || image_url || '/images/products/default.jpg';
-    await db.insert('product_images', {
-      product_id: newProd.id,
-      image_url: finalImage,
-      is_primary: 1,
-      created_at: new Date().toISOString()
-    });
+    let imagesList = [];
+    if (Array.isArray(images) && images.length > 0) {
+      imagesList = images;
+    } else if (Array.isArray(image) && image.length > 0) {
+      imagesList = image;
+    } else if (typeof image === 'string' && image) {
+      imagesList = [image];
+    } else if (image_url) {
+      imagesList = [image_url];
+    }
+    
+    if (imagesList.length === 0) {
+      imagesList = ['/images/products/default.jpg'];
+    }
+    
+    for (let i = 0; i < imagesList.length; i++) {
+      await db.insert('product_images', {
+        product_id: newProd.id,
+        image_url: imagesList[i],
+        is_primary: i === 0 ? 1 : 0,
+        created_at: new Date().toISOString()
+      });
+    }
     
     res.status(201).json({ message: 'Thêm sản phẩm thành công.', product: newProd });
   } catch (err) {
