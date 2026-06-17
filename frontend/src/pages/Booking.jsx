@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Calendar, Clock, Laptop, Phone, PenTool, CheckCircle, ArrowRight, ShieldCheck, Send, Sparkles } from 'lucide-react';
+import { Calendar, Clock, Laptop, Phone, PenTool, CheckCircle, ArrowRight, ShieldCheck, Send, Sparkles, Image } from 'lucide-react';
 import './Booking.css';
 
 const Booking = ({ setActivePage }) => {
@@ -25,6 +25,24 @@ const Booking = ({ setActivePage }) => {
     }
   ]);
   const [aiInput, setAiInput] = useState('');
+  const [selectedImage, setSelectedImage] = useState(null);
+
+  const handleImageSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Kích thước hình ảnh phải nhỏ hơn 5MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setSelectedImage(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const aiChatEndRef = useRef(null);
 
   useEffect(() => {
@@ -35,12 +53,18 @@ const Booking = ({ setActivePage }) => {
 
   const handleSendAiMessage = async (e) => {
     e.preventDefault();
-    if (!aiInput.trim()) return;
+    if (!aiInput.trim() && !selectedImage) return;
 
     const userMsg = aiInput.trim();
-    const currentChat = [...aiChat, { sender: 'user', text: userMsg }];
+    const currentMsgObj = { sender: 'user', text: userMsg };
+    if (selectedImage) {
+      currentMsgObj.image = selectedImage;
+    }
+
+    const currentChat = [...aiChat, currentMsgObj];
     setAiChat(currentChat);
     setAiInput('');
+    setSelectedImage(null);
 
     // Thêm tin nhắn tạm "Đang suy nghĩ..."
     setAiChat(prev => [...prev, { sender: 'ai', text: '🤖 TechCycle AI đang phân tích chẩn đoán lỗi...' }]);
@@ -49,7 +73,8 @@ const Booking = ({ setActivePage }) => {
       // Map history sang định dạng chatbot-server mong muốn
       const historyToSend = currentChat.map(msg => ({
         role: msg.sender === 'user' ? 'user' : 'model',
-        text: msg.text
+        text: msg.text,
+        image: msg.image || undefined
       }));
 
       const res = await fetch('http://localhost:3001/api/chat/repair', {
@@ -215,6 +240,11 @@ const Booking = ({ setActivePage }) => {
               {aiChat.map((msg, idx) => (
                 <div key={idx} className={`ai-chat-bubble-row ${msg.sender}`}>
                   <div className="ai-bubble-text-box">
+                    {msg.image && (
+                      <div className="chat-bubble-image-wrapper" style={{ marginBottom: '8px', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-color)', maxWidth: '200px' }}>
+                        <img src={msg.image} alt="Diagnostic attachment" style={{ width: '100%', height: 'auto', display: 'block' }} />
+                      </div>
+                    )}
                     <p style={{ whiteSpace: 'pre-line' }}>{msg.text}</p>
                     {msg.suggestion && (
                       <button 
@@ -231,13 +261,46 @@ const Booking = ({ setActivePage }) => {
               <div ref={aiChatEndRef} />
             </div>
 
-            <form onSubmit={handleSendAiMessage} className="ai-chat-footer">
+            {selectedImage && (
+              <div className="ai-chat-image-preview-wrapper" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: 'var(--neutral-lightest)', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
+                <div style={{ position: 'relative', width: '50px', height: '50px', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+                  <img src={selectedImage} alt="Upload preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <button
+                    type="button"
+                    onClick={() => setSelectedImage(null)}
+                    style={{ position: 'absolute', top: '2px', right: '2px', background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '10px', cursor: 'pointer', padding: '0' }}
+                  >
+                    &times;
+                  </button>
+                </div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--neutral-medium)', fontWeight: '500' }}>Ảnh đính kèm lỗi thiết bị</span>
+              </div>
+            )}
+ 
+            <form onSubmit={handleSendAiMessage} className="ai-chat-footer" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <input 
+                type="file"
+                accept="image/*"
+                onChange={handleImageSelect}
+                style={{ display: 'none' }}
+                id="ai-image-upload-input"
+              />
+              <button 
+                type="button" 
+                className="btn btn-outline" 
+                onClick={() => document.getElementById('ai-image-upload-input').click()}
+                style={{ width: '36px', height: '36px', borderRadius: '50%', padding: '0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid var(--border-color)', color: 'var(--neutral-dark)' }}
+                title="Đính kèm hình ảnh lỗi thiết bị"
+              >
+                <Image size={16} />
+              </button>
               <input 
                 type="text" 
                 className="form-control ai-input-control" 
                 placeholder="Mô tả lỗi máy của bạn tại đây..."
                 value={aiInput}
                 onChange={e => setAiInput(e.target.value)}
+                style={{ flex: 1 }}
               />
               <button type="submit" className="btn btn-primary ai-send-btn">
                 <Send size={14} />

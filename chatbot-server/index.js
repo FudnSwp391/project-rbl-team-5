@@ -175,20 +175,46 @@ app.post('/api/chat/repair', async (req, res) => {
         const { history } = req.body;
 
         const formattedHistory = Array.isArray(history)
-            ? history.map(msg => ({
-                role: msg.role === 'user' ? 'user' : 'model',
-                parts: [{ text: msg.text }]
-              }))
+            ? history.map(msg => {
+                const parts = [];
+                if (msg.text) {
+                    parts.push({ text: msg.text });
+                }
+                if (msg.image) {
+                    const matches = msg.image.match(/^data:(image\/[A-Za-z\-+]+);base64,(.+)$/);
+                    if (matches) {
+                        const mimeType = matches[1];
+                        const base64Data = matches[2];
+                        parts.push({
+                            inlineData: {
+                                mimeType: mimeType,
+                                data: base64Data
+                            }
+                        });
+                    }
+                }
+                if (parts.length === 0) {
+                    parts.push({ text: "" });
+                }
+                return {
+                    role: msg.role === 'user' ? 'user' : 'model',
+                    parts: parts
+                };
+              })
             : [];
 
         if (formattedHistory.length === 0) {
             return res.status(400).json({ error: "Thiếu lịch sử chat" });
         }
 
-        const lastMessage = formattedHistory[formattedHistory.length - 1].parts[0].text;
+        let lastMessage = "";
+        const lastPart = formattedHistory[formattedHistory.length - 1]?.parts?.find(p => p.text);
+        if (lastPart) {
+            lastMessage = lastPart.text;
+        }
 
         // Lấy dữ liệu giải pháp sửa chữa từ database dựa trên câu hỏi cuối cùng
-        const dbData = await fetchSolutionFromDB(lastMessage);
+        const dbData = lastMessage.trim() ? await fetchSolutionFromDB(lastMessage) : null;
 
         let systemPrompt = "";
         if (dbData) {
