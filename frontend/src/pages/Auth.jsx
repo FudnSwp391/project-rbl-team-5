@@ -16,6 +16,88 @@ const Auth = ({ setActivePage }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
 
+  // Các state cho chức năng Quên mật khẩu
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [forgotStep, setForgotStep] = useState(1); // 1: Nhập email gửi OTP, 2: Nhập OTP đặt lại mật khẩu
+  const [otp, setOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [forgotSuccessMessage, setForgotSuccessMessage] = useState('');
+
+  const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000' : '';
+
+  // Gửi API yêu cầu mã OTP khôi phục mật khẩu
+  const handleRequestOtp = async (e) => {
+    e.preventDefault();
+    setFormError('');
+    setForgotSuccessMessage('');
+    setLoading(true);
+
+    if (!email) {
+      setFormError('Vui lòng nhập địa chỉ Email.');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || 'Gửi mã OTP thất bại.');
+      }
+      setForgotSuccessMessage(data.message);
+      setForgotStep(2);
+    } catch (err) {
+      setFormError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Gửi API đặt lại mật khẩu mới bằng OTP
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    setFormError('');
+    setForgotSuccessMessage('');
+    setLoading(true);
+
+    if (!otp || !newPassword || !confirmNewPassword) {
+      setFormError('Vui lòng điền đầy đủ mã OTP và mật khẩu mới.');
+      setLoading(false);
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setFormError('Mật khẩu mới không khớp.');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/api/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp, newPassword })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || 'Đặt lại mật khẩu thất bại.');
+      }
+      alert('Khôi phục mật khẩu thành công! Bạn có thể đăng nhập bằng mật khẩu mới.');
+      setIsForgotPassword(false);
+      setForgotStep(1);
+      setPassword('');
+    } catch (err) {
+      setFormError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormError('');
@@ -100,21 +182,128 @@ const Auth = ({ setActivePage }) => {
 
         {/* Right Side: Professional Refined Forms */}
         <div className="auth-form-panel">
-          {/* Tab Selection */}
-          <div className="auth-tabs">
-            <button 
-              className={`auth-tab ${isLogin ? 'active' : ''}`}
-              onClick={() => { setIsLogin(true); setFormError(''); }}
-            >
-              Đăng nhập
-            </button>
-            <button 
-              className={`auth-tab ${!isLogin ? 'active' : ''}`}
-              onClick={() => { setIsLogin(false); setFormError(''); }}
-            >
-              Đăng ký
-            </button>
-          </div>
+          {isForgotPassword ? (
+            <div className="auth-form-forgot-pass">
+              <div className="auth-tabs">
+                <button className="auth-tab active" type="button">Quên mật khẩu</button>
+              </div>
+
+              <form onSubmit={forgotStep === 1 ? handleRequestOtp : handleResetPassword} className="auth-form">
+                {/* Success message */}
+                {forgotSuccessMessage && (
+                  <div className="auth-success-box animate-fade" style={{ backgroundColor: 'rgba(52, 168, 83, 0.12)', color: '#2e7d32', border: '1px solid rgba(52, 168, 83, 0.3)', padding: '12px', borderRadius: '8px', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13.5px' }}>
+                    <span>{forgotSuccessMessage}</span>
+                  </div>
+                )}
+
+                {/* Errors */}
+                {formError && (
+                  <div className="auth-error-box animate-fade">
+                    <AlertCircle size={18} />
+                    <span>{formError}</span>
+                  </div>
+                )}
+
+                {forgotStep === 1 ? (
+                  <>
+                    <div className="form-group">
+                      <label className="form-label">Email tài khoản</label>
+                      <div className="auth-input-wrapper">
+                        <Mail size={18} className="input-icon" />
+                        <input 
+                          type="email" 
+                          className="form-control" 
+                          placeholder="name@example.com" 
+                          value={email}
+                          onChange={e => setEmail(e.target.value)}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <button type="submit" className="btn btn-primary auth-submit-btn" disabled={loading}>
+                      {loading ? 'Đang xử lý...' : 'Gửi mã OTP khôi phục'}
+                      <ArrowRight size={18} />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="form-group">
+                      <label className="form-label">Mã OTP (xem log console server)</label>
+                      <div className="auth-input-wrapper">
+                        <Lock size={18} className="input-icon" />
+                        <input 
+                          type="text" 
+                          className="form-control" 
+                          placeholder="Nhập 6 chữ số" 
+                          value={otp}
+                          onChange={e => setOtp(e.target.value)}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Mật khẩu mới</label>
+                      <div className="auth-input-wrapper">
+                        <Lock size={18} className="input-icon" />
+                        <input 
+                          type="password" 
+                          className="form-control" 
+                          placeholder="••••••••" 
+                          value={newPassword}
+                          onChange={e => setNewPassword(e.target.value)}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Xác nhận mật khẩu mới</label>
+                      <div className="auth-input-wrapper">
+                        <Lock size={18} className="input-icon" />
+                        <input 
+                          type="password" 
+                          className="form-control" 
+                          placeholder="••••••••" 
+                          value={confirmNewPassword}
+                          onChange={e => setConfirmNewPassword(e.target.value)}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <button type="submit" className="btn btn-primary auth-submit-btn" disabled={loading}>
+                      {loading ? 'Đang cập nhật...' : 'Xác nhận đặt lại mật khẩu'}
+                      <ArrowRight size={18} />
+                    </button>
+                  </>
+                )}
+
+                <div style={{ marginTop: '20px', textAlign: 'center' }}>
+                  <a href="#login" className="forgot-password" onClick={e => { e.preventDefault(); setIsForgotPassword(false); setFormError(''); setForgotSuccessMessage(''); }}>
+                    Quay lại trang Đăng nhập
+                  </a>
+                </div>
+              </form>
+            </div>
+          ) : (
+            <>
+              {/* Tab Selection */}
+              <div className="auth-tabs">
+                <button 
+                  className={`auth-tab ${isLogin ? 'active' : ''}`}
+                  onClick={() => { setIsLogin(true); setFormError(''); }}
+                >
+                  Đăng nhập
+                </button>
+                <button 
+                  className={`auth-tab ${!isLogin ? 'active' : ''}`}
+                  onClick={() => { setIsLogin(false); setFormError(''); }}
+                >
+                  Đăng ký
+                </button>
+              </div>
 
           <form onSubmit={handleSubmit} className="auth-form">
             {/* Errors */}
@@ -164,7 +353,7 @@ const Auth = ({ setActivePage }) => {
               <div className="password-label-row">
                 <label className="form-label">Mật khẩu</label>
                 {isLogin && (
-                  <a href="#forgot" className="forgot-password" onClick={e => { e.preventDefault(); alert('Chức năng quên mật khẩu đang được phát triển. Bạn vui lòng sử dụng tài khoản mẫu customer@gmail.com / mật khẩu 123456 để đăng nhập.'); }}>
+                  <a href="#forgot" className="forgot-password" onClick={e => { e.preventDefault(); setIsForgotPassword(true); setFormError(''); setForgotSuccessMessage(''); setForgotStep(1); }}>
                     Quên mật khẩu?
                   </a>
                 )}
@@ -271,6 +460,7 @@ const Auth = ({ setActivePage }) => {
                 </button>
               </div>
             </div>
+          </>
           )}
         </div>
       </div>
