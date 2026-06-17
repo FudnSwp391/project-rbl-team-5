@@ -21,10 +21,11 @@ const Booking = ({ setActivePage }) => {
   const [aiChat, setAiChat] = useState([
     {
       sender: 'ai',
-      text: 'Xin chào! Tôi là Trợ lý AI chẩn đoán TechCycle. Hãy mô tả ngắn gọn lỗi thiết bị của bạn (ví dụ: "màn hình bị sọc", "máy hao pin", "macbook mất nguồn"). Tôi sẽ đề xuất giải pháp chẩn đoán và giúp bạn điền đơn hẹn sửa nhanh chóng!'
+      text: 'Xin chào! Tôi là Trợ lý AI chẩn đoán TechCycle (Gemini 3.1 Flash Lite). Hãy mô tả ngắn gọn lỗi thiết bị của bạn (ví dụ: "màn hình bị sọc", "máy hao pin", "macbook mất nguồn"). Tôi sẽ đề xuất giải pháp chẩn đoán và giúp bạn điền đơn hẹn sửa nhanh chóng!'
     }
   ]);
   const [aiInput, setAiInput] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
   const aiChatEndRef = useRef(null);
 
   useEffect(() => {
@@ -33,58 +34,67 @@ const Booking = ({ setActivePage }) => {
     }
   }, [aiChat]);
 
-  const handleSendAiMessage = (e) => {
+  const handleSendAiMessage = async (e) => {
     e.preventDefault();
-    if (!aiInput.trim()) return;
+    if (!aiInput.trim() || aiLoading) return;
 
     const userMsg = aiInput.trim();
-    setAiChat(prev => [...prev, { sender: 'user', text: userMsg }]);
+    const newHistory = [...aiChat, { sender: 'user', text: userMsg }];
+    setAiChat(newHistory);
     setAiInput('');
+    setAiLoading(true);
 
-    // AI diagnostic thinking simulation
-    setTimeout(() => {
-      let responseText = '';
-      let suggestion = { deviceType: 'Điện thoại (iPhone/Android)', issue: '' };
+    // Thêm tin nhắn "đang suy nghĩ"
+    setAiChat(prev => [...prev, { sender: 'ai', text: '⏳ Gemini AI đang chẩn đoán...', isLoading: true }]);
+
+    try {
+      // Gọi chatbot-server2 (Gemini 3.1 Flash Lite) tại cổng 3002
+      const CHATBOT_API = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+        ? 'http://localhost:3002'
+        : '';
+
+      const response = await fetch(`${CHATBOT_API}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          history: newHistory.map(m => ({
+            role: m.sender === 'user' ? 'user' : 'model',
+            text: m.text
+          }))
+        })
+      });
+
+      const data = await response.json();
+      const replyText = data.reply || 'Xin lỗi, không nhận được phản hồi từ AI.';
+
+      // Xác định gợi ý form từ nội dung tin nhắn người dùng
       const lowerMsg = userMsg.toLowerCase();
-
+      let suggestion = null;
       if (lowerMsg.includes('pin') || lowerMsg.includes('hao pin') || lowerMsg.includes('chai')) {
-        responseText = '🤖 TechCycle AI Chẩn đoán:\n\n• Lỗi phát hiện: Chai pin hoặc lão hóa cell pin.\n• Hướng xử lý: Thay thế pin lithium zin chuẩn hãng mới.\n• Thời gian sửa: 30 phút lấy ngay.\n• Giá tham khảo: 350.000 VND - 850.000 VND.\n\nNhấn nút bên dưới để tôi tự động điền thông tin này vào phiếu hẹn giúp bạn nhé!';
-        suggestion = {
-          deviceType: 'Điện thoại (iPhone/Android)',
-          issue: `Thay pin do: ${userMsg}. (Chẩn đoán bởi TechCycle AI: Chai pin cell cần thay mới)`
-        };
+        suggestion = { deviceType: 'Điện thoại (iPhone/Android)', issue: `Thay pin do: ${userMsg}. (Chẩn đoán bởi TechCycle AI)` };
       } else if (lowerMsg.includes('màn hình') || lowerMsg.includes('sọc') || lowerMsg.includes('vỡ kính') || lowerMsg.includes('bể')) {
-        responseText = '🤖 TechCycle AI Chẩn đoán:\n\n• Lỗi phát hiện: Hỏng màn hình LCD hiển thị hoặc nứt kính cảm ứng ngoài.\n• Hướng xử lý: Thay màn hình nguyên bộ hoặc ép kính cảm ứng mới.\n• Thời gian sửa: 45 - 60 phút.\n• Giá tham khảo: 900.000 VND - 2.800.000 VND.\n\nNhấn nút dưới đây để áp dụng thông tin chẩn đoán này vào form đăng ký!';
-        suggestion = {
-          deviceType: 'Điện thoại (iPhone/Android)',
-          issue: `Thay màn hình/ép kính do: ${userMsg}. (Chẩn đoán bởi TechCycle AI: Vỡ kính hiển thị cần thay thế)`
-        };
+        suggestion = { deviceType: 'Điện thoại (iPhone/Android)', issue: `Thay màn hình do: ${userMsg}. (Chẩn đoán bởi TechCycle AI)` };
       } else if (lowerMsg.includes('macbook') || lowerMsg.includes('laptop') || lowerMsg.includes('nguồn') || lowerMsg.includes('sập')) {
-        responseText = '🤖 TechCycle AI Chẩn đoán:\n\n• Lỗi phát hiện: Hỏng IC nguồn, đứt mạch sạc hoặc lỗi mainboard chủ.\n• Hướng xử lý: Đo đạc dòng điện, đóng chip nguồn IC hoặc sửa lỗi nguồn trên mainboard.\n• Thời gian sửa: 1 - 2 ngày (cần đo đạc mạch).\n• Giá tham khảo: 600.000 VND - 1.800.000 VND.\n\nBạn có muốn tự động điền thông tin này vào form đặt lịch?';
-        suggestion = {
-          deviceType: 'Laptop (Macbook/Windows)',
-          issue: `Sửa lỗi nguồn/phần cứng do: ${userMsg}. (Chẩn đoán bởi TechCycle AI: Lỗi nguồn chập nguồn IC main)`
-        };
+        suggestion = { deviceType: 'Laptop (Macbook/Windows)', issue: `Sửa lỗi nguồn/phần cứng do: ${userMsg}. (Chẩn đoán bởi TechCycle AI)` };
       } else if (lowerMsg.includes('ipad') || lowerMsg.includes('tablet') || lowerMsg.includes('máy tính bảng')) {
-        responseText = '🤖 TechCycle AI Chẩn đoán:\n\n• Lỗi phát hiện: Thiết bị hỏng cổng sạc, chai pin hoặc lỗi màn hình hiển thị lớn.\n• Hướng xử lý: Vệ sinh cổng sạc, thay chân sạc mới hoặc ép kính màn hình.\n• Thời gian sửa: 1 - 3 tiếng.\n• Giá tham khảo: 400.000 VND - 1.200.000 VND.\n\nNhấn nút dưới để tự động hoàn tất điền form!';
-        suggestion = {
-          deviceType: 'Máy tính bảng (iPad/Android Tablet)',
-          issue: `Sửa chữa máy tính bảng do: ${userMsg}. (Chẩn đoán bởi TechCycle AI: Hỏng chân sạc/lỏng cổng kết nối)`
-        };
+        suggestion = { deviceType: 'Máy tính bảng (iPad/Android Tablet)', issue: `Sửa chữa máy tính bảng do: ${userMsg}. (Chẩn đoán bởi TechCycle AI)` };
       } else {
-        responseText = '🤖 TechCycle AI Chẩn đoán:\n\nGhi nhận hiện tượng hỏng hóc: "' + userMsg + '". Để có kết quả chẩn đoán chính xác nhất, TechCycle hỗ trợ kiểm định phần cứng hoàn toàn miễn phí tại cửa hàng.\n\nNhấn nút bên dưới để áp dụng thông tin và đăng ký lịch hẹn, KTV sẽ kiểm định trực tiếp cho bạn nhé!';
-        suggestion = {
-          deviceType: 'Thiết bị khác',
-          issue: `Yêu cầu kiểm tra lỗi: ${userMsg}. (Ghi nhận thông qua TechCycle AI)`
-        };
+        suggestion = { deviceType: 'Thiết bị khác', issue: `Yêu cầu kiểm tra lỗi: ${userMsg}. (Ghi nhận qua TechCycle AI)` };
       }
 
-      setAiChat(prev => [...prev, { 
-        sender: 'ai', 
-        text: responseText,
-        suggestion 
-      }]);
-    }, 1000);
+      // Xóa bubble "đang suy nghĩ" và hiển thị kết quả thật
+      setAiChat(prev => [
+        ...prev.filter(m => !m.isLoading),
+        { sender: 'ai', text: replyText, suggestion }
+      ]);
+    } catch {
+      setAiChat(prev => [
+        ...prev.filter(m => !m.isLoading),
+        { sender: 'ai', text: 'Xin lỗi, không thể kết nối đến AI. Vui lòng kiểm tra server chatbot-server2 đang chạy trên cổng 3002.' }
+      ]);
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   const handleApplySuggestion = (sugg) => {
@@ -194,7 +204,7 @@ const Booking = ({ setActivePage }) => {
               <Sparkles size={20} className="ai-icon animate-pulse" />
               <div>
                 <h4>Trợ lý AI chẩn đoán lỗi</h4>
-                <span className="ai-badge-tag">MOCK LLM</span>
+                <span className="ai-badge-tag">Gemini 3.1 Flash Lite</span>
               </div>
             </div>
             
@@ -225,9 +235,10 @@ const Booking = ({ setActivePage }) => {
                 placeholder="Mô tả lỗi máy của bạn tại đây..."
                 value={aiInput}
                 onChange={e => setAiInput(e.target.value)}
+                disabled={aiLoading}
               />
-              <button type="submit" className="btn btn-primary ai-send-btn">
-                <Send size={14} />
+              <button type="submit" className="btn btn-primary ai-send-btn" disabled={aiLoading}>
+                {aiLoading ? '...' : <Send size={14} />}
               </button>
             </form>
           </div>
