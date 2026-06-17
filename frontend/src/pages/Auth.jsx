@@ -460,8 +460,9 @@ const Auth = ({ setActivePage }) => {
                 </button>
               </div>
             </div>
-          </>
           )}
+        </>
+      )}
         </div>
       </div>
     </div>
