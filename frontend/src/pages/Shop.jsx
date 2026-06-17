@@ -23,7 +23,7 @@ const Shop = ({ selectedProduct, setSelectedProduct, showFilters, setShowFilters
   const [priceRange, setPriceRange] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
 
-  const itemsPerPage = 6;
+  const itemsPerPage = 15;
 
   const { addToCart, cartItems } = useCart();
 
@@ -120,6 +120,31 @@ const Shop = ({ selectedProduct, setSelectedProduct, showFilters, setShowFilters
   };
 
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+
+  const getPageNumbers = () => {
+    const pages = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      pages.push(1);
+      if (currentPage > 4) {
+        pages.push('...');
+      }
+      const start = Math.max(2, currentPage - 2);
+      const end = Math.min(totalPages - 1, currentPage + 2);
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+      if (currentPage < totalPages - 3) {
+        pages.push('...');
+      }
+      pages.push(totalPages);
+    }
+    return pages;
+  };
+
   const startIndex = (currentPage - 1) * itemsPerPage;
   const displayedProducts = filteredProducts.slice(startIndex, startIndex + itemsPerPage);
 
@@ -333,17 +358,21 @@ const Shop = ({ selectedProduct, setSelectedProduct, showFilters, setShowFilters
                   >
                     &larr; Trước
                   </button>
-                  {[...Array(totalPages)].map((_, idx) => (
-                    <button
-                      key={idx}
-                      className={`pagination-num-btn ${currentPage === idx + 1 ? 'active' : ''}`}
-                      onClick={() => {
-                        setCurrentPage(idx + 1);
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                      }}
-                    >
-                      {idx + 1}
-                    </button>
+                  {getPageNumbers().map((page, idx) => (
+                    page === '...' ? (
+                      <span key={`dots-${idx}`} className="pagination-dots">...</span>
+                    ) : (
+                      <button
+                        key={page}
+                        className={`pagination-num-btn ${currentPage === page ? 'active' : ''}`}
+                        onClick={() => {
+                          setCurrentPage(page);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                      >
+                        {page}
+                      </button>
+                    )
                   ))}
                   <button
                     className="pagination-arrow-btn"

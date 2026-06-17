@@ -682,6 +682,17 @@
   box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35);
 }
 
+.pagination-dots {
+  color: #064E3B;
+  font-weight: 700;
+  font-size: 1.125rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+}
+
 /* Responsive Shop styles */
 @media (max-width: 1200px) {
   .shop-products-grid { grid-template-columns: repeat(2, 1fr); gap: 20px; }
