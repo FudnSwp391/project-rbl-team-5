@@ -6,7 +6,7 @@
     "install:all": "npm install && npm install --prefix backend && npm install --prefix frontend",
     "server": "npm start --prefix backend",
     "client": "npm run dev --prefix frontend",
-    "dev": "concurrently \"npm run server\" \"npm run client\" \"npm start --prefix chatbot-server\"",
+    "dev": "concurrently \"npm run server\" \"npm run client\" \"npm start --prefix chatbot-server\" \"npm start --prefix chatbot-server2\"",
     "start": "npm run build --prefix frontend && npm start --prefix backend"
   },
   "devDependencies": {

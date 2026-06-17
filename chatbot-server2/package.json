@@ -1,0 +1,17 @@
+{
+  "name": "chatbot-server2",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "sever1.js",
+  "scripts": {
+    "start": "node sever1.js",
+    "dev": "node --watch sever1.js"
+  },
+  "dependencies": {
+    "@google/genai": "^2.8.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^5.0.1",
+    "mssql": "^11.0.1"
+  }
+}
