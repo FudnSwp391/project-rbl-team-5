@@ -98,6 +98,53 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
     setCurrentPage(1);
   }, [search, category, conditions, sortBy, priceRange]);
 
+  const handleSendAiMessage = async (e) => {
+    e.preventDefault();
+    if (!aiInput.trim()) return;
+
+    const userMsg = aiInput.trim();
+    const currentHistory = [...aiChat, { sender: 'user', text: userMsg }];
+    setAiChat(currentHistory);
+    setAiInput('');
+
+    // Thêm tin nhắn tạm "Đang suy nghĩ..."
+    setAiChat(prev => [...prev, { sender: 'ai', text: '🤖 TechCycle AI đang tìm kiếm máy phù hợp...' }]);
+
+    try {
+      const historyToSend = currentHistory.map(msg => ({
+        role: msg.sender === 'user' ? 'user' : 'model',
+        text: msg.text
+      }));
+
+      const response = await fetch('http://localhost:3001/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ history: historyToSend })
+      });
+      const data = await response.json();
+
+      if (data.reply) {
+        setAiChat(prev => [
+          ...prev.slice(0, -1), // Xóa tin nhắn tạm
+          {
+            sender: 'ai',
+            text: data.reply
+          }
+        ]);
+      } else {
+        throw new Error('Không nhận được reply từ server');
+      }
+    } catch (err) {
+      console.error('Lỗi kết nối AI:', err);
+      setAiChat(prev => [
+        ...prev.slice(0, -1),
+        {
+          sender: 'ai',
+          text: '🤖 Rất tiếc, tôi đang gặp lỗi kết nối đến máy chủ tư vấn. Vui lòng thử lại sau!'
+        }
+      ]);
+    }
+  };
 
   const handleConditionChange = (name) => {
     setConditions(prev => ({
@@ -342,6 +389,57 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
             </>
           )}
         </main>
+        {/* Shop AI Assistant (Column 3) */}
+        <aside className="shop-ai-sidebar glass-panel">
+          <div className="ai-header">
+            <Sparkles size={20} className="ai-icon animate-pulse" />
+            <div>
+              <h4>AI Tư Vấn Mua Sắm</h4>
+              <span className="ai-badge-tag">Gemini AI</span>
+            </div>
+          </div>
+
+          <div className="ai-chat-body">
+            {aiChat.map((msg, idx) => (
+              <div key={idx} className={`ai-chat-bubble-row ${msg.sender}`}>
+                <div className="ai-bubble-text-box">
+                  <p style={{ whiteSpace: 'pre-line' }}>{msg.text}</p>
+                  {msg.recommendations && msg.recommendations.length > 0 && (
+                    <div className="ai-recommendations-list">
+                      {msg.recommendations.map(prod => (
+                        <div
+                          key={prod.id}
+                          className="ai-recommend-card"
+                          onClick={() => setSelectedProduct(prod)}
+                        >
+                          <img src={prod.image_url} alt={prod.product_name} className="rec-img" />
+                          <div className="rec-info">
+                         <h5>{prod.title || prod.product_name}</h5>
+                            <span className="rec-price">{(prod.listed_price || prod.price || 0).toLocaleString('en-US')} <span className="currency">VND</span></span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+            <div ref={aiChatEndRef} />
+          </div>
+
+          <form onSubmit={handleSendAiMessage} className="ai-chat-footer">
+            <input
+              type="text"
+              className="form-control ai-input-control"
+              placeholder="Hỏi AI chọn máy..."
+              value={aiInput}
+              onChange={e => setAiInput(e.target.value)}
+            />
+            <button type="submit" className="btn btn-primary ai-send-btn">
+              <Send size={14} />
+            </button>
+          </form>
+        </aside>
       </div>
 
       {/* Product Detail Modal */}

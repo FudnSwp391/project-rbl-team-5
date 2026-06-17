@@ -6,8 +6,9 @@
     "install:all": "npm install && npm install --prefix backend && npm install --prefix frontend && npm install --prefix chatbot-server",
     "server": "npm start --prefix backend",
     "client": "npm run dev --prefix frontend",
-    "chatbot": "npm start --prefix chatbot-server",
-    "dev": "concurrently \"npm run server\" \"npm run client\" \"npm run chatbot\"",
+    "chatbot1": "npm start --prefix chatbot-server",
+    "chatbot2": "npm start --prefix chatbot-server2",
+    "dev": "concurrently \"npm run server\" \"npm run client\" \"npm run chatbot1\" \"npm run chatbot2\"",
     "start": "npm run build --prefix frontend && npm start --prefix backend"
   },
   "devDependencies": {
