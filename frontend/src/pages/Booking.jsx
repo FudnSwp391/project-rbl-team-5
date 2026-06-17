@@ -77,7 +77,7 @@ const Booking = ({ setActivePage }) => {
         image: msg.image || undefined
       }));
 
-      const res = await fetch('http://localhost:3001/api/chat/repair', {
+      const res = await fetch('http://localhost:3002/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
