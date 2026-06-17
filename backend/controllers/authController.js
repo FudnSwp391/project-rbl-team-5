@@ -1,8 +1,10 @@
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 // Import object db từ file db.js của bạn
 const { db } = require('../db');
+const { sendOtpEmail } = require('../emailService');
 
-const JWT_SECRET = 'techcycle_secret_key_2026';
+const JWT_SECRET = process.env.JWT_SECRET || 'techcycle_secret_key_2026';
 
 // Bảng ánh xạ role từ chữ (Client gửi lên) sang ID (Database cần)
 const ROLE_MAP = {
@@ -20,11 +22,16 @@ const REVERSE_ROLE_MAP = {
   4: 'seller'
 };
 
+// In-memory OTP storage
+const otpStore = new Map();
+
 exports.register = async (req, res) => {
-  // Thêm full_name vì Database SQL của bạn bắt buộc phải có (NOT NULL)
   const { username, email, password, full_name, phone, role } = req.body;
-  if (!username || !email || !password || !phone || !full_name) {
-    return res.status(400).json({ message: 'Vui lòng điền đầy đủ thông tin (bao gồm full_name).' });
+  const finalFullName = full_name || username;
+  const finalPhone = phone || '0900000000';
+
+  if (!username || !email || !password || !finalFullName) {
+    return res.status(400).json({ message: 'Vui lòng điền đầy đủ thông tin.' });
   }
 
   try {
@@ -37,14 +44,16 @@ exports.register = async (req, res) => {
     const targetRoleName = role || 'customer';
     const roleId = ROLE_MAP[targetRoleName] || 2;
 
-    // ĐÃ SỬA: Lưu mật khẩu dạng chuỗi văn bản thuần (Plain Text) trực tiếp vào DB
+    // Băm mật khẩu sử dụng bcryptjs
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     const newUser = await db.insert('users', {
       role_id: roleId,
       username,
       email,
-      password, // Không dùng bcrypt băm mật khẩu
-      full_name,
-      phone,
+      password: hashedPassword,
+      full_name: finalFullName,
+      phone: finalPhone,
       avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${username}`,
       status: 'active'
     });
@@ -93,9 +102,15 @@ exports.login = async (req, res) => {
       return res.status(403).json({ message: 'Tài khoản đã bị vô hiệu hóa.' });
     }
 
-    // ĐÃ SỬA: So sánh trực tiếp chuỗi văn bản thuần (Plain Text)
-    // password người dùng nhập ('admin123') so sánh trực tiếp với user.password trong DB ('admin123')
-    const isMatch = (password === user.password.trim());
+    // So sánh mật khẩu bằng bcrypt hoặc plain text (để tương thích ngược với seed data plain text)
+    let isMatch = false;
+    const dbPassword = user.password.trim();
+    if (dbPassword.startsWith('$2a$') || dbPassword.startsWith('$2b$')) {
+      isMatch = await bcrypt.compare(password, dbPassword);
+    } else {
+      isMatch = (password === dbPassword);
+    }
+
     if (!isMatch) {
       return res.status(400).json({ message: 'Mật khẩu không chính xác.' });
     }
@@ -200,5 +215,90 @@ exports.updateProfile = async (req, res) => {
   } catch (error) {
     console.error('Lỗi cập nhật profile:', error);
     res.status(500).json({ message: 'Lỗi xử lý cập nhật thông tin cá nhân.' });
+  }
+};
+
+exports.logout = async (req, res) => {
+  res.json({ message: 'Đăng xuất thành công.' });
+};
+
+// Gửi OTP về email để đặt lại mật khẩu
+exports.forgotPassword = async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ message: 'Vui lòng cung cấp email.' });
+  }
+
+  try {
+    const user = await db.findOne('users', { email });
+    if (!user) {
+      return res.status(404).json({ message: 'Email không tồn tại trong hệ thống.' });
+    }
+
+    // Tạo OTP 6 chữ số
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 phút
+
+    otpStore.set(email, { otp, expiresAt });
+
+    // Log ra console để dev có thể dùng khi chưa có email config
+    console.log(`\n==================================================`);
+    console.log(`[PASSWORD RECOVERY] OTP cho ${email}: ${otp}`);
+    console.log(`==================================================\n`);
+
+    // Gửi OTP về email thật
+    try {
+      await sendOtpEmail(email, otp);
+      res.json({
+        message: `Mã OTP đã được gửi tới email ${email}. Vui lòng kiểm tra hộp thư (và thư mục Spam).`,
+        email
+      });
+    } catch (emailError) {
+      // Nếu gửi email thất bại (chưa cấu hình), vẫn trả về thành công kèm thông báo
+      console.error('[EMAIL ERROR]', emailError.message);
+      res.json({
+        message: `Mã OTP đã tạo nhưng chưa gửi được email (chưa cấu hình SMTP). Mã OTP hiển thị trong console server.`,
+        email,
+        // Chỉ trả về OTP khi email gửi thất bại (để dev test được)
+        otp_dev: process.env.NODE_ENV !== 'production' ? otp : undefined
+      });
+    }
+  } catch (error) {
+    console.error('Lỗi yêu cầu khôi phục mật khẩu:', error);
+    res.status(500).json({ message: 'Lỗi xử lý yêu cầu khôi phục mật khẩu.' });
+  }
+};
+
+// Đặt lại mật khẩu mới dùng OTP
+exports.resetPassword = async (req, res) => {
+  const { email, otp, newPassword } = req.body;
+  if (!email || !otp || !newPassword) {
+    return res.status(400).json({ message: 'Vui lòng điền đầy đủ email, mã xác nhận (OTP) và mật khẩu mới.' });
+  }
+
+  try {
+    const user = await db.findOne('users', { email });
+    if (!user) {
+      return res.status(404).json({ message: 'Email không tồn tại.' });
+    }
+
+    const record = otpStore.get(email);
+    if (!record || record.otp !== otp || Date.now() > record.expiresAt) {
+      return res.status(400).json({ message: 'Mã xác nhận không đúng hoặc đã hết hạn.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await db.query('UPDATE users SET password = @password WHERE id = @id', [
+      { name: 'password', value: hashedPassword },
+      { name: 'id', value: user.id }
+    ]);
+
+    otpStore.delete(email);
+
+    res.json({ message: 'Khôi phục mật khẩu thành công. Bạn có thể đăng nhập bằng mật khẩu mới.' });
+  } catch (error) {
+    console.error('Lỗi đặt lại mật khẩu:', error);
+    res.status(500).json({ message: 'Lỗi xử lý đặt lại mật khẩu.' });
   }
 };
