@@ -23,6 +23,12 @@ const Checkout = ({ setActivePage }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Promo code states
+  const [promoCodeInput, setPromoCodeInput] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState(null);
+  const [promoError, setPromoError] = useState('');
+  const [isApplyingPromo, setIsApplyingPromo] = useState(false);
+
   if (!user) {
     return (
       <div className="checkout-page container animate-fade">
@@ -68,6 +74,40 @@ const Checkout = ({ setActivePage }) => {
     setStep('confirm');
   };
 
+  const discountAmount = appliedPromo ? Math.floor(cartTotal * (appliedPromo.discount / 100)) : 0;
+  const finalTotal = cartTotal - discountAmount;
+
+  const handleApplyPromo = async () => {
+    if (!promoCodeInput.trim()) return;
+    setIsApplyingPromo(true);
+    setPromoError('');
+    
+    const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000' : '';
+    
+    try {
+      const res = await fetch(`${API_BASE}/api/promocodes/validate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ code: promoCodeInput.trim() })
+      });
+      
+      const data = await res.json();
+      if (res.ok) {
+        setAppliedPromo({ code: data.code, discount: data.discount });
+        setPromoCodeInput('');
+      } else {
+        setPromoError(data.message || 'Mã không hợp lệ');
+      }
+    } catch (err) {
+      setPromoError('Lỗi kết nối');
+    } finally {
+      setIsApplyingPromo(false);
+    }
+  };
+
   const handlePlaceOrder = async () => {
     setLoading(true);
     setError('');
@@ -87,7 +127,7 @@ const Checkout = ({ setActivePage }) => {
         notes
       },
       paymentMethod,
-      totalAmount: cartTotal
+      totalAmount: finalTotal
     };
 
     try {
@@ -436,10 +476,43 @@ const Checkout = ({ setActivePage }) => {
 
             <hr className="summary-divider" />
 
+            <div className="promo-code-section" style={{ marginBottom: '15px' }}>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input 
+                  type="text" 
+                  placeholder="Mã khuyến mãi" 
+                  value={promoCodeInput}
+                  onChange={e => setPromoCodeInput(e.target.value)}
+                  style={{ flex: 1, padding: '8px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.2)', color: 'inherit' }}
+                />
+                <button 
+                  className="btn btn-secondary" 
+                  onClick={handleApplyPromo}
+                  disabled={isApplyingPromo || !promoCodeInput.trim()}
+                  style={{ padding: '8px 12px' }}
+                >
+                  {isApplyingPromo ? '...' : 'Áp dụng'}
+                </button>
+              </div>
+              {promoError && <div style={{ color: '#ff6b6b', fontSize: '0.85rem', marginTop: '4px' }}>{promoError}</div>}
+              {appliedPromo && (
+                <div style={{ color: '#4CAF50', fontSize: '0.85rem', marginTop: '4px', display: 'flex', justifyContent: 'space-between' }}>
+                  <span>✓ Áp dụng mã {appliedPromo.code} (-{appliedPromo.discount}%)</span>
+                  <button onClick={() => setAppliedPromo(null)} style={{ background: 'none', border: 'none', color: '#ff6b6b', cursor: 'pointer', fontSize: '0.8rem' }}>Xóa</button>
+                </div>
+              )}
+            </div>
+
             <div className="summary-row">
               <span>Tạm tính:</span>
               <span>{cartTotal.toLocaleString('en-US')} <span className="currency">VND</span></span>
             </div>
+            {appliedPromo && (
+              <div className="summary-row" style={{ color: '#4CAF50' }}>
+                <span>Giảm giá:</span>
+                <span>-{discountAmount.toLocaleString('en-US')} <span className="currency">VND</span></span>
+              </div>
+            )}
             <div className="summary-row">
               <span>Phí giao hàng:</span>
               <span className="green-text">Miễn phí</span>
@@ -449,7 +522,7 @@ const Checkout = ({ setActivePage }) => {
 
             <div className="summary-row total-row">
               <span>Tổng thanh toán:</span>
-              <span className="total-val">{cartTotal.toLocaleString('en-US')} <span className="currency">VND</span></span>
+              <span className="total-val">{finalTotal.toLocaleString('en-US')} <span className="currency">VND</span></span>
             </div>
           </aside>
         )}

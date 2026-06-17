@@ -1,6 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap');
-
 :root {
+  --font-heading: 'Fredoka', 'Be Vietnam Pro', sans-serif;
+  --font-body:    'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
   /* Brand Colors from Figma Design System */
   --primary-dark: #064E3B;      /* Tertiary (Dark Forest Green) */
   --primary: #10B981;           /* Primary (Bright Emerald Green) */
@@ -56,7 +56,7 @@
   --bs-danger-rgb: 239, 68, 68;
   --bs-info: #3B82F6;
   --bs-info-rgb: 59, 130, 246;
-  --bs-body-font-family: 'Sora', sans-serif;
+  --bs-body-font-family: var(--font-body);
   --bs-body-bg: #F4F7F6;
   --bs-body-color: #1F2937;
   --bs-border-color: #E5E7EB;
@@ -97,22 +97,38 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  unicode-bidi: plaintext;
+  font-variant-ligatures: none;
 }
+
+/* Không để font-size quá nhỏ — tiếng Việt cần tối thiểu 14px */
+small, .text-sm { font-size: 14px; }
+.text-xs        { font-size: 13px; }
 
 body {
-  font-family: 'Sora', sans-serif;
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.7;
   background-color: var(--neutral-bg);
   color: var(--neutral-darkest);
-  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "kern" 1;
 }
 
-h1, h2, h3, h4, h5, h6 {
-  font-family: 'Sora', sans-serif;
+h1, h2, h3, h4, h5, h6,
+.logo, .nav-brand {
+  font-family: var(--font-heading);
   color: var(--primary-dark);
-  font-weight: 700;
-  line-height: 1.25;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+p, span, a, li, label, input, button {
+  font-family: var(--font-body);
+  line-height: 1.7;
 }
 
 a {
@@ -122,8 +138,19 @@ a {
 }
 
 button, input, select, textarea {
-  font-family: inherit;
-  font-size: inherit;
+  font-family: var(--font-body);
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Dấu bị cắt khi dùng gradient text */
+.gradient-text,
+h1 span[style*="gradient"] {
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  padding-bottom: 0.15em;  /* ← quan trọng: giữ dấu không bị cắt */
+  display: inline-block;
 }
 
 /* Global Layout Utilities */
@@ -237,6 +264,8 @@ button, input, select, textarea {
 .badge-inspecting { background-color: #ede9fe; color: #6d28d9; }
 .badge-repairing { background-color: #fae8ff; color: #86198f; }
 .badge-completed { background-color: #d1fae5; color: #065f46; }
+.badge-confirmed { background-color: #dbeafe; color: #1d4ed8; }
+.badge-canceled { background-color: #fee2e2; color: #dc2626; }
 
 /* Premium Input Forms */
 .form-group {

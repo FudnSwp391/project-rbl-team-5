@@ -1,12 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
-import ProductCard from '../components/ProductCard';
+import { useState, useEffect } from 'react';
+import ProductCard, { getProductImage } from '../components/ProductCard';
 import { useCart } from '../context/CartContext';
-import { Search, SlidersHorizontal, ShieldCheck, Truck, RefreshCw, X, ShoppingCart, Send, Sparkles } from 'lucide-react';
+import { Search, SlidersHorizontal, ShieldCheck, Truck, RefreshCw, X, ShoppingCart } from 'lucide-react';
 import './Shop.css';
 
 const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000' : '';
 
-const Shop = ({ selectedProduct, setSelectedProduct }) => {
+const Shop = ({ selectedProduct, setSelectedProduct, showFilters, setShowFilters }) => {
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,16 +20,10 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
     fair: true
   });
   const [sortBy, setSortBy] = useState('newest');
+  const [priceRange, setPriceRange] = useState('All');
+  const [currentPage, setCurrentPage] = useState(1);
 
-  // AI Chat States
-  const [aiChat, setAiChat] = useState([
-    {
-      sender: 'ai',
-      text: 'Xin chào! Tôi là Trợ lý AI tư vấn mua sắm TechCycle. Bạn cần tìm thiết bị nào? (ví dụ: "tìm điện thoại dưới 10 triệu", "laptop học tập", "ipad giá rẻ"). Tôi sẽ đề xuất các máy phù hợp đang có trong kho!'
-    }
-  ]);
-  const [aiInput, setAiInput] = useState('');
-  const aiChatEndRef = useRef(null);
+  const itemsPerPage = 6;
 
   const { addToCart, cartItems } = useCart();
 
@@ -77,6 +71,17 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
       return true;
     });
 
+    // 3.5 Price Range Filter
+    if (priceRange !== 'All') {
+      result = result.filter(p => {
+        const price = p.price || p.listed_price || 0;
+        if (priceRange === 'under-5') return price < 5000000;
+        if (priceRange === '5-10') return price >= 5000000 && price <= 10000000;
+        if (priceRange === 'over-10') return price > 10000000;
+        return true;
+      });
+    }
+
     // 4. Sort Logic
     if (sortBy === 'price-asc') {
       result.sort((a, b) => (a.price || a.listed_price || 0) - (b.price || b.listed_price || 0));
@@ -87,46 +92,12 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
     }
 
     setFilteredProducts(result); // eslint-disable-line react-hooks/set-state-in-effect
-  }, [products, search, category, conditions, sortBy]);
+  }, [products, search, category, conditions, sortBy, priceRange]);
 
-  // AI scroll trigger
   useEffect(() => {
-    if (aiChatEndRef.current) {
-      aiChatEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [aiChat]);
+    setCurrentPage(1);
+  }, [search, category, conditions, sortBy, priceRange]);
 
-  const handleSendAiMessage = async (e) => {
-    e.preventDefault();
-    if (!aiInput.trim()) return;
-
-    const userMsg = aiInput.trim();
-    const currentHistory = [...aiChat, { sender: 'user', text: userMsg }];
-    setAiChat(currentHistory);
-    setAiInput('');
-
-    try {
-      const response = await fetch(`${API_BASE}/api/ai/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMsg, history: aiChat })
-      });
-      const data = await response.json();
-
-      if (data.text) {
-        setAiChat(prev => [...prev, {
-          sender: 'ai',
-          text: data.text
-        }]);
-      }
-    } catch (err) {
-      console.error('Lỗi kết nối AI:', err);
-      setAiChat(prev => [...prev, {
-        sender: 'ai',
-        text: '🤖 Rất tiếc, tôi đang gặp lỗi kết nối. Vui lòng thử lại sau!'
-      }]);
-    }
-  };
 
   const handleConditionChange = (name) => {
     setConditions(prev => ({
@@ -148,16 +119,35 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
     }
   };
 
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const displayedProducts = filteredProducts.slice(startIndex, startIndex + itemsPerPage);
+
   return (
     <div className="shop-page container py-4 animate-fade">
-      <div className="shop-header text-center mb-5">
-        <h1 className="shop-title fw-bold">Chợ Thiết Bị Công Nghệ Cũ</h1>
-        <p className="shop-subtitle text-muted">Mua sắm thiết bị chính hãng, giá tiết kiệm, bảo hành đổi trả uy tín và góp phần bảo vệ môi trường.</p>
+      
+      <div className="shop-header-row mb-5" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '20px' }}>
+        <button className={`toggle-filters-btn ${showFilters ? 'active' : ''}`} onClick={() => setShowFilters(!showFilters)}>
+          <SlidersHorizontal size={16} />
+          <span>Bộ lọc</span>
+        </button>
+        
+        <div className="shop-header text-center" style={{ flex: 1, minWidth: '280px' }}>
+          <div className="shop-badge-premium">Chợ Công Nghệ Xanh</div>
+          <h1 className="shop-title fw-bold" style={{ margin: '0 0 10px 0' }}>Chợ Thiết Bị Công Nghệ Cũ</h1>
+          <p className="shop-subtitle text-muted" style={{ margin: '0 auto', maxWidth: '600px' }}>Mua sắm thiết bị chính hãng, giá tiết kiệm, bảo hành đổi trả uy tín và góp phần bảo vệ môi trường.</p>
+        </div>
+        
+        <div className="header-placeholder" style={{ width: '120px' }}></div>
       </div>
 
-      <div className="shop-layout">
+      <div className={`shop-layout ${showFilters ? 'filters-open' : ''}`}>
         {/* Sidebar Filters (Column 1) */}
-        <aside className="shop-filters-sidebar glass-panel">
+        <aside className={`shop-filters-sidebar glass-panel ${showFilters ? 'show' : ''}`}>
+          <button className="close-filters-btn" onClick={() => setShowFilters(false)} title="Đóng bộ lọc">
+            <X size={18} />
+          </button>
+          
           <div className="sidebar-section-header mb-3">
             <SlidersHorizontal size={18} />
             <h3 className="m-0 fw-bold">Bộ lọc</h3>
@@ -210,25 +200,74 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
               </label>
             </div>
           </div>
+
+          <hr className="filter-divider" />
+
+          {/* Price Range Box */}
+          <div className="filter-group">
+            <label className="form-label">Khoảng giá</label>
+            <div className="radio-list">
+              {[
+                { value: 'All', label: 'Tất cả giá' },
+                { value: 'under-5', label: 'Dưới 5 triệu' },
+                { value: '5-10', label: '5 - 10 triệu' },
+                { value: 'over-10', label: 'Trên 10 triệu' }
+              ].map(item => (
+                <label key={item.value} className="radio-item">
+                  <input
+                    type="radio"
+                    name="priceRange"
+                    checked={priceRange === item.value}
+                    onChange={() => setPriceRange(item.value)}
+                  />
+                  <span>{item.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <hr className="filter-divider" />
+
+          {/* Guarantees Panel */}
+          <div className="sidebar-badge-panel">
+            <div className="badge-panel-item">
+              <ShieldCheck size={16} className="item-icon" />
+              <div>
+                <h5>100% Kiểm định AI</h5>
+                <p>Quét linh kiện và đo lường hiệu năng kỹ lưỡng.</p>
+              </div>
+            </div>
+            <div className="badge-panel-item">
+              <Truck size={16} className="item-icon" />
+              <div>
+                <h5>Miễn phí vận chuyển</h5>
+                <p>Giao hàng nhanh toàn quốc phí 0đ.</p>
+              </div>
+            </div>
+          </div>
         </aside>
 
         {/* Shop Content (Column 2) */}
         <main className="shop-main-content">
           {/* Top Bar Navigation / Sort */}
           <div className="shop-topbar">
-            {/* Category tabs */}
             <div className="category-tabs">
-              {['All', 'AirConditioner', 'WashingMachine', 'Refrigerator', 'Microwave'].map(cat => (
+              {['All', 'AirConditioner', 'WashingMachine', 'Refrigerator', 'Microwave', 'Audio', 'Laptop', 'Smartwatch'].map(cat => (
                 <button
                   key={cat}
                   className={`category-tab-btn ${category === cat ? 'active' : ''}`}
                   onClick={() => setCategory(cat)}
                 >
-                  {cat === 'All' ? 'Tất cả' : cat === 'AirConditioner' ? 'Máy lạnh' : cat === 'WashingMachine' ? 'Máy giặt' : cat === 'Refrigerator' ? 'Tủ lạnh' : 'Lò vi sóng'}
+                  {cat === 'All' ? 'Tất cả' : 
+                   cat === 'AirConditioner' ? 'Máy lạnh' : 
+                   cat === 'WashingMachine' ? 'Máy giặt' : 
+                   cat === 'Refrigerator' ? 'Tủ lạnh' : 
+                   cat === 'Microwave' ? 'Lò vi sóng' : 
+                   cat === 'Audio' ? 'Tai nghe' : 
+                   cat === 'Laptop' ? 'Laptop' : 'Đồng hồ'}
                 </button>
               ))}
             </div>
-
             {/* Sort selector */}
             <div className="sort-wrapper">
               <span className="sort-label">Sắp xếp:</span>
@@ -257,16 +296,18 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
                   setSearch('');
                   setCategory('All');
                   setConditions({ excellent: true, good: true, fair: true });
+                  setPriceRange('All');
                 }}
               >
                 Thiết lập lại bộ lọc
               </button>
             </div>
           ) : (
-            <div className="row row-cols-1 row-cols-md-2 g-4">
-              {filteredProducts.map((product, index) => (
-                <div className="col" key={product.id || index}>
+            <>
+              <div className="shop-products-grid">
+                {displayedProducts.map((product, index) => (
                   <ProductCard
+                    key={product.id || index}
                     product={{
                       ...product,
                       id: product.id,
@@ -276,63 +317,49 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
                     }}
                     onViewDetails={setSelectedProduct}
                   />
+                ))}
+              </div>
+
+              {/* Pagination controls */}
+              {totalPages > 1 && (
+                <div className="shop-pagination-wrapper">
+                  <button
+                    className="pagination-arrow-btn"
+                    disabled={currentPage === 1}
+                    onClick={() => {
+                      setCurrentPage(prev => Math.max(prev - 1, 1));
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                  >
+                    &larr; Trước
+                  </button>
+                  {[...Array(totalPages)].map((_, idx) => (
+                    <button
+                      key={idx}
+                      className={`pagination-num-btn ${currentPage === idx + 1 ? 'active' : ''}`}
+                      onClick={() => {
+                        setCurrentPage(idx + 1);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                    >
+                      {idx + 1}
+                    </button>
+                  ))}
+                  <button
+                    className="pagination-arrow-btn"
+                    disabled={currentPage === totalPages}
+                    onClick={() => {
+                      setCurrentPage(prev => Math.min(prev + 1, totalPages));
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                  >
+                    Sau &rarr;
+                  </button>
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </main>
-
-        {/* Shop AI Assistant (Column 3) */}
-        <aside className="shop-ai-sidebar glass-panel">
-          <div className="ai-header">
-            <Sparkles size={20} className="ai-icon animate-pulse" />
-            <div>
-              <h4>AI Tư Vấn Mua Sắm</h4>
-              <span className="ai-badge-tag">MOCK LLM</span>
-            </div>
-          </div>
-
-          <div className="ai-chat-body">
-            {aiChat.map((msg, idx) => (
-              <div key={idx} className={`ai-chat-bubble-row ${msg.sender}`}>
-                <div className="ai-bubble-text-box">
-                  <p style={{ whiteSpace: 'pre-line' }}>{msg.text}</p>
-                  {msg.recommendations && msg.recommendations.length > 0 && (
-                    <div className="ai-recommendations-list">
-                      {msg.recommendations.map(prod => (
-                        <div
-                          key={prod.id}
-                          className="ai-recommend-card"
-                          onClick={() => setSelectedProduct(prod)}
-                        >
-                          <img src={prod.image_url} alt={prod.product_name} className="rec-img" />
-                          <div className="rec-info">
-                         <h5>{prod.title || prod.product_name}</h5>
-                            <span className="rec-price">{(prod.listed_price || prod.price || 0).toLocaleString('en-US')} <span className="currency">VND</span></span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-            <div ref={aiChatEndRef} />
-          </div>
-
-          <form onSubmit={handleSendAiMessage} className="ai-chat-footer">
-            <input
-              type="text"
-              className="form-control ai-input-control"
-              placeholder="Hỏi AI chọn máy..."
-              value={aiInput}
-              onChange={e => setAiInput(e.target.value)}
-            />
-            <button type="submit" className="btn btn-primary ai-send-btn">
-              <Send size={14} />
-            </button>
-          </form>
-        </aside>
       </div>
 
       {/* Product Detail Modal */}
@@ -345,7 +372,7 @@ const Shop = ({ selectedProduct, setSelectedProduct }) => {
 
             <div className="modal-body-grid">
               <div className="modal-image-panel">
-                <img src={selectedProduct.image_url || selectedProduct.image} alt={selectedProduct.product_name || selectedProduct.name} className="modal-product-img" />
+                <img src={getProductImage(selectedProduct)} alt={selectedProduct.product_name || selectedProduct.name} className="modal-product-img" />
               </div>
 
               <div className="modal-info-panel">

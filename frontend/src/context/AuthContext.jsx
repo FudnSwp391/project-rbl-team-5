@@ -12,6 +12,13 @@ export const AuthProvider = ({ children }) => {
     ? 'http://localhost:5000/api'
     : '/api';
 
+  const getAvatarUrl = (avatar, username) => {
+    if (!avatar || avatar.trim() === '' || avatar.startsWith('/avatars/')) {
+      return `https://api.dicebear.com/7.x/adventurer/svg?seed=${username || 'placeholder'}`;
+    }
+    return avatar;
+  };
+
   // Khai báo logout TRƯỚC useEffect để tránh ReferenceError
   const logout = useCallback(() => {
     localStorage.removeItem('techcycle_token');
@@ -35,6 +42,8 @@ export const AuthProvider = ({ children }) => {
 
         if (response.ok) {
           const userData = await response.json();
+          const savedAvatar = localStorage.getItem(`techcycle_avatar_${userData.id}`);
+          userData.avatar = savedAvatar || getAvatarUrl(userData.avatar, userData.username);
           setUser(userData);
         } else {
           // Token hết hạn hoặc không hợp lệ
@@ -68,6 +77,8 @@ export const AuthProvider = ({ children }) => {
       }
 
       localStorage.setItem('techcycle_token', data.token);
+      const savedAvatar = localStorage.getItem(`techcycle_avatar_${data.user.id}`);
+      data.user.avatar = savedAvatar || getAvatarUrl(data.user.avatar, data.user.username);
       setToken(data.token);
       setUser(data.user);
       return data.user;
@@ -95,6 +106,8 @@ export const AuthProvider = ({ children }) => {
       }
 
       localStorage.setItem('techcycle_token', data.token);
+      const savedAvatar = localStorage.getItem(`techcycle_avatar_${data.user.id}`);
+      data.user.avatar = savedAvatar || getAvatarUrl(data.user.avatar, data.user.username);
       setToken(data.token);
       setUser(data.user);
       return data.user;
@@ -104,8 +117,44 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const updateAvatar = (newAvatar) => {
+    if (user) {
+      localStorage.setItem(`techcycle_avatar_${user.id}`, newAvatar);
+      setUser(prev => prev ? { ...prev, avatar: newAvatar } : null);
+    }
+  };
+
+  const updateProfile = async (username, email, description, phone) => {
+    setError(null);
+    try {
+      const response = await fetch(`${API_URL}/auth/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ username, email, description, phone })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Cập nhật thông tin thất bại.');
+      }
+
+      const savedAvatar = localStorage.getItem(`techcycle_avatar_${data.user.id}`);
+      data.user.avatar = savedAvatar || getAvatarUrl(data.user.avatar, data.user.username);
+      
+      setUser(data.user);
+      return data.user;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, loading, error, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, error, login, register, logout, updateAvatar, getAvatarUrl, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );

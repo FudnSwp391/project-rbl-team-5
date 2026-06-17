@@ -4,7 +4,7 @@ const { db } = require('../db');
 exports.getOrders = async (req, res) => {
   try {
     let orders;
-    if (req.user.role === 'Admin' || req.user.role === 'admin') {
+    if (req.user.role === 'Admin' || req.user.role === 'admin' || req.user.role === 'seller') {
       orders = await db.find('orders');
     } else {
       let customerProfile = await db.findOne('customer_profiles', { user_id: req.user.id });
@@ -158,5 +158,33 @@ exports.createOrder = async (req, res) => {
   } catch (err) {
     console.error('Lỗi tạo đơn hàng:', err);
     res.status(500).json({ message: 'Lỗi tạo đơn hàng.', error: err.message });
+  }
+};
+
+// PUT /api/orders/:id/status - Cập nhật trạng thái đơn hàng (Hủy đơn)
+exports.updateOrderStatus = async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const { status } = req.body;
+    
+    const order = await db.findOne('orders', { id: orderId });
+    if (!order) return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
+    
+    if (req.user.role === 'customer' || req.user.role === 'Customer') {
+      let customerProfile = await db.findOne('customer_profiles', { user_id: req.user.id });
+      if (!customerProfile || order.customer_id !== customerProfile.id) {
+        return res.status(403).json({ message: 'Không có quyền cập nhật đơn hàng này' });
+      }
+      // Customer can only cancel pending orders
+      if (status === 'canceled' && order.status !== 'pending') {
+        return res.status(400).json({ message: 'Chỉ có thể hủy đơn hàng đang chờ duyệt' });
+      }
+    }
+    
+    await db.update('orders', { id: orderId }, { status });
+    res.json({ message: 'Cập nhật trạng thái thành công', status });
+  } catch (error) {
+    console.error('Error updating order status:', error);
+    res.status(500).json({ message: 'Lỗi server khi cập nhật trạng thái đơn hàng' });
   }
 };
