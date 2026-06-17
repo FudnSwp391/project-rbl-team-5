@@ -20,7 +20,7 @@ const dbConfig = {
     password: process.env.DB_PASSWORD,
     server: process.env.DB_SERVER,
     database: process.env.DB_DATABASE,
-    port: parseInt(process.env.DB_PORT),
+    port: parseInt(process.env.DB_PORT) || 1433,
     options: {
         encrypt: process.env.DB_ENCRYPT === 'true',
         trustServerCertificate: process.env.DB_TRUST_SERVER_CERTIFICATE === 'true',
@@ -28,10 +28,16 @@ const dbConfig = {
     }
 };
 
+let pool;
+
+const initDB = async () => {
+    pool = await sql.connect(dbConfig);
+    console.log("✅ Connected to SQL Server");
+};
+
+// 1. Hàm truy vấn thông tin cửa hàng cho Chatbot bán hàng
 const getStoreData = async () => {
     try {
-        const pool = await sql.connect(dbConfig);
-
         // Dùng view có sẵn — sản phẩm active, còn hàng
         const productsResult = await pool.request().query(`
             SELECT 
@@ -73,8 +79,6 @@ const getStoreData = async () => {
             FROM system_info
         `);
 
-        await sql.close();
-
         return {
             products: productsResult.recordset,
             technicians: techniciansResult.recordset,
@@ -82,15 +86,33 @@ const getStoreData = async () => {
             systemInfo: systemResult.recordset[0] || {}
         };
     } catch (err) {
-        console.error("Lỗi kết nối SQL:", err.message);
+        console.error("Lỗi truy vấn SQL (getStoreData):", err.message);
         return { products: [], technicians: [], services: [], systemInfo: {} };
     }
 };
 
+// 2. Hàm truy vấn Database để lấy dữ liệu sửa chữa cho Chatbot chẩn đoán
+async function fetchSolutionFromDB(keyword) {
+    try {
+        const result = await pool.request()
+            .input('keyword', sql.NVarChar, `%${keyword}%`)
+            .query(`
+                SELECT TOP 1 solution 
+                FROM repair_knowledge 
+                WHERE keywords LIKE @keyword OR issue_prompt LIKE @keyword
+            `);
+
+        return result.recordset.length > 0 ? result.recordset[0].solution : null;
+    } catch (err) {
+        console.error("❌ Lỗi truy vấn SQL (fetchSolutionFromDB):", err.message);
+        return null;
+    }
+}
+
+// Endpoint 1: Chatbot tư vấn bán hàng & dịch vụ chung
 app.post('/api/chat', async (req, res) => {
     try {
         const { history } = req.body;
-
         const storeData = await getStoreData();
 
         const context = `
@@ -128,7 +150,7 @@ ${JSON.stringify(storeData.services, null, 2)}
             ? history.map(msg => ({
                 role: msg.role === 'user' ? 'user' : 'model',
                 parts: [{ text: msg.text }]
-            }))
+              }))
             : [];
 
         if (formattedHistory.length === 0) {
@@ -141,11 +163,82 @@ ${JSON.stringify(storeData.services, null, 2)}
         );
 
         res.json({ reply: result.response.text() });
-
     } catch (error) {
-        console.error("Lỗi:", error.message);
+        console.error("Lỗi API chat:", error.message);
         res.status(500).json({ error: "Có lỗi xảy ra" });
     }
 });
 
-app.listen(3001, () => console.log('✅ Chatbot server chạy tại http://localhost:3001'));
+// Endpoint 2: Chatbot chẩn đoán lỗi sửa chữa (được tích hợp từ chatbot-server2)
+app.post('/api/chat/repair', async (req, res) => {
+    try {
+        const { history } = req.body;
+
+        const formattedHistory = Array.isArray(history)
+            ? history.map(msg => ({
+                role: msg.role === 'user' ? 'user' : 'model',
+                parts: [{ text: msg.text }]
+              }))
+            : [];
+
+        if (formattedHistory.length === 0) {
+            return res.status(400).json({ error: "Thiếu lịch sử chat" });
+        }
+
+        const lastMessage = formattedHistory[formattedHistory.length - 1].parts[0].text;
+
+        // Lấy dữ liệu giải pháp sửa chữa từ database dựa trên câu hỏi cuối cùng
+        const dbData = await fetchSolutionFromDB(lastMessage);
+
+        let systemPrompt = "";
+        if (dbData) {
+            console.log("🟢 Đã tìm thấy tài liệu trong Database! Đang nạp cho AI...");
+            systemPrompt = `Bạn là trợ lý kỹ thuật của hệ thống TechCycle. 
+Dưới đây là tài liệu hướng dẫn sửa chữa chính thức từ công ty:
+"${dbData}"
+
+YÊU CẦU QUAN TRỌNG: 
+- Hãy dựa 100% vào tài liệu trên để trả lời khách hàng.
+- Trả lời thân thiện, chuyên nghiệp, các bước rõ ràng.`;
+        } else {
+            console.log("⚪ Không tìm thấy dữ liệu trong DB. AI sẽ trả lời bằng kiến thức mặc định.");
+            systemPrompt = "Bạn là trợ lý AI thân thiện của TechCycle. Hãy tư vấn khách hàng mang thiết bị ra trung tâm kiểm tra do lỗi này khá phức tạp.";
+        }
+
+        const model = genAI.getGenerativeModel({
+            model: "gemini-2.5-flash",
+            systemInstruction: systemPrompt
+        });
+
+        const result = await model.generateContent({
+            contents: formattedHistory,
+            generationConfig: {
+                temperature: 0.2 // Thấp để AI bám sát dữ liệu sửa chữa
+            }
+        });
+
+        res.json({ reply: result.response.text() });
+    } catch (error) {
+        console.error("❌ Lỗi API Chat Repair:", error.message);
+        res.status(500).json({ error: "Có lỗi xảy ra trong quá trình xử lý chẩn đoán" });
+    }
+});
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', services: ['general_chat', 'repair_chat'], model: 'gemini-2.5-flash' });
+});
+
+// Khởi chạy cơ sở dữ liệu và Express server
+initDB()
+    .then(() => {
+        app.listen(3001, () => {
+            console.log('✅ Chatbot Server đã được hợp nhất chạy tại http://localhost:3001');
+            console.log('   - POST http://localhost:3001/api/chat (Tư vấn bán hàng)');
+            console.log('   - POST http://localhost:3001/api/chat/repair (Chẩn đoán lỗi)');
+            console.log('   - GET  http://localhost:3001/health (Kiểm tra sức khỏe)');
+        });
+    })
+    .catch(err => {
+        console.error('❌ Không thể kết nối SQL Server:', err.message);
+    });

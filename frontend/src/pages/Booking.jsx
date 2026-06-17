@@ -33,58 +33,71 @@ const Booking = ({ setActivePage }) => {
     }
   }, [aiChat]);
 
-  const handleSendAiMessage = (e) => {
+  const handleSendAiMessage = async (e) => {
     e.preventDefault();
     if (!aiInput.trim()) return;
 
     const userMsg = aiInput.trim();
-    setAiChat(prev => [...prev, { sender: 'user', text: userMsg }]);
+    const currentChat = [...aiChat, { sender: 'user', text: userMsg }];
+    setAiChat(currentChat);
     setAiInput('');
 
-    // AI diagnostic thinking simulation
-    setTimeout(() => {
-      let responseText = '';
-      let suggestion = { deviceType: 'Điện thoại (iPhone/Android)', issue: '' };
-      const lowerMsg = userMsg.toLowerCase();
+    // Thêm tin nhắn tạm "Đang suy nghĩ..."
+    setAiChat(prev => [...prev, { sender: 'ai', text: '🤖 TechCycle AI đang phân tích chẩn đoán lỗi...' }]);
 
-      if (lowerMsg.includes('pin') || lowerMsg.includes('hao pin') || lowerMsg.includes('chai')) {
-        responseText = '🤖 TechCycle AI Chẩn đoán:\n\n• Lỗi phát hiện: Chai pin hoặc lão hóa cell pin.\n• Hướng xử lý: Thay thế pin lithium zin chuẩn hãng mới.\n• Thời gian sửa: 30 phút lấy ngay.\n• Giá tham khảo: 350.000 VND - 850.000 VND.\n\nNhấn nút bên dưới để tôi tự động điền thông tin này vào phiếu hẹn giúp bạn nhé!';
-        suggestion = {
-          deviceType: 'Điện thoại (iPhone/Android)',
-          issue: `Thay pin do: ${userMsg}. (Chẩn đoán bởi TechCycle AI: Chai pin cell cần thay mới)`
-        };
-      } else if (lowerMsg.includes('màn hình') || lowerMsg.includes('sọc') || lowerMsg.includes('vỡ kính') || lowerMsg.includes('bể')) {
-        responseText = '🤖 TechCycle AI Chẩn đoán:\n\n• Lỗi phát hiện: Hỏng màn hình LCD hiển thị hoặc nứt kính cảm ứng ngoài.\n• Hướng xử lý: Thay màn hình nguyên bộ hoặc ép kính cảm ứng mới.\n• Thời gian sửa: 45 - 60 phút.\n• Giá tham khảo: 900.000 VND - 2.800.000 VND.\n\nNhấn nút dưới đây để áp dụng thông tin chẩn đoán này vào form đăng ký!';
-        suggestion = {
-          deviceType: 'Điện thoại (iPhone/Android)',
-          issue: `Thay màn hình/ép kính do: ${userMsg}. (Chẩn đoán bởi TechCycle AI: Vỡ kính hiển thị cần thay thế)`
-        };
-      } else if (lowerMsg.includes('macbook') || lowerMsg.includes('laptop') || lowerMsg.includes('nguồn') || lowerMsg.includes('sập')) {
-        responseText = '🤖 TechCycle AI Chẩn đoán:\n\n• Lỗi phát hiện: Hỏng IC nguồn, đứt mạch sạc hoặc lỗi mainboard chủ.\n• Hướng xử lý: Đo đạc dòng điện, đóng chip nguồn IC hoặc sửa lỗi nguồn trên mainboard.\n• Thời gian sửa: 1 - 2 ngày (cần đo đạc mạch).\n• Giá tham khảo: 600.000 VND - 1.800.000 VND.\n\nBạn có muốn tự động điền thông tin này vào form đặt lịch?';
-        suggestion = {
-          deviceType: 'Laptop (Macbook/Windows)',
-          issue: `Sửa lỗi nguồn/phần cứng do: ${userMsg}. (Chẩn đoán bởi TechCycle AI: Lỗi nguồn chập nguồn IC main)`
-        };
-      } else if (lowerMsg.includes('ipad') || lowerMsg.includes('tablet') || lowerMsg.includes('máy tính bảng')) {
-        responseText = '🤖 TechCycle AI Chẩn đoán:\n\n• Lỗi phát hiện: Thiết bị hỏng cổng sạc, chai pin hoặc lỗi màn hình hiển thị lớn.\n• Hướng xử lý: Vệ sinh cổng sạc, thay chân sạc mới hoặc ép kính màn hình.\n• Thời gian sửa: 1 - 3 tiếng.\n• Giá tham khảo: 400.000 VND - 1.200.000 VND.\n\nNhấn nút dưới để tự động hoàn tất điền form!';
-        suggestion = {
-          deviceType: 'Máy tính bảng (iPad/Android Tablet)',
-          issue: `Sửa chữa máy tính bảng do: ${userMsg}. (Chẩn đoán bởi TechCycle AI: Hỏng chân sạc/lỏng cổng kết nối)`
-        };
-      } else {
-        responseText = '🤖 TechCycle AI Chẩn đoán:\n\nGhi nhận hiện tượng hỏng hóc: "' + userMsg + '". Để có kết quả chẩn đoán chính xác nhất, TechCycle hỗ trợ kiểm định phần cứng hoàn toàn miễn phí tại cửa hàng.\n\nNhấn nút bên dưới để áp dụng thông tin và đăng ký lịch hẹn, KTV sẽ kiểm định trực tiếp cho bạn nhé!';
-        suggestion = {
-          deviceType: 'Thiết bị khác',
-          issue: `Yêu cầu kiểm tra lỗi: ${userMsg}. (Ghi nhận thông qua TechCycle AI)`
-        };
+    try {
+      // Map history sang định dạng chatbot-server mong muốn
+      const historyToSend = currentChat.map(msg => ({
+        role: msg.sender === 'user' ? 'user' : 'model',
+        text: msg.text
+      }));
+
+      const res = await fetch('http://localhost:3001/api/chat/repair', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ history: historyToSend })
+      });
+
+      if (!res.ok) {
+        throw new Error('Không thể kết nối đến chatbot-server');
       }
 
-      setAiChat(prev => [...prev, { 
-        sender: 'ai', 
-        text: responseText,
-        suggestion 
-      }]);
-    }, 1000);
+      const data = await res.json();
+      const responseText = data.reply || 'Không có phản hồi từ hệ thống AI.';
+
+      // Tự động phân tích thiết bị dựa vào từ khóa
+      let deviceTypeSuggestion = 'Điện thoại (iPhone/Android)';
+      const lowerMsg = userMsg.toLowerCase();
+      if (lowerMsg.includes('macbook') || lowerMsg.includes('laptop') || lowerMsg.includes('máy tính') || lowerMsg.includes('pc')) {
+        deviceTypeSuggestion = 'Laptop (Macbook/Windows)';
+      } else if (lowerMsg.includes('ipad') || lowerMsg.includes('tablet') || lowerMsg.includes('máy tính bảng')) {
+        deviceTypeSuggestion = 'Máy tính bảng (iPad/Android Tablet)';
+      } else if (lowerMsg.includes('watch') || lowerMsg.includes('đồng hồ')) {
+        deviceTypeSuggestion = 'Smartwatch (Apple Watch/Samsung)';
+      } else if (lowerMsg.includes('điện thoại') || lowerMsg.includes('iphone') || lowerMsg.includes('samsung') || lowerMsg.includes('oppo') || lowerMsg.includes('xiaomi') || lowerMsg.includes('vivo') || lowerMsg.includes('huawei')) {
+        deviceTypeSuggestion = 'Điện thoại (iPhone/Android)';
+      } else {
+        deviceTypeSuggestion = 'Thiết bị khác';
+      }
+
+      const suggestion = {
+        deviceType: deviceTypeSuggestion,
+        issue: `${userMsg}. (Chẩn đoán bởi TechCycle AI)`
+      };
+
+      setAiChat(prev => [
+        ...prev.slice(0, -1), // Loại bỏ tin nhắn tạm
+        { sender: 'ai', text: responseText, suggestion }
+      ]);
+    } catch (error) {
+      console.error(error);
+      setAiChat(prev => [
+        ...prev.slice(0, -1),
+        { sender: 'ai', text: '🤖 Rất tiếc, tôi không thể kết nối đến máy chủ chẩn đoán. Vui lòng thử lại sau!' }
+      ]);
+    }
   };
 
   const handleApplySuggestion = (sugg) => {
@@ -194,7 +207,7 @@ const Booking = ({ setActivePage }) => {
               <Sparkles size={20} className="ai-icon animate-pulse" />
               <div>
                 <h4>Trợ lý AI chẩn đoán lỗi</h4>
-                <span className="ai-badge-tag">MOCK LLM</span>
+                <span className="ai-badge-tag">Gemini AI</span>
               </div>
             </div>
             
