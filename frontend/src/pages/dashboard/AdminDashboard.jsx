@@ -1,15 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import io from 'socket.io-client';
+import { getProductImage } from '../../components/ProductCard';
+import ProfileSettings from '../../components/ProfileSettings';
 import { 
   LayoutDashboard, ShoppingBag, Calendar, Plus, Trash2, 
   Users, Sun, Moon, Eye, Search, Bell, Settings, HelpCircle, LogOut,
-  MapPin, CreditCard, Pencil, Shield, ArrowLeft
+  MapPin, CreditCard, Pencil, Shield, ArrowLeft, MessageSquare, Tag, Send, Image, Paperclip
 } from 'lucide-react';
 
 const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000' : '';
 
 const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInitialSubTab }) => {
-  const { user, token } = useAuth();
+  const { user, token, updateAvatar, getAvatarUrl, logout } = useAuth();
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [customAvatarUrl, setCustomAvatarUrl] = useState('');
   const subTab = initialSubTab || 'stats';
   const setSubTab = setInitialSubTab;
   const [timeRange, setTimeRange] = useState('1Y');
@@ -32,6 +37,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
   const [newProdImage, setNewProdImage] = useState('');
   const [newProdDesc, setNewProdDesc] = useState('');
   const [productSuccess, setProductSuccess] = useState('');
+  const [selectedImageFiles, setSelectedImageFiles] = useState([]);
 
   // --- FORM STATES FOR EDITING PRODUCTS ---
   const [editingProduct, setEditingProduct] = useState(null);
@@ -42,6 +48,30 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
   const [editProdImage, setEditProdImage] = useState('');
   const [editProdDesc, setEditProdDesc] = useState('');
   const [editProdStatus, setEditProdStatus] = useState('available');
+
+  // --- FORM STATES FOR PROMO CODES ---
+  const [promoCodes, setPromoCodes] = useState([]);
+  const [newPromoCode, setNewPromoCode] = useState('');
+  const [newPromoDiscount, setNewPromoDiscount] = useState('');
+  const [newPromoActive, setNewPromoActive] = useState(true);
+  const [newPromoExpiry, setNewPromoExpiry] = useState('');
+
+  // --- FORM STATES FOR NOTIFICATIONS ---
+  const [notifTitle, setNotifTitle] = useState('');
+  const [notifMessage, setNotifMessage] = useState('');
+  const [notifImage, setNotifImage] = useState('');
+  const [notifTargetRole, setNotifTargetRole] = useState('all');
+
+  // --- CHAT SYSTEM STATES ---
+  const [chatConversations, setChatConversations] = useState([]);
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const socketRef = useRef(null);
+  const chatEndRef = useRef(null);
+  const fetchConversationsListRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const fetchData = async () => {
     if (!user || !token) return;
@@ -80,10 +110,240 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
       });
       const dataOrders = await resOrders.json();
       if (Array.isArray(dataOrders)) setOrdersList(dataOrders);
+
+      const resPromos = await fetch(`${API_BASE}/api/promocodes`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (resPromos.ok) {
+        const dataPromos = await resPromos.json();
+        setPromoCodes(dataPromos);
+      }
     } catch (err) {
       console.error('Lỗi tải dữ liệu bảng điều khiển:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCreatePromoCode = async (e) => {
+    e.preventDefault();
+    if (!newPromoCode.trim() || !newPromoDiscount) {
+      alert("Vui lòng nhập cả mã và tỷ lệ phần trăm giảm giá.");
+      return;
+    }
+    
+    const discountNum = parseInt(newPromoDiscount);
+    if (isNaN(discountNum) || discountNum <= 0 || discountNum >= 100) {
+      alert("Phần trăm giảm giá phải từ 1% đến 99%!");
+      return;
+    }
+    
+    let formattedExpiry = '2026-12-31';
+    if (newPromoExpiry) {
+      formattedExpiry = newPromoExpiry;
+    }
+    
+    try {
+      const res = await fetch(`${API_BASE}/api/promocodes`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          code: newPromoCode.toUpperCase().replace(/\s+/g, ''),
+          discount: discountNum,
+          expiry: formattedExpiry,
+          status: newPromoActive ? 'active' : 'expired'
+        })
+      });
+      
+      if (res.ok) {
+        const newCode = await res.json();
+        setPromoCodes(prev => [newCode, ...prev]);
+        setNewPromoCode('');
+        setNewPromoDiscount('');
+        setNewPromoExpiry('');
+        alert(`Mã khuyến mãi ${newCode.code} đã được tạo thành công!`);
+      } else {
+        const err = await res.json();
+        alert(err.message || 'Lỗi tạo mã.');
+      }
+    } catch (err) {
+      alert('Lỗi kết nối.');
+    }
+  };
+
+  const handleCreateNotification = async (e) => {
+    e.preventDefault();
+    if (!notifTitle.trim() || !notifMessage.trim()) {
+      alert("Vui lòng điền đầy đủ tiêu đề và nội dung thông báo.");
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE}/api/notifications`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ 
+          title: notifTitle, 
+          message: notifMessage,
+          image: notifImage,
+          targetRole: notifTargetRole
+        })
+      });
+      if (res.ok) {
+        const targetText = notifTargetRole === 'all' ? 'toàn bộ người dùng' : 
+                          notifTargetRole === 'technician' ? 'các thợ kỹ thuật' : 'các seller';
+        alert(`Thông báo đã được gửi thành công đến ${targetText}!`);
+        setNotifTitle('');
+        setNotifMessage('');
+        setNotifImage('');
+        setNotifTargetRole('all');
+      } else {
+        const errData = await res.json();
+        alert(`Lỗi gửi thông báo: ${errData.message || 'Không xác định'}`);
+      }
+    } catch (err) {
+      console.error('Lỗi gửi thông báo:', err);
+      alert('Không thể kết nối đến máy chủ.');
+    }
+  };
+
+  const handleDeletePromoCode = async (codeToDelete) => {
+    if (window.confirm(`Bạn có chắc chắn muốn xóa mã khuyến mãi ${codeToDelete}?`)) {
+      try {
+        const res = await fetch(`${API_BASE}/api/promocodes/${codeToDelete}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          setPromoCodes(prev => prev.filter(p => p.code !== codeToDelete));
+        }
+      } catch (err) {
+        alert('Lỗi xóa mã.');
+      }
+    }
+  };
+
+  // --- WEBSOCKET CHAT LOGIC ---
+  useEffect(() => {
+    if (!user) return;
+    socketRef.current = io(`${API_BASE}`);
+    socketRef.current.emit('registerUser', user.id);
+
+    socketRef.current.on('receiveMessage', (message) => {
+      if (selectedBooking && message.bookingId === selectedBooking.id) {
+        setChatMessages(prev => Array.isArray(prev) ? [...prev, message] : [message]);
+      }
+      if (fetchConversationsListRef.current) fetchConversationsListRef.current();
+    });
+
+    return () => {
+      if (socketRef.current) socketRef.current.disconnect();
+    };
+  }, [user, selectedBooking]);
+
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages]);
+
+  const fetchConversationsList = useCallback(() => {
+    if (bookingsList.length === 0) return;
+    const chats = bookingsList.filter(b => b.status !== 'pending');
+    setChatConversations(chats);
+  }, [bookingsList]);
+
+  useEffect(() => {
+    fetchConversationsListRef.current = fetchConversationsList;
+  }, [fetchConversationsList]);
+
+  useEffect(() => {
+    fetchConversationsList();
+  }, [fetchConversationsList]);
+
+  const handleSelectConversation = (booking) => {
+    setSelectedBooking(booking);
+    setChatMessages([]);
+    if (socketRef.current) {
+      socketRef.current.emit('joinBookingRoom', booking.id);
+    }
+    fetch(`${API_BASE}/api/messages/${booking.id}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setChatMessages(data);
+        } else {
+          setChatMessages([]);
+          console.error('Expected array of messages, got:', data);
+        }
+      })
+      .catch(err => {
+        console.error('Lỗi tải lịch sử chat:', err);
+        setChatMessages([]);
+      });
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !selectedBooking) return;
+
+    setIsUploadingImage(true);
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/upload-images`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ images: [reader.result] })
+        });
+        const data = await res.json();
+        if (res.ok && data.urls && data.urls.length > 0) {
+          const imageUrl = data.urls[0];
+          const receiverId = selectedBooking.customerId;
+          if (socketRef.current) {
+            socketRef.current.emit('sendMessage', {
+              senderId: user.id,
+              receiverId,
+              bookingId: selectedBooking.id,
+              text: `[IMG]${imageUrl}`
+            });
+          }
+        } else {
+          alert('Lỗi tải ảnh lên');
+        }
+      } catch (err) {
+        console.error('Lỗi tải ảnh:', err);
+      } finally {
+        setIsUploadingImage(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSendMessage = (e) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !selectedBooking) return;
+    const receiverId = selectedBooking.customerId;
+    const messagePayload = {
+      senderId: user.id,
+      receiverId,
+      bookingId: selectedBooking.id,
+      text: newMessage
+    };
+    if (socketRef.current) {
+      socketRef.current.emit('sendMessage', messagePayload);
+      setNewMessage('');
     }
   };
 
@@ -160,13 +420,19 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
   const trend = getTrendData();
 
   const handleLogout = () => {
-    setActivePage('home');
-    window.location.reload();
+    logout();
+    window.location.hash = '#/auth';
   };
 
   const handleDeleteUser = async (userId) => {
     if (userId === user.id) {
       alert("You cannot delete your own account.");
+      return;
+    }
+    // Find the target user to check their role
+    const targetUser = usersList.find(u => u.id === userId);
+    if (targetUser && targetUser.role === 'admin') {
+      alert("Cannot delete admin accounts.");
       return;
     }
     if (!window.confirm("Are you sure you want to delete this user account? This cannot be undone.")) {
@@ -192,6 +458,34 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
     }
   };
 
+  const handleChangeRole = async (userId, newRole) => {
+    const targetUser = usersList.find(u => u.id === userId);
+    if (targetUser && targetUser.role === 'admin') {
+      alert("Cannot change role of admin accounts.");
+      return;
+    }
+    if (!window.confirm(`Change this user's role to "${newRole}"?`)) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/users/${userId}/role`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ role: newRole })
+      });
+      if (res.ok) {
+        alert(`Role updated to ${newRole} successfully.`);
+        fetchData();
+      } else {
+        const d = await res.json();
+        alert(d.message || "Failed to update role.");
+      }
+    } catch (err) {
+      alert("Error updating role: " + err.message);
+    }
+  };
+
   const handleAssignTechnician = async (bookingId, techId) => {
     try {
       const res = await fetch(`${API_BASE}/api/bookings/${bookingId}`, {
@@ -211,6 +505,35 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
     }
   };
 
+  const handleImageFilesChange = (e) => {
+    if (e.target.files) {
+      const files = Array.from(e.target.files);
+      if (files.length + selectedImageFiles.length > 10) {
+        alert("Bạn chỉ có thể tải lên tối đa 10 hình ảnh.");
+        return;
+      }
+      
+      const promises = files.map(file => {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (ev) => resolve(ev.target.result);
+          reader.onerror = (err) => reject(err);
+          reader.readAsDataURL(file);
+        });
+      });
+      
+      Promise.all(promises).then(base64s => {
+        setSelectedImageFiles(prev => [...prev, ...base64s]);
+      }).catch(err => {
+        console.error("Lỗi đọc file:", err);
+      });
+    }
+  };
+
+  const handleRemoveSelectedImage = (indexToRemove) => {
+    setSelectedImageFiles(prev => prev.filter((_, idx) => idx !== indexToRemove));
+  };
+
   const handleAddProduct = async (e) => {
     e.preventDefault();
     setProductSuccess('');
@@ -219,6 +542,30 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
       return;
     }
     try {
+      let finalUrls = [];
+      if (selectedImageFiles.length > 0) {
+        const uploadRes = await fetch(`${API_BASE}/api/upload-images`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ images: selectedImageFiles })
+        });
+        if (uploadRes.ok) {
+          const uploadData = await uploadRes.json();
+          finalUrls = uploadData.urls;
+        } else {
+          const errData = await uploadRes.json();
+          alert(`Lỗi tải lên hình ảnh: ${errData.message || 'Không xác định'}`);
+          return;
+        }
+      }
+
+      if (newProdImage.trim()) {
+        finalUrls.push(newProdImage.trim());
+      }
+
       const res = await fetch(`${API_BASE}/api/products`, {
         method: 'POST',
         headers: {
@@ -230,7 +577,8 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
           price: Number(newProdPrice),
           category: newProdCategory,
           condition: newProdCondition,
-          image: newProdImage || undefined,
+          images: finalUrls,
+          image: finalUrls[0] || undefined,
           description: newProdDesc
         })
       });
@@ -240,6 +588,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
         setNewProdPrice('');
         setNewProdDesc('');
         setNewProdImage('');
+        setSelectedImageFiles([]);
         fetchData();
       } else {
         const d = await res.json();
@@ -247,6 +596,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
       }
     } catch (err) {
       console.error(err);
+      alert('Có lỗi xảy ra khi thêm sản phẩm.');
     }
   };
 
@@ -380,6 +730,10 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
               <Users size={18} />
               Team
             </button>
+            <button className={`sidebar-nav-btn ${subTab === 'marketing' ? 'active' : ''}`} onClick={() => setSubTab('marketing')}>
+              <Tag size={18} />
+              Marketing
+            </button>
           </nav>
 
           <button className="new-report-btn" onClick={() => alert("Creating a new analytics report...")}>
@@ -405,10 +759,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
         {/* Dashboard Main Content Area */}
         <main className="dashboard-main-content">
           <header className="dashboard-top-bar glass-panel">
-            <div className="topbar-search-box">
-              <Search size={18} className="search-icon" />
-              <input type="text" placeholder="Search data..." />
-            </div>
+            <div style={{ flex: 1 }}></div>
 
             <div className="topbar-actions-profile">
               <button className="topbar-action-btn theme-toggle" onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')} title="Toggle Light/Dark theme">
@@ -418,18 +769,30 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                 <Bell size={20} />
               </button>
               
-              <button className="topbar-action-btn settings" onClick={() => alert("Account settings are managed by your administrator.")} title="Settings">
+              <button className="topbar-action-btn messages" onClick={() => setSubTab('chat')} title="Messages">
+                <MessageSquare size={20} />
+              </button>
+              
+              <button className={`topbar-action-btn settings ${subTab === 'settings' ? 'active' : ''}`} onClick={() => setSubTab('settings')} title="Settings">
                 <Settings size={20} />
               </button>
               
               <div className="topbar-divider"></div>
 
-              <div className="topbar-profile-widget">
+              <div 
+                className="topbar-profile-widget" 
+                style={{ cursor: 'pointer' }}
+                onClick={() => {
+                  setCustomAvatarUrl(user.avatar || '');
+                  setShowAvatarModal(true);
+                }}
+                title="Thay đổi ảnh đại diện"
+              >
                 <div className="profile-info">
                   <h4>{user.username === 'admin' ? 'Admin TechCycle' : user.username}</h4>
                   <span>{user.username === 'admin' ? 'Administrator' : 'Eco Seller'}</span>
                 </div>
-                <img src={user.avatar} alt={user.username} className="profile-avatar-circle" />
+                 <img src={getAvatarUrl(user.avatar, user.username)} alt={user.username} className="profile-avatar-circle" />
               </div>
             </div>
           </header>
@@ -439,6 +802,13 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
               <div className="spinner-border text-primary" role="status">
                 <span className="visually-hidden">Loading...</span>
               </div>
+            </div>
+          )}
+
+          {!loading && subTab === 'settings' && (
+            <div className="settings-view animate-fade container py-4">
+              <h2 className="mb-4 text-center" style={{ fontWeight: 800 }}>Account Settings</h2>
+              <ProfileSettings />
             </div>
           )}
 
@@ -783,6 +1153,9 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                       <option value="WashingMachine">Washing Machine</option>
                       <option value="Refrigerator">Refrigerator</option>
                       <option value="Microwave">Microwave</option>
+                      <option value="Audio">Audio</option>
+                      <option value="Laptop">Laptop</option>
+                      <option value="Smartwatch">Smartwatch</option>
                     </select>
                   </div>
                   <div className="form-group">
@@ -799,16 +1172,48 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                   </div>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Image URL (leave blank for defaults)</label>
-                  <input 
-                    type="url" 
-                    className="form-control" 
-                    placeholder="https://images.unsplash.com/..." 
-                    value={newProdImage}
-                    onChange={e => setNewProdImage(e.target.value)}
-                  />
+                <div className="form-row-grid">
+                  <div className="form-group">
+                    <label className="form-label">Hoặc nhập link hình ảnh</label>
+                    <input 
+                      type="url" 
+                      className="form-control" 
+                      placeholder="https://images.unsplash.com/..." 
+                      value={newProdImage}
+                      onChange={e => setNewProdImage(e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Tải lên từ máy tính (Chọn nhiều ảnh, tối đa 10)</label>
+                    <input 
+                      type="file" 
+                      className="form-control" 
+                      multiple 
+                      accept="image/*"
+                      onChange={handleImageFilesChange}
+                    />
+                  </div>
                 </div>
+
+                {selectedImageFiles.length > 0 && (
+                  <div className="form-group">
+                    <label className="form-label">Hình ảnh đã chọn ({selectedImageFiles.length}/10):</label>
+                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '8px' }}>
+                      {selectedImageFiles.map((base64, idx) => (
+                        <div key={idx} style={{ position: 'relative', width: '70px', height: '70px', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+                          <img src={base64} alt={`Uploaded ${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <button 
+                            type="button" 
+                            onClick={() => handleRemoveSelectedImage(idx)} 
+                            style={{ position: 'absolute', top: '2px', right: '2px', background: 'rgba(239, 68, 68, 0.85)', color: '#fff', border: 'none', borderRadius: '50%', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', cursor: 'pointer', fontWeight: 'bold' }}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div className="form-group">
                   <label className="form-label">Detailed Description</label>
@@ -845,7 +1250,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                     {productsList.map(prod => (
                       <tr key={prod.id}>
                         <td>
-                          <img src={prod.image} alt={prod.name} className="tbl-prod-thumb" />
+                          <img src={getProductImage(prod)} alt={prod.name} className="tbl-prod-thumb" />
                         </td>
                         <td>
                           <strong>{prod.name}</strong>
@@ -943,7 +1348,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                       <tr key={u.id}>
                         <td>
                           <div className="tbl-user-cell">
-                            <img src={u.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${u.username}`} alt={u.username} className="tbl-avatar-circle" />
+                             <img src={getAvatarUrl(u.avatar, u.username)} alt={u.username} className="tbl-avatar-circle" />
                             <strong>{u.username}</strong>
                           </div>
                         </td>
@@ -951,6 +1356,28 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                         <td>{u.phone || 'N/A'}</td>
                         <td>
                           <span className={`user-role-tag role-${u.role}`}>{u.role.toUpperCase()}</span>
+                          {u.role !== 'admin' && u.id !== user.id && (
+                            <select
+                              className="role-change-select"
+                              value={u.role}
+                              onChange={(e) => handleChangeRole(u.id, e.target.value)}
+                              style={{
+                                marginLeft: '8px',
+                                padding: '3px 6px',
+                                fontSize: '0.72rem',
+                                borderRadius: '6px',
+                                border: '1.5px solid var(--border-color)',
+                                cursor: 'pointer',
+                                background: 'var(--white)',
+                                color: 'var(--neutral-darkest)',
+                                fontWeight: 600
+                              }}
+                            >
+                              <option value="customer">Customer</option>
+                              <option value="technician">Technician</option>
+                              <option value="seller">Seller</option>
+                            </select>
+                          )}
                         </td>
                         <td>{new Date(u.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
                         <td>
@@ -962,7 +1389,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                             >
                               <Eye size={16} />
                             </button>
-                            {u.id !== user.id && (
+                            {u.id !== user.id && u.role !== 'admin' && (
                               <button 
                                 className="delete-item-btn"
                                 onClick={() => handleDeleteUser(u.id)}
@@ -997,7 +1424,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                       <div className="profile-card-body">
                         <div className="profile-avatar-container">
                           <img 
-                            src={viewingUser.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${viewingUser.username}`} 
+                            src={getAvatarUrl(viewingUser.avatar, viewingUser.username)} 
                             alt={viewingUser.username} 
                             className="detail-avatar" 
                           />
@@ -1156,7 +1583,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                           <tr key={c.id} onClick={() => setViewingUser(c)} style={{ cursor: 'pointer' }} className="customer-row-hover">
                             <td>
                               <div className="tbl-user-cell">
-                                <img src={c.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${c.username}`} alt={c.username} className="tbl-avatar-circle" />
+                                 <img src={getAvatarUrl(c.avatar, c.username)} alt={c.username} className="tbl-avatar-circle" />
                                 <strong>{c.username}</strong>
                               </div>
                             </td>
@@ -1174,6 +1601,299 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
               </div>
             )
           )}
+
+          {!loading && subTab === 'marketing' && (
+            <div className="seller-marketing-view animate-fade">
+              <h2>Quản Lý Chiến Dịch & Khuyến Mãi</h2>
+              <p className="view-desc">Tạo mã giảm giá và quản lý các chương trình tiếp thị thu hút khách hàng.</p>
+              
+              <div className="seller-main-layout-grid" style={{ gridTemplateColumns: '1fr', display: 'grid', gap: '28px' }}>
+                <div className="layout-col-left" style={{ width: '100%' }}>
+                  <div className="stats-card-widget glass-panel">
+                    <h3 className="mb-4">Danh Sách Mã Khuyến Mãi</h3>
+                    <div className="promos-list" style={{ display: 'flex', flexDirection: 'column', gap: '14px', maxHeight: '300px', overflowY: 'auto', paddingRight: '8px' }}>
+                      {promoCodes.map((p, idx) => (
+                        <div key={idx} className="promo-code-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', background: 'var(--neutral-lightest)', borderRadius: '12px', border: '1px solid var(--border-color)', opacity: p.status === 'active' ? 1 : 0.6 }}>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span className="code-text" style={{ fontFamily: 'monospace', fontWeight: 'bold', fontSize: '1.1rem', color: p.status === 'active' ? '#006D44' : 'var(--neutral-medium)' }}>{p.code}</span>
+                            <span style={{ fontSize: '0.85rem', color: 'var(--neutral-medium)', marginTop: '4px' }}>
+                              {p.status === 'active' ? `Giảm ${p.discount}% - Hết hạn: ${p.expiry || '15/06'}` : 'Hết hạn'}
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                            {p.status === 'active' ? (
+                              <button className="copy-code-btn" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.3rem' }} onClick={() => { navigator.clipboard.writeText(p.code); alert(`Đã sao chép mã ${p.code}!`); }} title="Sao chép">📋</button>
+                            ) : (
+                              <span style={{ fontSize: '1.3rem' }} title="Hết hạn">⏰</span>
+                            )}
+                            <button className="delete-code-btn" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.3rem', color: '#ef4444' }} onClick={() => handleDeletePromoCode(p.code)} title="Xóa mã">🗑️</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="layout-col-right" style={{ width: '100%', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '28px' }}>
+                  <div className="stats-card-widget glass-panel">
+                    <h3>Tạo Mã Khuyến Mãi Mới</h3>
+                    <form onSubmit={handleCreatePromoCode} className="quick-code-form" style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      <div className="form-group">
+                        <label className="form-label-sm">MÃ GIẢM GIÁ (VIẾT LIỀN KHÔNG DẤU)</label>
+                        <input 
+                          type="text" 
+                          className="form-control" 
+                          placeholder="VÍ DỤ: TECHCYCLE10"
+                          value={newPromoCode}
+                          onChange={e => setNewPromoCode(e.target.value)}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label-sm">PHẦN TRĂM GIẢM GIÁ (%)</label>
+                        <input 
+                          type="number" 
+                          className="form-control" 
+                          placeholder="10"
+                          min="1"
+                          max="99"
+                          value={newPromoDiscount}
+                          onChange={e => setNewPromoDiscount(e.target.value)}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label-sm">HẠN SỬ DỤNG</label>
+                        <input 
+                          type="date" 
+                          className="form-control"
+                          value={newPromoExpiry}
+                          onChange={e => setNewPromoExpiry(e.target.value)}
+                        />
+                      </div>
+                      <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span className="form-label-sm" style={{ margin: 0 }}>TRẠNG THÁI HOẠT ĐỘNG</span>
+                        <label className="switch-container" style={{ position: 'relative', display: 'inline-block', width: '46px', height: '24px' }}>
+                          <input 
+                            type="checkbox" 
+                            style={{ opacity: 0, width: 0, height: 0 }} 
+                            checked={newPromoActive}
+                            onChange={e => setNewPromoActive(e.target.checked)}
+                          />
+                          <span className="switch-slider" style={{ position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: newPromoActive ? '#F59E03' : '#ffffff', border: '1px solid #E5E7EB', borderRadius: '24px', transition: '0.4s' }}></span>
+                        </label>
+                      </div>
+                      <button type="submit" className="btn btn-primary" style={{ background: '#006D44', color: '#fff', width: '100%', border: 'none', padding: '12px', borderRadius: '8px', fontWeight: 'bold' }}>
+                        Tạo Mã Khuyến Mãi
+                      </button>
+                    </form>
+                  </div>
+
+                  <div className="stats-card-widget glass-panel">
+                    <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>📢 Gửi Thông Báo</h3>
+                    <form onSubmit={handleCreateNotification} className="quick-code-form" style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      <div className="form-group">
+                        <label className="form-label-sm">ĐỐI TƯỢNG NHẬN</label>
+                        <select 
+                          className="form-control"
+                          value={notifTargetRole}
+                          onChange={e => setNotifTargetRole(e.target.value)}
+                        >
+                          <option value="all">Toàn bộ người dùng</option>
+                          <option value="technician">Thợ kỹ thuật</option>
+                          <option value="seller">Người bán (Seller)</option>
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label-sm">TIÊU ĐỀ THÔNG BÁO</label>
+                        <input 
+                          type="text" 
+                          className="form-control" 
+                          placeholder="Tiêu đề thông báo..."
+                          value={notifTitle}
+                          onChange={e => setNotifTitle(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label-sm">NỘI DUNG CHI TIẾT</label>
+                        <textarea 
+                          className="form-control" 
+                          rows="4"
+                          placeholder="Nội dung gửi đến người dùng..."
+                          value={notifMessage}
+                          onChange={e => setNotifMessage(e.target.value)}
+                          required
+                        ></textarea>
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label-sm">ẢNH MINH HỌA (URL)</label>
+                        <input 
+                          type="text" 
+                          className="form-control" 
+                          placeholder="https://example.com/image.jpg (tùy chọn)"
+                          value={notifImage}
+                          onChange={e => setNotifImage(e.target.value)}
+                        />
+                        {notifImage && (
+                          <div style={{ marginTop: '12px', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+                            <img src={notifImage} alt="Preview" style={{ width: '100%', height: 'auto', maxHeight: '200px', objectFit: 'cover' }} onError={(e) => { e.target.style.display = 'none'; }} />
+                          </div>
+                        )}
+                      </div>
+                      <button type="submit" className="btn btn-secondary" style={{ width: '100%', padding: '12px', borderRadius: '8px', fontWeight: 'bold' }}>
+                        Gửi Thông Báo
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!loading && subTab === 'chat' && (
+            <div className="chat-view-layout glass-panel animate-fade">
+              <div className="chat-conversations-sidebar">
+                <h3>Repair Tickets</h3>
+                <p className="chat-sub-lbl">Select a ticket to begin consultation</p>
+                <div className="chat-conversations-list">
+                  {chatConversations.map(conv => (
+                    <div 
+                      key={conv.id} 
+                      className={`conv-item-card ${selectedBooking?.id === conv.id ? 'active' : ''}`}
+                      onClick={() => handleSelectConversation(conv)}
+                    >
+                      <div className="conv-item-info">
+                        <h4>{conv.deviceType}</h4>
+                        <p className="conv-user-name">
+                          Client: {conv.customerName}
+                        </p>
+                      </div>
+                      <span className="conv-id">#{conv.id}</span>
+                    </div>
+                  ))}
+                  {chatConversations.length === 0 && (
+                    <p className="empty-text">No assigned repairs available to start messaging.</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="chat-thread-panel">
+                {selectedBooking ? (
+                  <>
+                    <div className="thread-header">
+                      <div>
+                        <h4>{selectedBooking.deviceType}</h4>
+                        <p>#{selectedBooking.id} • Customer: {selectedBooking.customerName}</p>
+                      </div>
+                    </div>
+
+                    <div className="chat-messages-thread">
+                      {Array.isArray(chatMessages) && chatMessages.map(msg => {
+                        const isMe = msg.senderId === user.id;
+                        return (
+                          <div key={msg.id} className={`chat-message-bubble ${isMe ? 'mine' : 'theirs'}`}>
+                             {!isMe && <img src={getAvatarUrl(msg.senderAvatar, msg.senderName)} alt={msg.senderName} className="msg-avatar" />}
+                            <div className="msg-bubble-content">
+                              {!isMe && <span className="sender-name">{msg.senderName}</span>}
+                              {msg.text && msg.text.startsWith('[IMG]') ? (
+                                <img src={msg.text.replace('[IMG]', '')} alt="attachment" className="chat-image-attachment" onClick={() => window.open(msg.text.replace('[IMG]', ''), '_blank')} />
+                              ) : (
+                                <p className="msg-text">{msg.text}</p>
+                              )}
+                              <span className="msg-time">{new Date(msg.createdAt || msg.timestamp || new Date()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <div ref={chatEndRef} />
+                    </div>
+
+                    <form className="chat-input-form" onSubmit={handleSendMessage}>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        ref={fileInputRef} 
+                        style={{ display: 'none' }} 
+                        onChange={handleImageUpload}
+                      />
+                      <button 
+                        type="button" 
+                        className="chat-attach-btn" 
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploadingImage}
+                      >
+                        <Paperclip size={18} />
+                      </button>
+                      <input 
+                        type="text" 
+                        placeholder={isUploadingImage ? "Đang tải ảnh lên..." : "Type your message..."}
+                        value={newMessage}
+                        onChange={e => setNewMessage(e.target.value)}
+                        disabled={isUploadingImage}
+                      />
+                      <button type="submit" className="chat-send-btn" disabled={isUploadingImage}>
+                        <Send size={18} />
+                      </button>
+                    </form>
+                  </>
+                ) : (
+                  <div className="no-chat-selected">
+                    <p>Select a conversation from the sidebar to view chat logs.</p>
+                  </div>
+                )}
+              </div>
+
+              {selectedBooking && (
+                <div className="chat-case-details-panel">
+                  <h3>Repair Ticket</h3>
+                  <hr className="details-divider" />
+                  <div className="details-content">
+                    <div className="details-device-header">
+                      <h4>{selectedBooking.deviceType}</h4>
+                      <span className="details-id">#{selectedBooking.id}</span>
+                    </div>
+                    
+                    <div className="details-progress-stepper">
+                      <div className={`stepper-step ${['assigned', 'inspecting', 'repairing', 'completed'].includes(selectedBooking.status) ? 'active' : ''}`}>
+                        <div className="step-bullet">1</div>
+                        <div className="step-info"><span className="step-name">Assigned</span></div>
+                      </div>
+                      <div className={`stepper-step ${['inspecting', 'repairing', 'completed'].includes(selectedBooking.status) ? 'active' : ''}`}>
+                        <div className="step-bullet">2</div>
+                        <div className="step-info"><span className="step-name">Inspect</span></div>
+                      </div>
+                      <div className={`stepper-step ${['repairing', 'completed'].includes(selectedBooking.status) ? 'active' : ''}`}>
+                        <div className="step-bullet">3</div>
+                        <div className="step-info"><span className="step-name">Repairing</span></div>
+                      </div>
+                      <div className={`stepper-step ${selectedBooking.status === 'completed' ? 'active' : ''}`}>
+                        <div className="step-bullet">4</div>
+                        <div className="step-info"><span className="step-name">Done</span></div>
+                      </div>
+                    </div>
+
+                    <hr className="details-divider" />
+
+                    <div className="details-row">
+                      <span>Estimated Cost:</span>
+                      <span className="details-cost-val">
+                        {selectedBooking.cost > 0 ? `${selectedBooking.cost.toLocaleString('en-US')} VND` : 'Inspect pending'}
+                      </span>
+                    </div>
+
+                    <div className="details-row-vertical">
+                      <span>Customer Fault Report:</span>
+                      <p className="details-issue-text">{selectedBooking.issueDescription}</p>
+                    </div>
+
+                    <div className="details-row-vertical">
+                      <span>Technician Notes:</span>
+                      <p className="details-notes-text">{selectedBooking.notes || 'No notes added yet.'}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </main>
       </div>
 
@@ -1186,7 +1906,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
             </div>
             <div className="modal-body">
               <div className="user-profile-summary">
-                <img src={viewingUser.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${viewingUser.username}`} alt={viewingUser.username} className="modal-avatar" />
+                 <img src={getAvatarUrl(viewingUser.avatar, viewingUser.username)} alt={viewingUser.username} className="modal-avatar" />
                 <div className="profile-details-wrap">
                   <h4>{viewingUser.username}</h4>
                   <span className={`user-role-tag role-${viewingUser.role}`}>{viewingUser.role.toUpperCase()}</span>
@@ -1202,7 +1922,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
             </div>
             <div className="modal-footer">
               <button className="btn btn-outline btn-sm" onClick={() => setViewingUser(null)}>Close</button>
-              {viewingUser.id !== user.id && (
+              {viewingUser.id !== user.id && viewingUser.role !== 'admin' && (
                 <button className="btn btn-danger btn-sm" onClick={() => { if (window.confirm("Are you sure?")) handleDeleteUser(viewingUser.id); }} style={{ background: '#ef4444', color: '#fff' }}>
                   Delete Account
                 </button>
@@ -1314,6 +2034,94 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                 <button type="submit" className="btn btn-primary btn-sm" style={{ backgroundColor: '#006D44', borderColor: '#006D44', color: '#fff' }}>Lưu thay đổi</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showAvatarModal && (
+        <div className="modal-backdrop" onClick={() => setShowAvatarModal(false)} style={{ zIndex: 9999 }}>
+          <div className="modal-content glass-panel" onClick={e => e.stopPropagation()} style={{ width: '450px', padding: '24px' }}>
+            <div className="modal-header" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Thay đổi ảnh đại diện</h3>
+              <button 
+                onClick={() => setShowAvatarModal(false)} 
+                style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-color)' }}
+              >&times;</button>
+            </div>
+            
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px' }}>
+                <img 
+                  src={customAvatarUrl || 'https://api.dicebear.com/7.x/adventurer/svg?seed=placeholder'} 
+                  alt="Preview" 
+                  style={{ width: '90px', height: '90px', borderRadius: '50%', objectFit: 'cover', border: '3px solid #006D44' }}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: '600', fontSize: '0.8rem', display: 'block', marginBottom: '6px' }}>ĐƯỜNG DẪN ẢNH ĐẠI DIỆN (URL)</label>
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  placeholder="Dán link ảnh (https://images.unsplash.com/...)"
+                  value={customAvatarUrl}
+                  onChange={e => setCustomAvatarUrl(e.target.value)}
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)' }}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: '600', fontSize: '0.8rem', display: 'block', marginBottom: '8px' }}>HOẶC CHỌN ẢNH CÓ SẴN (PRESETS)</label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', justifyItems: 'center' }}>
+                  {[
+                    'https://api.dicebear.com/7.x/adventurer/svg?seed=Felix',
+                    'https://api.dicebear.com/7.x/adventurer/svg?seed=Aneka',
+                    'https://api.dicebear.com/7.x/adventurer/svg?seed=Snickers',
+                    'https://api.dicebear.com/7.x/adventurer/svg?seed=Jack',
+                    'https://api.dicebear.com/7.x/adventurer/svg?seed=Shadow'
+                  ].map((p, idx) => (
+                    <img 
+                      key={idx}
+                      src={p} 
+                      alt={`Preset ${idx}`} 
+                      onClick={() => setCustomAvatarUrl(p)}
+                      style={{ 
+                        width: '50px', 
+                        height: '50px', 
+                        borderRadius: '50%', 
+                        cursor: 'pointer', 
+                        border: customAvatarUrl === p ? '3px solid #006D44' : '2px solid transparent',
+                        transition: '0.2s',
+                        background: '#f3f4f6'
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer" style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
+              <button 
+                type="button" 
+                className="btn btn-outline btn-sm" 
+                onClick={() => setShowAvatarModal(false)}
+                style={{ padding: '8px 16px', borderRadius: '6px', border: '1px solid var(--border-color)', cursor: 'pointer', background: 'none' }}
+              >Hủy</button>
+              <button 
+                type="button" 
+                className="btn btn-primary btn-sm" 
+                onClick={() => {
+                  if (updateAvatar && customAvatarUrl.trim() !== '') {
+                    updateAvatar(customAvatarUrl);
+                    setShowAvatarModal(false);
+                    alert("Đã cập nhật ảnh đại diện!");
+                  } else {
+                    alert("Vui lòng nhập link ảnh đại diện hợp lệ.");
+                  }
+                }}
+                style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: '#006D44', border: 'none', color: '#fff', cursor: 'pointer', fontWeight: '600' }}
+              >Lưu thay đổi</button>
+            </div>
           </div>
         </div>
       )}

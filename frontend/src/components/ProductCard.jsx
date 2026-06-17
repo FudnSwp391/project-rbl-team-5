@@ -1,5 +1,5 @@
 import { useCart } from '../context/CartContext';
-import { ShoppingCart, Heart, Eye } from 'lucide-react';
+import { ShoppingCart, Eye } from 'lucide-react';
 import './ProductCard.css';
 
 const CONDITION_LABELS = {
@@ -54,7 +54,7 @@ export const getProductImage = (product) => {
     return 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=500';
   }
   if (cat.includes('laptop') || cat.includes('máy tính xách tay') || cat.includes('computer')) {
-    return 'https://images.unsplash.com/photo-1496181130204-755241524eab?w=500';
+    return 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=500';
   }
   if (cat.includes('tablet') || cat.includes('máy tính bảng') || cat.includes('ipad')) {
     return 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=500';
@@ -63,7 +63,7 @@ export const getProductImage = (product) => {
     return 'https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?w=500';
   }
   if (cat.includes('air') || cat.includes('máy lạnh') || cat.includes('conditioner')) {
-    return 'https://images.unsplash.com/photo-1621905252507-b354bc25edac?w=500';
+    return 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=500';
   }
   if (cat.includes('wash') || cat.includes('máy giặt') || cat.includes('laundry')) {
     return 'https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?w=500';
@@ -83,10 +83,10 @@ export const getProductImage = (product) => {
     return 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=500';
   }
   if (name.includes('macbook') || name.includes('laptop') || name.includes('thinkpad') || name.includes('dell')) {
-    return 'https://images.unsplash.com/photo-1496181130204-755241524eab?w=500';
+    return 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=500';
   }
   if (name.includes('air') || name.includes('máy lạnh') || name.includes('sharp') || name.includes('daikin')) {
-    return 'https://images.unsplash.com/photo-1621905252507-b354bc25edac?w=500';
+    return 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=500';
   }
   if (name.includes('washing') || name.includes('máy giặt') || name.includes('electrolux') || name.includes('lg')) {
     return 'https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?w=500';
@@ -127,9 +127,6 @@ const ProductCard = ({ product, onViewDetails }) => {
             onClick={() => onViewDetails(product)}
           >
             <Eye size={18} />
-          </button>
-          <button className="action-btn" title="Yêu thích">
-            <Heart size={18} />
           </button>
         </div>
       </div>

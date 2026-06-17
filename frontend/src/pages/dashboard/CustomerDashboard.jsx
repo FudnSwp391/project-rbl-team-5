@@ -3,13 +3,17 @@ import { useAuth } from '../../context/AuthContext';
 import io from 'socket.io-client';
 import { 
   LayoutDashboard, ShoppingBag, Calendar, MessageSquare,
-  Sun, Moon, Search, Bell, HelpCircle, LogOut, Send
+  Sun, Moon, Search, Bell, HelpCircle, LogOut, Send, Settings, Image, Paperclip
 } from 'lucide-react';
+import ProfileSettings from '../../components/ProfileSettings';
+import { useCart } from '../../context/CartContext';
+import { getProductImage } from '../../components/ProductCard';
 
 const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000' : '';
 
 const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInitialSubTab }) => {
-  const { user, token } = useAuth();
+  const { user, token, getAvatarUrl, logout } = useAuth();
+  const { addToCart } = useCart();
   const subTab = initialSubTab || 'overview';
   const setSubTab = setInitialSubTab;
 
@@ -23,9 +27,11 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [chatMessages, setChatMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const socketRef = useRef(null);
   const chatEndRef = useRef(null);
   const fetchConversationsListRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const fetchData = async () => {
     if (!user || !token) return;
@@ -109,6 +115,49 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
       .catch(err => console.error('Lỗi tải lịch sử chat:', err));
   };
 
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !selectedBooking) return;
+
+    setIsUploadingImage(true);
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/upload-images`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ images: [reader.result] })
+        });
+        const data = await res.json();
+        if (res.ok && data.urls && data.urls.length > 0) {
+          const imageUrl = data.urls[0];
+          const receiverId = user.role === 'customer' 
+            ? selectedBooking.technicianId 
+            : selectedBooking.customerId;
+          if (socketRef.current) {
+            socketRef.current.emit('sendMessage', {
+              senderId: user.id,
+              receiverId,
+              bookingId: selectedBooking.id,
+              text: `[IMG]${imageUrl}`
+            });
+          }
+        } else {
+          alert('Lỗi tải ảnh lên');
+        }
+      } catch (err) {
+        console.error('Lỗi tải ảnh:', err);
+      } finally {
+        setIsUploadingImage(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSendMessage = (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedBooking) return;
@@ -127,9 +176,74 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
     }
   };
 
+  const handleCancelOrder = async (orderId) => {
+    if (!window.confirm('Bạn có chắc chắn muốn hủy đơn hàng này không?')) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/orders/${orderId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: 'canceled' })
+      });
+      if (res.ok) {
+        alert('Hủy đơn hàng thành công');
+        fetchData();
+      } else {
+        const data = await res.json();
+        alert(data.message || 'Lỗi hủy đơn');
+      }
+    } catch (err) {
+      alert('Lỗi kết nối');
+    }
+  };
+
+  const handleReorder = (order) => {
+    order.items.forEach(item => {
+      addToCart({
+        id: item.productId || item.id,
+        name: item.name,
+        price: item.price,
+        image: item.image || getProductImage(item.productId || item.id),
+        condition: 'good'
+      });
+    });
+    alert('Đã thêm các sản phẩm trong đơn hủy vào giỏ hàng. Vui lòng vào giỏ hàng để đặt lại.');
+  };
+
+  const [complaintText, setComplaintText] = useState('');
+  const [isSubmittingComplaint, setIsSubmittingComplaint] = useState(false);
+
+  const handleSubmitComplaint = async (e) => {
+    e.preventDefault();
+    if (!complaintText.trim()) return;
+    setIsSubmittingComplaint(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/complaints`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ content: complaintText })
+      });
+      if (res.ok) {
+        alert('Đã gửi khiếu nại thành công. Chúng tôi sẽ phản hồi sớm nhất có thể.');
+        setComplaintText('');
+      } else {
+        alert('Lỗi gửi khiếu nại');
+      }
+    } catch (err) {
+      alert('Lỗi kết nối');
+    } finally {
+      setIsSubmittingComplaint(false);
+    }
+  };
+
   const handleLogout = () => {
-    setActivePage('home');
-    window.location.reload();
+    logout();
+    window.location.hash = '#/auth';
   };
 
   const getStatusLabel = (st) => {
@@ -145,7 +259,7 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
   };
 
   return (
-    <div className="dashboard-page container animate-fade">
+    <div className="dashboard-page admin-dashboard-layout animate-fade">
       <div className="dashboard-grid-layout">
         {/* Sidebar Nav */}
         <aside className="dashboard-sidebar glass-panel">
@@ -179,7 +293,11 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
           </nav>
 
           <div className="sidebar-bottom-nav">
-            <button className="sidebar-nav-btn bottom-btn" onClick={() => alert("Contact TechCycle support at support@techcycle.vn")}>
+            <button className={`sidebar-nav-btn bottom-btn ${subTab === 'settings' ? 'active' : ''}`} onClick={() => setSubTab('settings')}>
+              <Settings size={18} />
+              Settings
+            </button>
+            <button className={`sidebar-nav-btn bottom-btn ${subTab === 'help' ? 'active' : ''}`} onClick={() => setSubTab('help')}>
               <HelpCircle size={18} />
               Help
             </button>
@@ -212,7 +330,7 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
                   <h4>{user.username}</h4>
                   <span>Customer</span>
                 </div>
-                <img src={user.avatar} alt={user.username} className="profile-avatar-circle" />
+                 <img src={getAvatarUrl(user.avatar, user.username)} alt={user.username} className="profile-avatar-circle" />
               </div>
             </div>
           </header>
@@ -227,47 +345,79 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
 
           {!loading && subTab === 'overview' && (
             <div className="customer-overview animate-fade">
-              <h2>Welcome back, {user.username}!</h2>
-              <p className="view-desc">Track active appliance diagnostic requests and second-hand shop purchases.</p>
+              {/* Welcome Banner */}
+              <div className="cust-welcome-banner" style={{
+                background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 50%, #B45309 100%)',
+                borderRadius: '16px',
+                padding: '28px 32px',
+                color: '#fff',
+                marginBottom: '24px',
+                position: 'relative',
+                overflow: 'hidden'
+              }}>
+                <div style={{ position: 'absolute', top: '-30px', right: '-20px', width: '160px', height: '160px', background: 'rgba(255,255,255,0.08)', borderRadius: '50%' }}></div>
+                <div style={{ position: 'absolute', bottom: '-40px', right: '80px', width: '100px', height: '100px', background: 'rgba(255,255,255,0.06)', borderRadius: '50%' }}></div>
+                <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800 }}>Xin chào, {user.username}! 👋</h2>
+                <p style={{ marginTop: '6px', opacity: 0.9, fontSize: '0.92rem' }}>Theo dõi yêu cầu sửa chữa và lịch sử mua hàng của bạn tại đây.</p>
+              </div>
+
+              {/* Quick Stats Row */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '28px' }}>
+                <div className="glass-panel" style={{ padding: '20px', borderRadius: '14px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#F59E0B' }}>{bookingsList.length}</div>
+                  <div style={{ fontSize: '0.82rem', color: 'var(--neutral-medium)', marginTop: '4px' }}>Yêu cầu sửa chữa</div>
+                </div>
+                <div className="glass-panel" style={{ padding: '20px', borderRadius: '14px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#10B981' }}>{ordersList.length}</div>
+                  <div style={{ fontSize: '0.82rem', color: 'var(--neutral-medium)', marginTop: '4px' }}>Đơn hàng đã đặt</div>
+                </div>
+                <div className="glass-panel" style={{ padding: '20px', borderRadius: '14px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#6366F1' }}>{ordersList.reduce((s, o) => s + (o.totalAmount || 0), 0).toLocaleString('en-US')}</div>
+                  <div style={{ fontSize: '0.82rem', color: 'var(--neutral-medium)', marginTop: '4px' }}>Tổng chi tiêu (VND)</div>
+                </div>
+              </div>
 
               <div className="customer-overview-panels">
                 {/* Bookings shortcut list */}
                 <div className="overview-subpanel glass-panel">
                   <div className="panel-header">
-                    <h3>Active Repairs</h3>
-                    <button className="btn btn-text" onClick={() => setSubTab('bookings')}>View All</button>
+                    <h3>🔧 Sửa chữa gần đây</h3>
+                    <button className="btn btn-text" onClick={() => setSubTab('bookings')}>Xem tất cả</button>
                   </div>
                   <div className="panel-body-list">
-                    {bookingsList.slice(0, 2).map(bk => (
+                    {bookingsList.slice(0, 3).map(bk => (
                       <div key={bk.id} className="mini-item">
                         <div className="mini-info">
-                          <h4>{bk.deviceType}</h4>
-                          <span className={`badge badge-${bk.status}`}>{getStatusLabel(bk.status)}</span>
+                          <h4>{bk.device_type || bk.deviceType || 'Thiết bị'}</h4>
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <span className={`badge badge-${bk.status}`}>{getStatusLabel(bk.status)}</span>
+                            <span style={{ fontSize: '0.8rem', color: 'var(--neutral-medium)' }}>🛠 {bk.technicianName || 'Chưa phân công'}</span>
+                          </div>
                         </div>
-                        <p>{bk.preferredDate}</p>
+                        <p>{bk.preferred_date || bk.preferredDate || ''}</p>
                       </div>
                     ))}
-                    {bookingsList.length === 0 && <p className="empty-text">No active repair tickets found.</p>}
+                    {bookingsList.length === 0 && <p className="empty-text">Chưa có yêu cầu sửa chữa nào.</p>}
                   </div>
                 </div>
 
                 {/* Orders shortcut list */}
                 <div className="overview-subpanel glass-panel">
                   <div className="panel-header">
-                    <h3>Recent Purchases</h3>
-                    <button className="btn btn-text" onClick={() => setSubTab('orders')}>View All</button>
+                    <h3>🛒 Đơn hàng gần đây</h3>
+                    <button className="btn btn-text" onClick={() => setSubTab('orders')}>Xem tất cả</button>
                   </div>
                   <div className="panel-body-list">
-                    {ordersList.slice(0, 2).map(ord => (
+                    {ordersList.slice(0, 3).map(ord => (
                       <div key={ord.id} className="mini-item">
                         <div className="mini-info">
-                          <h4>Order {ord.invoiceNumber}</h4>
+                          <h4>Đơn {ord.invoiceNumber}</h4>
                           <span className="mini-price">{ord.totalAmount.toLocaleString('en-US')} VND</span>
                         </div>
-                        <p>{new Date(ord.createdAt).toLocaleDateString('en-US')}</p>
+                        <p>{new Date(ord.createdAt).toLocaleDateString('vi-VN')}</p>
                       </div>
                     ))}
-                    {ordersList.length === 0 && <p className="empty-text">You haven't bought any items yet.</p>}
+                    {ordersList.length === 0 && <p className="empty-text">Bạn chưa mua sản phẩm nào.</p>}
                   </div>
                 </div>
               </div>
@@ -374,8 +524,18 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
                         <td>{ord.paymentMethod === 'cod' ? 'Cash on Delivery' : 'Bank Transfer'}</td>
                         <td>
                           <span className={`status-delivery-tag ${ord.status}`}>
-                            {ord.status === 'pending' ? 'Preparing' : ord.status === 'shipping' ? 'In Transit' : 'Delivered'}
+                            {ord.status === 'pending' ? 'Đang duyệt' : ord.status === 'shipping' ? 'Đang gửi' : ord.status === 'canceled' ? 'Đã hủy' : 'Hoàn thành'}
                           </span>
+                          {ord.status === 'pending' && (
+                            <button className="btn btn-outline btn-sm" style={{marginTop: '8px', display: 'block', padding: '4px 8px', fontSize: '0.8rem', borderColor: '#ff6b6b', color: '#ff6b6b'}} onClick={() => handleCancelOrder(ord.id)}>
+                              Hủy đơn
+                            </button>
+                          )}
+                          {ord.status === 'canceled' && (
+                            <button className="btn btn-primary btn-sm" style={{marginTop: '8px', display: 'block', padding: '4px 8px', fontSize: '0.8rem'}} onClick={() => handleReorder(ord)}>
+                              Đặt lại
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -427,11 +587,15 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
                         const isMe = msg.senderId === user.id;
                         return (
                           <div key={msg.id} className={`chat-message-bubble ${isMe ? 'mine' : 'theirs'}`}>
-                            {!isMe && <img src={msg.senderAvatar} alt={msg.senderName} className="msg-avatar" />}
+                             {!isMe && <img src={getAvatarUrl(msg.senderAvatar, msg.senderName)} alt={msg.senderName} className="msg-avatar" />}
                             <div className="msg-bubble-content">
                               {!isMe && <span className="sender-name">{msg.senderName}</span>}
-                              <p className="msg-text">{msg.text}</p>
-                              <span className="msg-time">{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                              {msg.text && msg.text.startsWith('[IMG]') ? (
+                                <img src={msg.text.replace('[IMG]', '')} alt="attachment" className="chat-image-attachment" onClick={() => window.open(msg.text.replace('[IMG]', ''), '_blank')} />
+                              ) : (
+                                <p className="msg-text">{msg.text}</p>
+                              )}
+                              <span className="msg-time">{new Date(msg.createdAt || msg.timestamp || new Date()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                             </div>
                           </div>
                         );
@@ -441,12 +605,28 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
 
                     <form className="chat-input-form" onSubmit={handleSendMessage}>
                       <input 
+                        type="file" 
+                        accept="image/*" 
+                        ref={fileInputRef} 
+                        style={{ display: 'none' }} 
+                        onChange={handleImageUpload}
+                      />
+                      <button 
+                        type="button" 
+                        className="chat-attach-btn" 
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploadingImage}
+                      >
+                        <Paperclip size={18} />
+                      </button>
+                      <input 
                         type="text" 
-                        placeholder="Type your message..." 
+                        placeholder={isUploadingImage ? "Đang tải ảnh lên..." : "Type your message..."}
                         value={newMessage}
                         onChange={e => setNewMessage(e.target.value)}
+                        disabled={isUploadingImage}
                       />
-                      <button type="submit" className="chat-send-btn">
+                      <button type="submit" className="chat-send-btn" disabled={isUploadingImage}>
                         <Send size={18} />
                       </button>
                     </form>
@@ -508,6 +688,38 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {!loading && subTab === 'help' && (
+            <div className="customer-settings animate-fade glass-panel" style={{ padding: '30px', maxWidth: '800px', margin: '0 auto' }}>
+              <h2>Trợ Giúp & Khiếu Nại</h2>
+              <p className="view-desc" style={{ marginBottom: '20px' }}>Gặp vấn đề với thiết bị hoặc đơn hàng? Hãy gửi khiếu nại hoặc yêu cầu hỗ trợ, chúng tôi sẽ xử lý ngay lập tức.</p>
+              
+              <div className="form-group" style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Nội dung khiếu nại</label>
+                <textarea 
+                  className="form-control" 
+                  rows="6" 
+                  placeholder="Mô tả chi tiết vấn đề của bạn (ví dụ: hàng nhận bị lỗi, nhân viên hỗ trợ chậm...)"
+                  value={complaintText}
+                  onChange={e => setComplaintText(e.target.value)}
+                  style={{ width: '100%', padding: '15px', borderRadius: '8px', backgroundColor: 'var(--neutral-bg)', border: '1px solid var(--border-color)', color: 'var(--text-color)', resize: 'vertical' }}
+                />
+              </div>
+              <button 
+                className="btn btn-primary" 
+                onClick={handleSubmitComplaint} 
+                disabled={isSubmittingComplaint || !complaintText.trim()}
+              >
+                {isSubmittingComplaint ? 'Đang gửi...' : 'Gửi Khiếu Nại'}
+              </button>
+            </div>
+          )}
+
+          {!loading && subTab === 'settings' && (
+            <div className="settings-view animate-fade container py-4">
+              <ProfileSettings />
             </div>
           )}
         </main>

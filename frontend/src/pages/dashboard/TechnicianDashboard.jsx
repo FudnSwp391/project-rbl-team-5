@@ -1,19 +1,22 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import io from 'socket.io-client';
+import ProfileSettings from '../../components/ProfileSettings';
 import { 
   LayoutDashboard, ShoppingBag, MessageSquare, Plus,
   Sun, Moon, Search, Bell, Settings, HelpCircle, LogOut,
-  CreditCard, Pencil, Wrench, Package, Send
+  CreditCard, Pencil, Wrench, Package, Send, Image, Paperclip
 } from 'lucide-react';
 
 const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000' : '';
 
 const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInitialSubTab }) => {
-  const { user, token } = useAuth();
+  const { user, token, updateAvatar, getAvatarUrl, logout } = useAuth();
   const subTab = initialSubTab || 'overview';
   const setSubTab = setInitialSubTab;
   const [selectedCalDay, setSelectedCalDay] = useState(15);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [customAvatarUrl, setCustomAvatarUrl] = useState('');
 
   // --- DATA STATES ---
   const [bookingsList, setBookingsList] = useState([]);
@@ -24,9 +27,11 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [chatMessages, setChatMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const socketRef = useRef(null);
   const chatEndRef = useRef(null);
   const fetchConversationsListRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const fetchData = async () => {
     if (!user || !token) return;
@@ -59,7 +64,7 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
 
     socketRef.current.on('receiveMessage', (message) => {
       if (selectedBooking && message.bookingId === selectedBooking.id) {
-        setChatMessages(prev => [...prev, message]);
+        setChatMessages(prev => Array.isArray(prev) ? [...prev, message] : [message]);
       }
       if (fetchConversationsListRef.current) fetchConversationsListRef.current();
     });
@@ -99,8 +104,61 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
-      .then(data => setChatMessages(data))
-      .catch(err => console.error('Lỗi tải lịch sử chat:', err));
+      .then(data => {
+        if (Array.isArray(data)) {
+          setChatMessages(data);
+        } else {
+          setChatMessages([]);
+          console.error('Expected array of messages, got:', data);
+        }
+      })
+      .catch(err => {
+        console.error('Lỗi tải lịch sử chat:', err);
+        setChatMessages([]);
+      });
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !selectedBooking) return;
+
+    setIsUploadingImage(true);
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/upload-images`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ images: [reader.result] })
+        });
+        const data = await res.json();
+        if (res.ok && data.urls && data.urls.length > 0) {
+          const imageUrl = data.urls[0];
+          const receiverId = user.role === 'customer' 
+            ? selectedBooking.technicianId 
+            : selectedBooking.customerId;
+          if (socketRef.current) {
+            socketRef.current.emit('sendMessage', {
+              senderId: user.id,
+              receiverId,
+              bookingId: selectedBooking.id,
+              text: `[IMG]${imageUrl}`
+            });
+          }
+        } else {
+          alert('Lỗi tải ảnh lên');
+        }
+      } catch (err) {
+        console.error('Lỗi tải ảnh:', err);
+      } finally {
+        setIsUploadingImage(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSendMessage = (e) => {
@@ -122,8 +180,8 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
   };
 
   const handleLogout = () => {
-    setActivePage('home');
-    window.location.reload();
+    logout();
+    window.location.hash = '#/auth';
   };
 
   const handleUpdateBookingStatus = async (bookingId, status) => {
@@ -220,10 +278,6 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
               <LayoutDashboard size={18} />
               Dashboard
             </button>
-            <button className={`sidebar-nav-btn ${subTab === 'chat' ? 'active' : ''}`} onClick={() => setSubTab('chat')}>
-              <MessageSquare size={18} />
-              Workplace
-            </button>
             <button className={`sidebar-nav-btn ${subTab === 'inventory' ? 'active' : ''}`} onClick={() => setSubTab('inventory')}>
               <Package size={18} />
               Inventory
@@ -235,6 +289,10 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
           </button>
 
           <div className="sidebar-bottom-nav">
+            <button className={`sidebar-nav-btn bottom-btn ${subTab === 'settings' ? 'active' : ''}`} onClick={() => setSubTab('settings')}>
+              <Settings size={18} />
+              Settings
+            </button>
             <button className="sidebar-nav-btn bottom-btn" onClick={() => alert("Contact TechCycle support at support@techcycle.vn")}>
               <HelpCircle size={18} />
               Help
@@ -257,6 +315,13 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
               <div className="spinner-border text-primary" role="status">
                 <span className="visually-hidden">Loading...</span>
               </div>
+            </div>
+          )}
+
+          {!loading && subTab === 'settings' && (
+            <div className="settings-view animate-fade container py-4">
+              <h2 className="mb-4 text-center" style={{ fontWeight: 800 }}>Account Settings</h2>
+              <ProfileSettings />
             </div>
           )}
 
@@ -348,13 +413,41 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
                   {/* Profile Widget */}
                   <div className="tech-profile-card glass-panel">
                     <div className="tech-profile-flex">
-                      <div className="tech-avatar-wrapper">
+                      <div 
+                        className="tech-avatar-wrapper"
+                        style={{ cursor: 'pointer', position: 'relative' }}
+                        onClick={() => {
+                          setCustomAvatarUrl(user.avatar || '');
+                          setShowAvatarModal(true);
+                        }}
+                        title="Thay đổi ảnh đại diện"
+                      >
                         <img 
-                          src={user.avatar || "https://images.unsplash.com/photo-1540569014015-19a7be504e3a?auto=format&fit=crop&q=80&w=256"} 
+                          src={getAvatarUrl(user.avatar, user.username)} 
                           alt={user.username} 
                           className="tech-large-avatar" 
                         />
                         <span className="online-indicator-dot"></span>
+                        <div 
+                          className="avatar-edit-badge" 
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            right: 0,
+                            backgroundColor: '#006D44',
+                            color: '#fff',
+                            borderRadius: '50%',
+                            width: '28px',
+                            height: '28px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            border: '2px solid var(--border-color)',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                          }}
+                        >
+                          <Pencil size={12} />
+                        </div>
                       </div>
                       <div className="tech-profile-details">
                         <div className="tech-name-row">
@@ -623,15 +716,19 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
                     </div>
 
                     <div className="chat-messages-thread">
-                      {chatMessages.map(msg => {
+                      {Array.isArray(chatMessages) && chatMessages.map(msg => {
                         const isMe = msg.senderId === user.id;
                         return (
                           <div key={msg.id} className={`chat-message-bubble ${isMe ? 'mine' : 'theirs'}`}>
-                            {!isMe && <img src={msg.senderAvatar} alt={msg.senderName} className="msg-avatar" />}
+                            {!isMe && <img src={getAvatarUrl(msg.senderAvatar, msg.senderName)} alt={msg.senderName} className="msg-avatar" />}
                             <div className="msg-bubble-content">
                               {!isMe && <span className="sender-name">{msg.senderName}</span>}
-                              <p className="msg-text">{msg.text}</p>
-                              <span className="msg-time">{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                              {msg.text && msg.text.startsWith('[IMG]') ? (
+                                <img src={msg.text.replace('[IMG]', '')} alt="attachment" className="chat-image-attachment" onClick={() => window.open(msg.text.replace('[IMG]', ''), '_blank')} />
+                              ) : (
+                                <p className="msg-text">{msg.text}</p>
+                              )}
+                              <span className="msg-time">{new Date(msg.createdAt || msg.timestamp || new Date()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                             </div>
                           </div>
                         );
@@ -641,12 +738,28 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
 
                     <form className="chat-input-form" onSubmit={handleSendMessage}>
                       <input 
+                        type="file" 
+                        accept="image/*" 
+                        ref={fileInputRef} 
+                        style={{ display: 'none' }} 
+                        onChange={handleImageUpload}
+                      />
+                      <button 
+                        type="button" 
+                        className="chat-attach-btn" 
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploadingImage}
+                      >
+                        <Paperclip size={18} />
+                      </button>
+                      <input 
                         type="text" 
-                        placeholder="Type your message..." 
+                        placeholder={isUploadingImage ? "Đang tải ảnh lên..." : "Type your message..."}
                         value={newMessage}
                         onChange={e => setNewMessage(e.target.value)}
+                        disabled={isUploadingImage}
                       />
-                      <button type="submit" className="chat-send-btn">
+                      <button type="submit" className="chat-send-btn" disabled={isUploadingImage}>
                         <Send size={18} />
                       </button>
                     </form>
@@ -764,6 +877,94 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
           )}
         </main>
       </div>
+
+      {showAvatarModal && (
+        <div className="modal-backdrop active" onClick={() => setShowAvatarModal(false)} style={{ zIndex: 9999, position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-content glass-panel" onClick={e => e.stopPropagation()} style={{ width: '450px', padding: '24px', position: 'relative' }}>
+            <div className="modal-header" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Thay đổi ảnh đại diện</h3>
+              <button 
+                onClick={() => setShowAvatarModal(false)} 
+                style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-color)' }}
+              >&times;</button>
+            </div>
+            
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px' }}>
+                <img 
+                  src={customAvatarUrl || 'https://api.dicebear.com/7.x/adventurer/svg?seed=placeholder'} 
+                  alt="Preview" 
+                  style={{ width: '90px', height: '90px', borderRadius: '50%', objectFit: 'cover', border: '3px solid #006D44' }}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: '600', fontSize: '0.8rem', display: 'block', marginBottom: '6px' }}>ĐƯỜNG DẪN ẢNH ĐẠI DIỆN (URL)</label>
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  placeholder="Dán link ảnh (https://images.unsplash.com/...)"
+                  value={customAvatarUrl}
+                  onChange={e => setCustomAvatarUrl(e.target.value)}
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-card)', color: 'var(--text-color)' }}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: '600', fontSize: '0.8rem', display: 'block', marginBottom: '8px' }}>HOẶC CHỌN ẢNH CÓ SẴN (PRESETS)</label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', justifyItems: 'center' }}>
+                  {[
+                    'https://api.dicebear.com/7.x/adventurer/svg?seed=Felix',
+                    'https://api.dicebear.com/7.x/adventurer/svg?seed=Aneka',
+                    'https://api.dicebear.com/7.x/adventurer/svg?seed=Snickers',
+                    'https://api.dicebear.com/7.x/adventurer/svg?seed=Jack',
+                    'https://api.dicebear.com/7.x/adventurer/svg?seed=Shadow'
+                  ].map((p, idx) => (
+                    <img 
+                      key={idx}
+                      src={p} 
+                      alt={`Preset ${idx}`} 
+                      onClick={() => setCustomAvatarUrl(p)}
+                      style={{ 
+                        width: '50px', 
+                        height: '50px', 
+                        borderRadius: '50%', 
+                        cursor: 'pointer', 
+                        border: customAvatarUrl === p ? '3px solid #006D44' : '2px solid transparent',
+                        transition: '0.2s',
+                        background: '#f3f4f6'
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer" style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
+              <button 
+                type="button" 
+                className="btn btn-outline btn-sm" 
+                onClick={() => setShowAvatarModal(false)}
+                style={{ padding: '8px 16px', borderRadius: '6px', border: '1px solid var(--border-color)', cursor: 'pointer', background: 'none', color: 'var(--text-color)' }}
+              >Hủy</button>
+              <button 
+                type="button" 
+                className="btn btn-primary btn-sm" 
+                onClick={() => {
+                  if (updateAvatar && customAvatarUrl.trim() !== '') {
+                    updateAvatar(customAvatarUrl);
+                    setShowAvatarModal(false);
+                    alert("Đã cập nhật ảnh đại diện!");
+                  } else {
+                    alert("Vui lòng nhập link ảnh đại diện hợp lệ.");
+                  }
+                }}
+                style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: '#006D44', border: 'none', color: '#fff', cursor: 'pointer', fontWeight: '600' }}
+              >Lưu thay đổi</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -29,8 +29,16 @@ const Auth = ({ setActivePage }) => {
 
     try {
       if (isLogin) {
-        await login(email, password);
-        setActivePage('home');
+        const loggedInUser = await login(email, password);
+        const role = loggedInUser?.role?.toLowerCase();
+        if (role === 'admin' || role === 'technician' || role === 'seller') {
+          // Add 50ms delay to allow React state propagation before navigation
+          setTimeout(() => {
+            window.location.hash = '#/dashboard';
+          }, 50);
+        } else {
+          window.location.hash = '#/home';
+        }
       } else {
         if (!username) {
           setFormError('Vui lòng nhập họ và tên của bạn.');

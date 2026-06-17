@@ -8,9 +8,13 @@ exports.getMessages = async (req, res) => {
 
     // Enrich với thông tin người gửi
     const enrichedMessages = await Promise.all(messages.map(async (m) => {
-      const sender = m.sender_id ? await db.findOne('Users', { user_id: m.sender_id }) : null;
+      const sender = m.sender_id ? await db.findOne('users', { id: m.sender_id }) : null;
       return {
         ...m,
+        senderId: m.sender_id,
+        receiverId: m.receiver_id,
+        bookingId: m.booking_id,
+        text: m.text_content,
         senderName: sender ? sender.username : 'Ẩn danh',
         senderAvatar: sender ? sender.avatar : ''
       };

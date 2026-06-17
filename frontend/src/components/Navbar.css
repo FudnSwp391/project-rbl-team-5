@@ -121,6 +121,35 @@
   border: 2px solid var(--white);
 }
 
+.bell-icon-wrapper {
+  position: relative;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  transition: var(--transition-fast);
+}
+
+.bell-icon-wrapper:hover {
+  background-color: var(--neutral-lightest);
+}
+
+.bell-badge-count {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  background-color: var(--accent-red);
+  color: var(--white);
+  font-size: 0.7rem;
+  font-weight: 700;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--white);
+}
+
 /* User profile tag styles */
 .user-profile-menu {
   position: relative;
@@ -132,15 +161,15 @@
   gap: 10px;
   padding: 6px 12px;
   border-radius: 30px;
-  background-color: var(--neutral-lightest);
+  background-color: #F59E0B;
   cursor: pointer;
-  border: 1px solid var(--border-color);
+  border: 1.5px solid #D97706;
   transition: var(--transition-fast);
 }
 
 .user-profile-trigger:hover {
-  border-color: var(--primary-light-hover);
-  background-color: var(--primary-light);
+  border-color: #B45309;
+  background-color: #D97706;
 }
 
 .user-avatar {
@@ -155,7 +184,7 @@
 .user-name {
   font-size: 0.9rem;
   font-weight: 600;
-  color: var(--neutral-darkest);
+  color: #ffffff;
   max-width: 120px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -171,17 +200,30 @@
 
 .role-admin {
   background-color: #fee2e2;
-  color: #ef4444;
+  color: #dc2626;
+  font-weight: 800;
+  border: 1.5px solid #fca5a5;
 }
 
 .role-technician {
-  background-color: var(--primary-light);
-  color: var(--primary);
+  background-color: #dbeafe;
+  color: #2563eb;
+  font-weight: 800;
+  border: 1.5px solid #93c5fd;
+}
+
+.role-seller {
+  background-color: #fef3c7;
+  color: #d97706;
+  font-weight: 800;
+  border: 1.5px solid #fcd34d;
 }
 
 .role-customer {
   background-color: #f3f4f6;
-  color: var(--neutral-dark);
+  color: #6b7280;
+  font-weight: 700;
+  border: 1.5px solid #d1d5db;
 }
 
 .user-dropdown-menu {
@@ -342,4 +384,24 @@
 
 [data-theme='dark'] .mobile-menu-content {
   background-color: var(--white); /* var(--white) is #161C2A in dark mode, which is correct */
+}
+
+.navbar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Full Width Navbar adjustments for Shop */
+.navbar-container.navbar-full-width {
+  max-width: 100% !important;
+  padding-left: 48px !important;
+  padding-right: 48px !important;
+}
+
+@media (max-width: 900px) {
+  .navbar-container.navbar-full-width {
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+  }
 }
