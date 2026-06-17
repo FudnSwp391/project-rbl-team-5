@@ -27,8 +27,11 @@ const otpStore = new Map();
 
 exports.register = async (req, res) => {
   const { username, email, password, full_name, phone, role } = req.body;
-  if (!username || !email || !password || !phone || !full_name) {
-    return res.status(400).json({ message: 'Vui lòng điền đầy đủ thông tin (bao gồm full_name).' });
+  const finalFullName = full_name || username;
+  const finalPhone = phone || '0900000000';
+
+  if (!username || !email || !password || !finalFullName) {
+    return res.status(400).json({ message: 'Vui lòng điền đầy đủ thông tin.' });
   }
 
   try {
@@ -49,8 +52,8 @@ exports.register = async (req, res) => {
       username,
       email,
       password: hashedPassword,
-      full_name,
-      phone,
+      full_name: finalFullName,
+      phone: finalPhone,
       avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${username}`,
       status: 'active'
     });

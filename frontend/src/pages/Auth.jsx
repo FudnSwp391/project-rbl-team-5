@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Recycle, Mail, Lock, User, ArrowRight, AlertCircle } from 'lucide-react';
+import { Recycle, Mail, Lock, User, ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import './Auth.css';
 
 const Auth = ({ setActivePage }) => {
@@ -23,6 +23,10 @@ const Auth = ({ setActivePage }) => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [forgotSuccessMessage, setForgotSuccessMessage] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
 
   const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000' : '';
 
@@ -248,13 +252,20 @@ const Auth = ({ setActivePage }) => {
                       <div className="auth-input-wrapper">
                         <Lock size={18} className="input-icon" />
                         <input 
-                          type="password" 
-                          className="form-control" 
+                          type={showNewPassword ? "text" : "password"} 
+                          className="form-control password-input" 
                           placeholder="••••••••" 
                           value={newPassword}
                           onChange={e => setNewPassword(e.target.value)}
                           required
                         />
+                        <button 
+                          type="button" 
+                          className="password-toggle-btn"
+                          onClick={() => setShowNewPassword(!showNewPassword)}
+                        >
+                          {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
                       </div>
                     </div>
 
@@ -263,13 +274,20 @@ const Auth = ({ setActivePage }) => {
                       <div className="auth-input-wrapper">
                         <Lock size={18} className="input-icon" />
                         <input 
-                          type="password" 
-                          className="form-control" 
+                          type={showConfirmNewPassword ? "text" : "password"} 
+                          className="form-control password-input" 
                           placeholder="••••••••" 
                           value={confirmNewPassword}
                           onChange={e => setConfirmNewPassword(e.target.value)}
                           required
                         />
+                        <button 
+                          type="button" 
+                          className="password-toggle-btn"
+                          onClick={() => setShowConfirmNewPassword(!showConfirmNewPassword)}
+                        >
+                          {showConfirmNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
                       </div>
                     </div>
 
@@ -361,13 +379,20 @@ const Auth = ({ setActivePage }) => {
               <div className="auth-input-wrapper">
                 <Lock size={18} className="input-icon" />
                 <input 
-                  type="password" 
-                  className="form-control" 
+                  type={showPassword ? "text" : "password"} 
+                  className="form-control password-input" 
                   placeholder="••••••••" 
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   required
                 />
+                <button 
+                  type="button" 
+                  className="password-toggle-btn"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
             </div>
 
@@ -378,13 +403,20 @@ const Auth = ({ setActivePage }) => {
                 <div className="auth-input-wrapper">
                   <Lock size={18} className="input-icon" />
                   <input 
-                    type="password" 
-                    className="form-control" 
+                    type={showConfirmPassword ? "text" : "password"} 
+                    className="form-control password-input" 
                     placeholder="••••••••" 
                     value={confirmPassword}
                     onChange={e => setConfirmPassword(e.target.value)}
                     required
                   />
+                  <button 
+                    type="button" 
+                    className="password-toggle-btn"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
                 </div>
               </div>
             )}
