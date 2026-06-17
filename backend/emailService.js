@@ -9,7 +9,7 @@ const transporter = nodemailer.createTransport({
   family: 4,            // Force IPv4, tránh lỗi ECONNREFUSED IPv6
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS   // App Password 16 ký tự từ Google
+    pass: process.env.EMAIL_PASS ? process.env.EMAIL_PASS.replace(/\s+/g, '') : ''   // App Password 16 ký tự từ Google (bỏ khoảng trắng)
   },
   tls: {
     rejectUnauthorized: false
