@@ -458,3 +458,9 @@
 .auth-input-wrapper input.password-input {
   padding-right: 44px !important;
 }
+
+/* Hide default browser password reveal and clear buttons (Edge / IE) */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}
