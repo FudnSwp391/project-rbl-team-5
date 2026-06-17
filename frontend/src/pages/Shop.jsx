@@ -167,6 +167,9 @@ const Shop = ({ selectedProduct, setSelectedProduct, showFilters, setShowFilters
       </div>
 
       <div className={`shop-layout ${showFilters ? 'filters-open' : ''}`}>
+        {showFilters && (
+          <div className="filters-backdrop" onClick={() => setShowFilters(false)}></div>
+        )}
         {/* Sidebar Filters (Column 1) */}
         <aside className={`shop-filters-sidebar glass-panel ${showFilters ? 'show' : ''}`}>
           <button className="close-filters-btn" onClick={() => setShowFilters(false)} title="Đóng bộ lọc">
