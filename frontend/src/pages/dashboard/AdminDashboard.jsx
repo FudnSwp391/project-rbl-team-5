@@ -790,7 +790,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
               >
                 <div className="profile-info">
                   <h4>{user.username === 'admin' ? 'Admin TechCycle' : user.username}</h4>
-                  <span>{user.username === 'admin' ? 'Administrator' : 'Eco Seller'}</span>
+                  <span>Administrator</span>
                 </div>
                  <img src={getAvatarUrl(user.avatar, user.username)} alt={user.username} className="profile-avatar-circle" />
               </div>
