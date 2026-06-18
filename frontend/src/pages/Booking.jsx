@@ -43,11 +43,14 @@ const Booking = ({ setActivePage }) => {
     reader.readAsDataURL(file);
   };
 
-  const aiChatEndRef = useRef(null);
+  const aiChatBodyRef = useRef(null);
 
   useEffect(() => {
-    if (aiChatEndRef.current) {
-      aiChatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (aiChatBodyRef.current) {
+      aiChatBodyRef.current.scrollTo({
+        top: aiChatBodyRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
     }
   }, [aiChat]);
 
@@ -128,8 +131,10 @@ const Booking = ({ setActivePage }) => {
   const handleApplySuggestion = (sugg) => {
     setDeviceType(sugg.deviceType);
     setIssueDescription(sugg.issue);
-    // Smooth scroll to the form
-    document.querySelector('.booking-form-panel').scrollIntoView({ behavior: 'smooth' });
+    // Only scroll to form on mobile/tablet screens where columns stack vertically
+    if (window.innerWidth < 992) {
+      document.querySelector('.booking-form-panel').scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -236,7 +241,7 @@ const Booking = ({ setActivePage }) => {
               </div>
             </div>
             
-            <div className="ai-chat-body">
+            <div className="ai-chat-body" ref={aiChatBodyRef}>
               {aiChat.map((msg, idx) => (
                 <div key={idx} className={`ai-chat-bubble-row ${msg.sender}`}>
                   <div className="ai-bubble-text-box">
@@ -258,7 +263,6 @@ const Booking = ({ setActivePage }) => {
                   </div>
                 </div>
               ))}
-              <div ref={aiChatEndRef} />
             </div>
 
             {selectedImage && (
