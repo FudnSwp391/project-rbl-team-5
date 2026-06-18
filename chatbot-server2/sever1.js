@@ -126,7 +126,7 @@ YÊU CẦU QUAN TRỌNG:
 
         // Gọi API của Google Gemini
         const response = await ai.models.generateContent({
-            model: "gemini-3.1-flash-lite",
+            model: "gemma-4-31b-it",
             contents: formattedHistory,
             config: {
                 systemInstruction: systemPrompt,
@@ -142,7 +142,7 @@ YÊU CẦU QUAN TRỌNG:
 });
 
 app.get('/health', (req, res) => {
-    res.json({ status: 'ok', model: 'gemini-3.1-flash-lite' });
+    res.json({ status: 'ok', model: 'gemma-4-31b-it' });
 });
 
 // Keepalive để giữ tiến trình không bị tắt
