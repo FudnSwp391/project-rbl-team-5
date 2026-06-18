@@ -783,3 +783,96 @@
     padding: 24px 16px;
   }
 }
+
+/* Dark Mode Overrides for Shop Page */
+[data-theme='dark'] .shop-page {
+  background-color: var(--neutral-bg) !important;
+}
+
+[data-theme='dark'] .shop-topbar {
+  background: var(--white) !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+[data-theme='dark'] .shop-filters-sidebar {
+  background: var(--white) !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+[data-theme='dark'] .category-tab-btn {
+  border: 1px solid var(--border-color) !important;
+  color: var(--neutral-medium) !important;
+  background-color: transparent !important;
+}
+
+[data-theme='dark'] .category-tab-btn:hover {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+  color: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+
+[data-theme='dark'] .category-tab-btn.active {
+  background-color: var(--primary) !important;
+  color: #ffffff !important;
+  border-color: var(--primary) !important;
+}
+
+[data-theme='dark'] .sort-select {
+  background-color: var(--neutral-lightest) !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--neutral-darkest) !important;
+}
+
+[data-theme='dark'] .sort-label {
+  color: var(--neutral-medium) !important;
+}
+
+[data-theme='dark'] .filter-divider {
+  border-top: 1px solid var(--border-color) !important;
+  opacity: 1 !important;
+}
+
+[data-theme='dark'] .checkbox-item, 
+[data-theme='dark'] .radio-item {
+  color: var(--neutral-medium) !important;
+}
+
+[data-theme='dark'] .checkbox-item span, 
+[data-theme='dark'] .radio-item span {
+  color: var(--neutral-darkest) !important;
+}
+
+[data-theme='dark'] .filter-group label {
+  color: var(--primary-dark) !important;
+}
+
+[data-theme='dark'] .sidebar-badge-panel {
+  border: 1px solid var(--border-color) !important;
+  background: transparent !important;
+}
+
+[data-theme='dark'] .badge-panel-item h5 {
+  color: var(--neutral-darkest) !important;
+}
+
+[data-theme='dark'] .badge-panel-item p {
+  color: var(--neutral-medium) !important;
+}
+
+[data-theme='dark'] .empty-shop-state {
+  background: var(--white) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+[data-theme='dark'] .filter-search {
+  background-color: var(--neutral-lightest) !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--neutral-darkest) !important;
+}
+
+[data-theme='dark'] .close-filters-btn {
+  color: var(--neutral-darkest) !important;
+}
+
