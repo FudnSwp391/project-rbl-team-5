@@ -146,6 +146,13 @@ const Checkout = ({ setActivePage }) => {
         throw new Error(data.message || 'Lỗi xử lý đơn hàng.');
       }
 
+      if (data.redirectUrl) {
+        // Lưu thông tin giỏ hàng tạm thời (nếu cần) hoặc chỉ đơn giản chuyển hướng
+        clearCart();
+        window.location.href = data.redirectUrl;
+        return;
+      }
+
       setCompletedOrder(data);
       clearCart(); // Empty the cart
       setStep('invoice'); // Transition to Invoice step
@@ -280,6 +287,21 @@ const Checkout = ({ setActivePage }) => {
                     <p className="payment-opt-desc">Chuyển khoản an toàn nhanh chóng qua Napas. Bạn sẽ quét mã QR ngân hàng tại bước xác nhận.</p>
                   </div>
                 </label>
+
+                {/* Option 3: VNPay */}
+                <label className={`payment-option-card ${paymentMethod === 'vnpay' ? 'selected' : ''}`}>
+                  <input 
+                    type="radio" 
+                    name="payment_method" 
+                    value="vnpay" 
+                    checked={paymentMethod === 'vnpay'}
+                    onChange={() => setPaymentMethod('vnpay')}
+                  />
+                  <div className="payment-card-details">
+                    <span className="payment-opt-title">Thanh toán qua cổng VNPay</span>
+                    <p className="payment-opt-desc">Thanh toán bằng thẻ ATM nội địa, thẻ quốc tế (Visa/MasterCard) qua cổng VNPay an toàn.</p>
+                  </div>
+                </label>
               </div>
 
               {paymentMethod === 'bank_transfer' && (
@@ -322,7 +344,7 @@ const Checkout = ({ setActivePage }) => {
 
                 <div className="confirm-block">
                   <h4><CreditCard size={16} /> Phương thức thanh toán:</h4>
-                  <p>{paymentMethod === 'cod' ? 'Thanh toán tiền mặt khi nhận hàng (COD)' : 'Chuyển khoản ngân hàng (Napas)'}</p>
+                  <p>{paymentMethod === 'cod' ? 'Thanh toán tiền mặt khi nhận hàng (COD)' : paymentMethod === 'vnpay' ? 'Thanh toán qua cổng VNPay' : 'Chuyển khoản ngân hàng (Napas)'}</p>
                   
                   {paymentMethod === 'bank_transfer' && (
                     <div className="bank-qr-mock">
@@ -438,7 +460,7 @@ const Checkout = ({ setActivePage }) => {
               <div className="invoice-footer">
                 <div className="payment-status-badge">
                   <ShieldCheck size={18} />
-                  <span>Trạng thái: CHỜ GIAO HÀNG / {completedOrder.paymentMethod === 'cod' ? 'Thanh toán COD' : 'Đã thanh toán CK'}</span>
+                  <span>Trạng thái: CHỜ GIAO HÀNG / {completedOrder.paymentMethod === 'cod' ? 'Thanh toán COD' : completedOrder.paymentMethod === 'vnpay' ? 'Đã thanh toán VNPay' : 'Đã thanh toán CK'}</span>
                 </div>
                 
                 <div className="invoice-actions no-print">

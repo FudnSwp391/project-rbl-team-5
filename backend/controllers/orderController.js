@@ -1,4 +1,5 @@
 const { db } = require('../db');
+const paymentController = require('./paymentController');
 
 // GET /api/orders - Lấy danh sách đơn hàng
 exports.getOrders = async (req, res) => {
@@ -145,6 +146,13 @@ exports.createOrder = async (req, res) => {
       total_spent: currentSpent + totalAmount
     });
 
+    let vnpayUrl = null;
+    if (paymentMethod === 'vnpay') {
+      const ipAddr = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+      const orderInfo = `Thanh toan don hang ${newOrder.id}`;
+      vnpayUrl = paymentController.generateVnpayUrl(newOrder.id, totalAmount, ipAddr, orderInfo);
+    }
+
     // Trả về đúng cấu trúc mà Checkout.jsx mong đợi
     res.status(201).json({
       message: 'Đặt hàng thành công!',
@@ -153,7 +161,8 @@ exports.createOrder = async (req, res) => {
       shippingInfo,
       items,
       paymentMethod,
-      totalAmount
+      totalAmount,
+      redirectUrl: vnpayUrl
     });
   } catch (err) {
     console.error('Lỗi tạo đơn hàng:', err);

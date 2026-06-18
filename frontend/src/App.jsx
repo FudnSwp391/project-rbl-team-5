@@ -8,6 +8,7 @@ import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import Dashboard from './pages/Dashboard';
 import Auth from './pages/Auth';
+import VnpayReturn from './pages/VnpayReturn';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import ChatBot from "./components/chatbot/ChatBot";
@@ -85,8 +86,13 @@ function MainApp() {
     window.scrollTo(0, 0);
   }, [activePage]);
 
-
-
+  // Check for VNPay redirect on initial load
+  useEffect(() => {
+    const searchParams = window.location.search;
+    if (searchParams.includes('vnpay_return') || searchParams.includes('vnp_ResponseCode')) {
+      setActivePage('vnpay_return');
+    }
+  }, []);
   const renderPage = () => {
     switch (activePage) {
       case 'home':
@@ -103,6 +109,8 @@ function MainApp() {
         return <Dashboard setActivePage={setActivePage} theme={theme} setTheme={setTheme} initialSubTab={dashboardSubTab} setInitialSubTab={setDashboardSubTab} />;
       case 'auth':
         return <Auth setActivePage={setActivePage} />;
+      case 'vnpay_return':
+        return <VnpayReturn setActivePage={setActivePage} />;
       default:
         return <Home setActivePage={setActivePage} setSelectedProduct={setSelectedProduct} />;
     }
