@@ -61,6 +61,11 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
   const [notifMessage, setNotifMessage] = useState('');
   const [notifImage, setNotifImage] = useState('');
   const [notifTargetRole, setNotifTargetRole] = useState('all');
+  const [notifLink, setNotifLink] = useState('');
+  
+  // --- HERO BANNER MANAGEMENT ---
+  const [heroBanners, setHeroBanners] = useState([]);
+  const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
 
   // --- CHAT SYSTEM STATES ---
   const [chatConversations, setChatConversations] = useState([]);
@@ -125,6 +130,13 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
       if (resPromos.ok) {
         const dataPromos = await resPromos.json();
         setPromoCodes(dataPromos);
+      }
+
+      // Fetch banners
+      const resBanners = await fetch(`${API_BASE}/api/banners`);
+      if (resBanners.ok) {
+        const dataBanners = await resBanners.json();
+        setHeroBanners(dataBanners);
       }
     } catch (err) {
       console.error('Lỗi tải dữ liệu bảng điều khiển:', err);
@@ -510,6 +522,32 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
       }
     } catch {
       alert('Lỗi phân công.');
+    }
+  };
+
+  const updateCurrentBanner = (field, value) => {
+    setHeroBanners(prev => prev.map((b, i) => i === currentBannerIndex ? { ...b, [field]: value } : b));
+  };
+
+  const handleSaveBanners = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/banners`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ banners: heroBanners })
+      });
+      if (res.ok) {
+        alert('💾 Lưu danh sách banner thành công!');
+        fetchData();
+      } else {
+        const d = await res.json();
+        alert(d.message || 'Lỗi lưu banner.');
+      }
+    } catch (err) {
+      alert('Lỗi lưu banner: ' + err.message);
     }
   };
 
@@ -1612,6 +1650,181 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
             <div className="seller-marketing-view animate-fade">
               <h2>Quản Lý Chiến Dịch & Khuyến Mãi</h2>
               <p className="view-desc">Tạo mã giảm giá và quản lý các chương trình tiếp thị thu hút khách hàng.</p>
+              
+              {/* Hero Banner Upload Section */}
+              <div className="stats-card-widget glass-panel" style={{ marginBottom: '28px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <h3 style={{ margin: 0 }}>🎨 Quản Lý Banner Carousel Trang Chủ</h3>
+                  <button 
+                    className="btn btn-primary" 
+                    style={{ background: '#F59E0B', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.9rem' }}
+                    onClick={() => {
+                      const newBanner = {
+                        id: Date.now(),
+                        badge: '🎯 NEW BANNER',
+                        title: 'Tiêu đề banner mới',
+                        titleHighlight: 'nổi bật',
+                        subtitle: 'Mô tả ngắn của banner mới...',
+                        image: 'https://images.unsplash.com/photo-1581092921461-eab62e97a780?w=800',
+                        actionLink: ''
+                      };
+                      const updatedBanners = [...heroBanners, newBanner];
+                      setHeroBanners(updatedBanners);
+                      setCurrentBannerIndex(updatedBanners.length - 1);
+                      alert('✅ Đã thêm banner mới vào carousel! Bạn có thể chỉnh sửa chi tiết ở biểu mẫu bên dưới.');
+                    }}
+                  >
+                    ➕ Thêm Banner Mới
+                  </button>
+                </div>
+                
+                {/* Current Banners Preview */}
+                {heroBanners.length > 0 && (
+                  <div style={{ marginBottom: '24px', padding: '16px', background: 'var(--neutral-lightest)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                    <h4 style={{ fontSize: '0.95rem', marginBottom: '12px', color: 'var(--neutral-dark)' }}>📸 Banner Carousel ({heroBanners.length} slides)</h4>
+                    <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '8px' }}>
+                      {heroBanners.map((banner, idx) => (
+                        <div key={banner.id} style={{ position: 'relative', minWidth: '200px', height: '120px', borderRadius: '8px', overflow: 'hidden', border: idx === currentBannerIndex ? '3px solid #F59E0B' : '2px solid var(--border-color)', cursor: 'pointer' }}
+                          onClick={() => setCurrentBannerIndex(idx)}
+                        >
+                          <img src={banner.image} alt={`Banner ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <div style={{ position: 'absolute', top: '8px', left: '8px', background: 'rgba(0,0,0,0.7)', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                            #{idx + 1}
+                          </div>
+                          <button 
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              const updated = heroBanners.filter(b => b.id !== banner.id);
+                              setHeroBanners(updated);
+                              if (currentBannerIndex >= updated.length) {
+                                setCurrentBannerIndex(Math.max(0, updated.length - 1));
+                              }
+                            }}
+                            style={{ position: 'absolute', top: '8px', right: '8px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '50%', width: '24px', height: '24px', cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                          >×</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
+                  <div className="hero-upload-area" style={{ border: '2px dashed var(--border-color)', borderRadius: '12px', padding: '32px', background: 'var(--neutral-lightest)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '300px', cursor: heroBanners[currentBannerIndex] ? 'pointer' : 'not-allowed', transition: 'all 0.3s', opacity: heroBanners[currentBannerIndex] ? 1 : 0.6 }}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (!heroBanners[currentBannerIndex]) return;
+                      const file = e.dataTransfer.files[0];
+                      if (file && file.type.startsWith('image/')) {
+                        const reader = new FileReader();
+                        reader.onload = (ev) => updateCurrentBanner('image', ev.target.result);
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                    onClick={() => {
+                      if (!heroBanners[currentBannerIndex]) return;
+                      const input = document.createElement('input');
+                      input.type = 'file';
+                      input.accept = 'image/*';
+                      input.onchange = (e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (ev) => updateCurrentBanner('image', ev.target.result);
+                          reader.readAsDataURL(file);
+                        }
+                      };
+                      input.click();
+                    }}
+                  >
+                    {heroBanners[currentBannerIndex]?.image ? (
+                      <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+                        <img src={heroBanners[currentBannerIndex].image} alt="Hero Banner" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} />
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); updateCurrentBanner('image', ''); }}
+                          style={{ position: 'absolute', top: '12px', right: '12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >×</button>
+                      </div>
+                    ) : (
+                      <>
+                        <div style={{ fontSize: '48px', marginBottom: '16px' }}>🖼️</div>
+                        <h4 style={{ marginBottom: '8px', color: 'var(--neutral-dark)' }}>Kéo thả hoặc nhấn để tải ảnh lên</h4>
+                        <p style={{ fontSize: '0.9rem', color: 'var(--neutral-medium)', marginBottom: '16px' }}>Hỗ trợ: JPG, PNG, GIF (tối đa 10MB)</p>
+                        <button type="button" className="btn btn-primary" style={{ background: '#F59E0B', border: 'none', padding: '10px 24px', borderRadius: '8px', fontWeight: 'bold' }} disabled={!heroBanners[currentBannerIndex]}>
+                          Chọn Ảnh
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  
+                  <div className="hero-settings" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div className="form-group">
+                      <label className="form-label-sm">NHÃN NHỎ (BADGE)</label>
+                      <input 
+                        type="text" 
+                        className="form-control" 
+                        placeholder="BADGE..."
+                        disabled={!heroBanners[currentBannerIndex]}
+                        value={heroBanners[currentBannerIndex]?.badge || ''}
+                        onChange={e => updateCurrentBanner('badge', e.target.value)}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label-sm">TIÊU ĐỀ BANNER</label>
+                      <input 
+                        type="text" 
+                        className="form-control" 
+                        placeholder="Tái sinh thiết bị của bạn..."
+                        disabled={!heroBanners[currentBannerIndex]}
+                        value={heroBanners[currentBannerIndex]?.title || ''}
+                        onChange={e => updateCurrentBanner('title', e.target.value)}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label-sm">CHỮ NỔI BẬT</label>
+                      <input 
+                        type="text" 
+                        className="form-control" 
+                        placeholder="với Trí tuệ Nhân tạo..."
+                        disabled={!heroBanners[currentBannerIndex]}
+                        value={heroBanners[currentBannerIndex]?.titleHighlight || ''}
+                        onChange={e => updateCurrentBanner('titleHighlight', e.target.value)}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label-sm">MÔ TẢ NGẮN</label>
+                      <textarea 
+                        className="form-control" 
+                        rows="3"
+                        placeholder="Hệ thống chẩn đoán lỗi bằng AI..."
+                        disabled={!heroBanners[currentBannerIndex]}
+                        value={heroBanners[currentBannerIndex]?.subtitle || ''}
+                        onChange={e => updateCurrentBanner('subtitle', e.target.value)}
+                      ></textarea>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label-sm">LINK HÀNH ĐỘNG</label>
+                      <input 
+                        type="text" 
+                        className="form-control" 
+                        placeholder="/booking hoặc URL đầy đủ"
+                        disabled={!heroBanners[currentBannerIndex]}
+                        value={heroBanners[currentBannerIndex]?.actionLink || ''}
+                        onChange={e => updateCurrentBanner('actionLink', e.target.value)}
+                      />
+                    </div>
+                    <button 
+                      type="button" 
+                      className="btn btn-primary" 
+                      style={{ background: '#10B981', border: 'none', padding: '12px', borderRadius: '8px', fontWeight: 'bold', marginTop: 'auto' }}
+                      onClick={handleSaveBanners}
+                      disabled={heroBanners.length === 0}
+                    >
+                      💾 Lưu Banner
+                    </button>
+                  </div>
+                </div>
+              </div>
               
               <div className="seller-main-layout-grid" style={{ gridTemplateColumns: '1fr', display: 'grid', gap: '28px' }}>
                 <div className="layout-col-left" style={{ width: '100%' }}>
