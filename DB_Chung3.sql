@@ -33,7 +33,7 @@ CREATE TABLE roles (
 CREATE TABLE users (
     id INT PRIMARY KEY IDENTITY(1,1),
     role_id INT NOT NULL,
-    username VARCHAR(50) UNIQUE NOT NULL,  -- Dùng để Login
+    username NVARCHAR(50) UNIQUE NOT NULL,  -- Dùng để Login (NVARCHAR hỗ trợ Tiếng Việt)
     email VARCHAR(100) UNIQUE NOT NULL,    -- Dùng để Login / Khôi phục
     password VARCHAR(255) NOT NULL,        -- LƯU CHUỖI GỐC KHÔNG MÃ HÓA (Plain Text)
     full_name NVARCHAR(100) NOT NULL,
@@ -400,21 +400,21 @@ INSERT INTO users (role_id, username, email, password, full_name, phone, avatar,
 
 -- 3.2 - Tài khoản Người bán (Seller - Mật khẩu: seller123)
 INSERT INTO users (role_id, username, email, password, full_name, phone, avatar, status) VALUES
-(@RoleSeller, 'Eco Seller', 'seller@techcycle.vn', 'seller123', N'Cửa Hàng Công Nghệ Eco Seller', '0909090909', '/avatars/seller.jpg', 'active');
+(@RoleSeller, N'Eco Seller', 'seller@techcycle.vn', 'seller123', N'Cửa Hàng Công Nghệ Eco Seller', '0909090909', '/avatars/seller.jpg', 'active');
 
 DECLARE @IdEcoSeller INT;
-SELECT @IdEcoSeller = id FROM users WHERE username = 'Eco Seller';
+SELECT @IdEcoSeller = id FROM users WHERE username = N'Eco Seller';
 INSERT INTO seller_profiles (user_id, shop_name, balance, total_products_sold) 
 VALUES (@IdEcoSeller, N'Tổng Kho Linh Kiện & Đồ Cũ Eco Seller', 15500000.00, 12);
 
 -- 3.3 - Tài khoản Thợ (Technicians - Mật khẩu: tech123)
 INSERT INTO users (role_id, username, email, password, full_name, phone, avatar, status) VALUES
-(@RoleTech, 'Kỹ thuật viên Minh', 'minh.tech@techcycle.vn', 'tech123', N'Nguyễn Hoàng Minh', '0987654321', '/avatars/tech_minh.jpg', 'active'),
-(@RoleTech, 'Kỹ thuật viên Tuấn', 'tuan.tech@techcycle.vn', 'tech123', N'Phạm Anh Tuấn', '0977654321', '/avatars/tech_tuan.jpg', 'active');
+(@RoleTech, N'Kỹ thuật viên Minh', 'minh.tech@techcycle.vn', 'tech123', N'Nguyễn Hoàng Minh', '0987654321', '/avatars/tech_minh.jpg', 'active'),
+(@RoleTech, N'Kỹ thuật viên Tuấn', 'tuan.tech@techcycle.vn', 'tech123', N'Phạm Anh Tuấn', '0977654321', '/avatars/tech_tuan.jpg', 'active');
 
 DECLARE @IdTechMinh INT, @IdTechTuan INT;
-SELECT @IdTechMinh = id FROM users WHERE username = 'Kỹ thuật viên Minh';
-SELECT @IdTechTuan = id FROM users WHERE username = 'Kỹ thuật viên Tuấn';
+SELECT @IdTechMinh = id FROM users WHERE username = N'Kỹ thuật viên Minh';
+SELECT @IdTechTuan = id FROM users WHERE username = N'Kỹ thuật viên Tuấn';
 
 INSERT INTO technician_profiles (user_id, experience_years, bio, rating_avg, is_available, total_repairs) VALUES
 (@IdTechMinh, 5, N'Chuyên viên khắc phục sự cố Laptop, phần cứng di động Apple/Samsung.', 4.85, 1, 142),
@@ -439,10 +439,10 @@ INSERT INTO technician_skills (technician_id, category_id, expertise_level) VALU
 
 -- 3.4 - Tài khoản Khách hàng (Customer - Mật khẩu: user123)
 INSERT INTO users (role_id, username, email, password, full_name, phone, avatar, status) VALUES
-(@RoleCustomer, 'Hoàng Nguyễn', 'customer@gmail.com', 'user123', N'Nguyễn Huy Hoàng', '0900112233', '/avatars/customer_hoang.jpg', 'active');
+(@RoleCustomer, N'Hoàng Nguyễn', 'customer@gmail.com', 'user123', N'Nguyễn Huy Hoàng', '0900112233', '/avatars/customer_hoang.jpg', 'active');
 
 DECLARE @IdCustHoang INT;
-SELECT @IdCustHoang = id FROM users WHERE username = 'Hoàng Nguyễn';
+SELECT @IdCustHoang = id FROM users WHERE username = N'Hoàng Nguyễn';
 INSERT INTO customer_profiles (user_id, address, total_spent)
 VALUES (@IdCustHoang, N'123 Đường Ba Tháng Hai, Quận 10, TP. Hồ Chí Minh', 8300000.00);
 GO
@@ -645,7 +645,7 @@ GO
    ========================================================== */
 
 DECLARE @IdCustomerProf INT, @ProdSony INT, @ProdAppleWatch INT;
-SELECT @IdCustomerProf = id FROM customer_profiles WHERE user_id = (SELECT id FROM users WHERE username = 'Hoàng Nguyễn');
+SELECT @IdCustomerProf = id FROM customer_profiles WHERE user_id = (SELECT id FROM users WHERE username = N'Hoàng Nguyễn');
 SELECT @ProdSony = id FROM products WHERE title = N'Tai nghe Sony WH-1000XM4';
 SELECT @ProdAppleWatch = id FROM products WHERE title = N'Apple Watch Series 7 45mm GPS';
 
@@ -682,9 +682,9 @@ GO
    ========================================================== */
 
 DECLARE @IdCustProf INT, @IdTechProfMinh INT, @IdTechProfTuan INT, @CatIdPhone INT, @CatIdLaptop INT;
-SELECT @IdCustProf = id FROM customer_profiles WHERE user_id = (SELECT id FROM users WHERE username = 'Hoàng Nguyễn');
-SELECT @IdTechProfMinh = id FROM technician_profiles WHERE user_id = (SELECT id FROM users WHERE username = 'Kỹ thuật viên Minh');
-SELECT @IdTechProfTuan = id FROM technician_profiles WHERE user_id = (SELECT id FROM users WHERE username = 'Kỹ thuật viên Tuấn');
+SELECT @IdCustProf = id FROM customer_profiles WHERE user_id = (SELECT id FROM users WHERE username = N'Hoàng Nguyễn');
+SELECT @IdTechProfMinh = id FROM technician_profiles WHERE user_id = (SELECT id FROM users WHERE username = N'Kỹ thuật viên Minh');
+SELECT @IdTechProfTuan = id FROM technician_profiles WHERE user_id = (SELECT id FROM users WHERE username = N'Kỹ thuật viên Tuấn');
 SELECT @CatIdPhone = id FROM service_categories WHERE category_name = N'Điện thoại';
 SELECT @CatIdLaptop = id FROM service_categories WHERE category_name = N'Laptop';
 
@@ -717,8 +717,8 @@ GO
    ========================================================== */
 
 DECLARE @IdUserCust INT, @IdUserTechMinh INT, @IdBook1 INT;
-SELECT @IdUserCust = id FROM users WHERE username = 'Hoàng Nguyễn';
-SELECT @IdUserTechMinh = id FROM users WHERE username = 'Kỹ thuật viên Minh';
+SELECT @IdUserCust = id FROM users WHERE username = N'Hoàng Nguyễn';
+SELECT @IdUserTechMinh = id FROM users WHERE username = N'Kỹ thuật viên Minh';
 SELECT @IdBook1 = id FROM repair_bookings WHERE address LIKE N'%Ba Tháng Hai%';
 
 INSERT INTO messages (sender_id, receiver_id, booking_id, text_content, timestamp) VALUES
