@@ -93,7 +93,15 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const dataUsers = await resUsers.json();
-      if (Array.isArray(dataUsers)) setUsersList(dataUsers);
+      if (Array.isArray(dataUsers)) {
+        const roleOrder = { 'admin': 1, 'seller': 2, 'technician': 3, 'customer': 4 };
+        const sortedUsers = [...dataUsers].sort((a, b) => {
+          const orderA = roleOrder[a.role?.toLowerCase()] || 99;
+          const orderB = roleOrder[b.role?.toLowerCase()] || 99;
+          return orderA - orderB;
+        });
+        setUsersList(sortedUsers);
+      }
 
       const resProducts = await fetch(`${API_BASE}/api/products`);
       const dataProducts = await resProducts.json();
