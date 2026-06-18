@@ -729,6 +729,28 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
       return;
     }
     try {
+      let finalImageUrl = editProdImage;
+      if (editProdImage && editProdImage.startsWith('data:image/')) {
+        const uploadRes = await fetch(`${API_BASE}/api/upload-images`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ images: [editProdImage] })
+        });
+        if (uploadRes.ok) {
+          const uploadData = await uploadRes.json();
+          if (uploadData.urls && uploadData.urls.length > 0) {
+            finalImageUrl = uploadData.urls[0];
+          }
+        } else {
+          const errData = await uploadRes.json();
+          alert(`Lỗi tải lên hình ảnh: ${errData.message || 'Không xác định'}`);
+          return;
+        }
+      }
+
       const res = await fetch(`${API_BASE}/api/products/${editingProduct.id}`, {
         method: 'PUT',
         headers: {
@@ -740,7 +762,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
           price: Number(editProdPrice),
           category: editProdCategory,
           condition: editProdCondition,
-          image: editProdImage || undefined,
+          image: finalImageUrl || undefined,
           description: editProdDesc,
           status: editProdStatus
         })
@@ -2404,99 +2426,209 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
 
       {editingProduct && (
         <div className="modal-backdrop" onClick={() => setEditingProduct(null)}>
-          <div className="modal-content glass-panel" onClick={e => e.stopPropagation()} style={{ width: '600px', maxWidth: '95%' }}>
+          <div className="modal-content glass-panel" onClick={e => e.stopPropagation()} style={{ width: '680px', maxWidth: '95%' }}>
             <div className="modal-header">
               <h3>Chỉnh Sửa Thiết Bị</h3>
               <button className="close-btn" onClick={() => setEditingProduct(null)}>&times;</button>
             </div>
             <form onSubmit={handleEditProduct}>
-              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div className="form-row-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div className="modal-body" style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: '20px' }}>
+                {/* Left column: Image preview & File upload button */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                  <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', alignSelf: 'flex-start', margin: 0 }}>Ảnh thiết bị</label>
+                  <div 
+                    onClick={() => {
+                      const input = document.createElement('input');
+                      input.type = 'file';
+                      input.accept = 'image/*';
+                      input.onchange = (e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (ev) => {
+                            setEditProdImage(ev.target.result);
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      };
+                      input.click();
+                    }}
+                    style={{ 
+                      width: '100%', 
+                      height: '180px', 
+                      borderRadius: '12px', 
+                      border: '2px dashed var(--border-color)', 
+                      display: 'flex', 
+                      flexDirection: 'column',
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      overflow: 'hidden',
+                      position: 'relative',
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                    title="Click để chọn ảnh từ máy tính"
+                  >
+                    {editProdImage ? (
+                      <>
+                        <img 
+                          src={editProdImage} 
+                          alt="Preview" 
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                        />
+                        <div style={{
+                          position: 'absolute',
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          background: 'rgba(0,0,0,0.6)',
+                          color: '#fff',
+                          textAlign: 'center',
+                          fontSize: '0.75rem',
+                          padding: '4px 0',
+                          fontWeight: '500'
+                        }}>
+                          Click để đổi ảnh
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', color: 'var(--text-color)', opacity: 0.6 }}>
+                        <span style={{ fontSize: '1.8rem' }}>📷</span>
+                        <span style={{ fontSize: '0.75rem', textAlign: 'center' }}>Chọn ảnh</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid #006D44',
+                      color: '#006D44',
+                      cursor: 'pointer',
+                      background: 'none',
+                      fontWeight: 'bold',
+                      fontSize: '0.8rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px'
+                    }}
+                    onClick={() => {
+                      const input = document.createElement('input');
+                      input.type = 'file';
+                      input.accept = 'image/*';
+                      input.onchange = (e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (ev) => {
+                            setEditProdImage(ev.target.result);
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      };
+                      input.click();
+                    }}
+                  >
+                    📁 Tải ảnh từ file
+                  </button>
+                </div>
+
+                {/* Right column: Form fields */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div className="form-row-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div className="form-group">
+                      <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>Tên thiết bị</label>
+                      <input 
+                        type="text" 
+                        className="form-control" 
+                        value={editProdName}
+                        onChange={e => setEditProdName(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>Giá bán (VND)</label>
+                      <input 
+                        type="number" 
+                        className="form-control" 
+                        value={editProdPrice}
+                        onChange={e => setEditProdPrice(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-row-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div className="form-group">
+                      <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>Danh mục</label>
+                      <select 
+                        className="form-control"
+                        value={editProdCategory}
+                        onChange={e => setEditProdCategory(e.target.value)}
+                      >
+                        <option value="AirConditioner">Air Conditioner</option>
+                        <option value="WashingMachine">Washing Machine</option>
+                        <option value="Refrigerator">Refrigerator</option>
+                        <option value="Microwave">Microwave</option>
+                        <option value="Audio">Audio</option>
+                        <option value="Laptop">Laptop</option>
+                        <option value="Smartwatch">Smartwatch</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>Chất lượng kiểm định</label>
+                      <select 
+                        className="form-control"
+                        value={editProdCondition}
+                        onChange={e => setEditProdCondition(e.target.value)}
+                      >
+                        <option value="excellent">Like New (99%)</option>
+                        <option value="good">Very Good (&gt;90%)</option>
+                        <option value="fair">Good (&gt;80%)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="form-row-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div className="form-group">
+                      <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>Đường dẫn ảnh (Image URL)</label>
+                      <input 
+                        type="url" 
+                        className="form-control" 
+                        value={editProdImage && editProdImage.startsWith('data:image/') ? '[Tải lên từ file]' : editProdImage}
+                        onChange={e => setEditProdImage(e.target.value)}
+                        placeholder="Nhập đường dẫn ảnh..."
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>Trạng thái</label>
+                      <select 
+                        className="form-control"
+                        value={editProdStatus}
+                        onChange={e => setEditProdStatus(e.target.value)}
+                      >
+                        <option value="available">Available</option>
+                        <option value="sold">Sold</option>
+                      </select>
+                    </div>
+                  </div>
+
                   <div className="form-group">
-                    <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>Tên thiết bị</label>
-                    <input 
-                      type="text" 
+                    <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>Mô tả chi tiết</label>
+                    <textarea 
                       className="form-control" 
-                      value={editProdName}
-                      onChange={e => setEditProdName(e.target.value)}
+                      rows="3" 
+                      value={editProdDesc}
+                      onChange={e => setEditProdDesc(e.target.value)}
                       required
-                    />
+                    ></textarea>
                   </div>
-                  <div className="form-group">
-                    <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>Giá bán (VND)</label>
-                    <input 
-                      type="number" 
-                      className="form-control" 
-                      value={editProdPrice}
-                      onChange={e => setEditProdPrice(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="form-row-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <div className="form-group">
-                    <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>Danh mục</label>
-                    <select 
-                      className="form-control"
-                      value={editProdCategory}
-                      onChange={e => setEditProdCategory(e.target.value)}
-                    >
-                      <option value="AirConditioner">Air Conditioner</option>
-                      <option value="WashingMachine">Washing Machine</option>
-                      <option value="Refrigerator">Refrigerator</option>
-                      <option value="Microwave">Microwave</option>
-                      <option value="Audio">Audio</option>
-                      <option value="Laptop">Laptop</option>
-                      <option value="Smartwatch">Smartwatch</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>Chất lượng kiểm định</label>
-                    <select 
-                      className="form-control"
-                      value={editProdCondition}
-                      onChange={e => setEditProdCondition(e.target.value)}
-                    >
-                      <option value="excellent">Like New (99%)</option>
-                      <option value="good">Very Good (&gt;90%)</option>
-                      <option value="fair">Good (&gt;80%)</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="form-row-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <div className="form-group">
-                    <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>Đường dẫn ảnh (Image URL)</label>
-                    <input 
-                      type="url" 
-                      className="form-control" 
-                      value={editProdImage}
-                      onChange={e => setEditProdImage(e.target.value)}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>Trạng thái</label>
-                    <select 
-                      className="form-control"
-                      value={editProdStatus}
-                      onChange={e => setEditProdStatus(e.target.value)}
-                    >
-                      <option value="available">Available</option>
-                      <option value="sold">Sold</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>Mô tả chi tiết</label>
-                  <textarea 
-                    className="form-control" 
-                    rows="3" 
-                    value={editProdDesc}
-                    onChange={e => setEditProdDesc(e.target.value)}
-                    required
-                  ></textarea>
                 </div>
               </div>
               <div className="modal-footer" style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '20px' }}>
