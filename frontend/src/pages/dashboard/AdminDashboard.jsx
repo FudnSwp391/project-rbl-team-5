@@ -736,9 +736,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
             </button>
           </nav>
 
-          <button className="new-report-btn" onClick={() => alert("Creating a new analytics report...")}>
-            <Plus size={16} /> New Report
-          </button>
+
 
           <div className="sidebar-bottom-nav">
             <button className="sidebar-nav-btn bottom-btn" onClick={() => alert("Contact TechCycle support at support@techcycle.vn")}>
