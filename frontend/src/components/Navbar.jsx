@@ -337,6 +337,32 @@ const Navbar = ({ activePage, setActivePage, theme, setTheme, setDashboardSubTab
                 />
               </div>
 
+              <div className="form-group" style={{ textAlign: 'center', marginBottom: '8px' }}>
+                <button
+                  type="button"
+                  className="btn btn-outline-primary btn-sm"
+                  style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #006D44', color: '#006D44', cursor: 'pointer', background: 'none', fontWeight: 'bold' }}
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/*';
+                    input.onchange = (e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (ev) => {
+                          setCustomAvatarUrl(ev.target.result);
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    };
+                    input.click();
+                  }}
+                >
+                  📤 Tải ảnh từ thiết bị
+                </button>
+              </div>
+
               <div className="form-group">
                 <label className="form-label-sm" style={{ fontWeight: '600', fontSize: '0.8rem', display: 'block', marginBottom: '6px' }}>ĐƯỜNG DẪN ẢNH ĐẠI DIỆN (URL)</label>
                 <input 
