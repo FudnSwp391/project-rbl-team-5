@@ -9,6 +9,7 @@ const db = require('./db');
 // Import modular routes
 const authRoutes = require('./routes/authRoutes');
 const bannerRoutes = require('./routes/bannerRoutes');
+const featureRoutes = require('./routes/featureRoutes');
 const productRoutes = require('./routes/productRoutes');
 const bookingRoutes = require('./routes/bookingRoutes');
 const orderRoutes = require('./routes/orderRoutes');
@@ -43,6 +44,7 @@ app.use('/uploads', express.static(uploadsDir));
 // Mount API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/banners', bannerRoutes);
+app.use('/api/features', featureRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/orders', orderRoutes);
