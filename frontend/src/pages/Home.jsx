@@ -48,6 +48,15 @@ const Home = ({ setActivePage, setSelectedProduct }) => {
   const [loading, setLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [heroSlides, setHeroSlides] = useState(DEFAULT_SLIDES);
+  const [featureItems, setFeatureItems] = useState([
+    { featureIcon: 'cpu', featureTitle: 'Hệ thống chẩn đoán AI', featureDesc: 'Dự báo hư hỏng linh kiện chính xác và dự toán giá cả sửa chữa minh bạch, không phát sinh phụ phí.', iconColor: '' },
+    { featureIcon: 'recycle', featureTitle: 'Linh kiện chuẩn Eco', featureDesc: 'Ưu tiên sử dụng linh kiện tái chế chất lượng cao, linh kiện bóc máy chính hãng giúp giảm thiểu tác động carbon.', iconColor: 'green' },
+    { featureIcon: 'shield', featureTitle: 'Cam kết độ bền xanh', featureDesc: '100% thiết bị bán ra tại Cửa hàng Eco đều trải qua quy trình kiểm thử 24 bước nghiêm ngặt trước khi xuất xưởng.', iconColor: 'orange' }
+  ]);
+  const [featureSectionTitle, setFeatureSectionTitle] = useState('Vì sao TechCycle là lựa chọn hàng đầu?');
+  const [featureSectionSubtitle, setFeatureSectionSubtitle] = useState('Lựa chọn bền vững');
+  const [featureSectionDesc, setFeatureSectionDesc] = useState('Chúng tôi hướng đến xây dựng vòng đời công nghệ tuần hoàn bằng sự minh bạch và chuyên nghiệp hàng đầu.');
+  const [featureSectionImage, setFeatureSectionImage] = useState('https://images.unsplash.com/photo-1604754742629-3e5728249d73?w=700');
 
   // Auto-advance carousel
   useEffect(() => {
@@ -131,6 +140,29 @@ const Home = ({ setActivePage, setSelectedProduct }) => {
       .catch(err => {
         console.error('Lỗi tải sản phẩm trang chủ:', err);
         setLoading(false);
+      });
+
+    // Fetch features section from DB
+    fetch(`${API_BASE}/api/features`)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          // Use first item's section-level fields
+          if (data[0].sectionTitle) setFeatureSectionTitle(data[0].sectionTitle);
+          if (data[0].sectionSubtitle) setFeatureSectionSubtitle(data[0].sectionSubtitle);
+          if (data[0].sectionDesc) setFeatureSectionDesc(data[0].sectionDesc);
+          if (data[0].sectionImage) setFeatureSectionImage(data[0].sectionImage);
+          const iconColors = ['', 'green', 'orange', 'blue', 'red'];
+          setFeatureItems(data.map((f, idx) => ({
+            featureIcon: f.featureIcon || 'cpu',
+            featureTitle: f.featureTitle || '',
+            featureDesc: f.featureDesc || '',
+            iconColor: iconColors[idx % iconColors.length]
+          })));
+        }
+      })
+      .catch(err => {
+        console.error('Lỗi tải features trang chủ:', err);
       });
   }, []);
 
@@ -417,46 +449,37 @@ const Home = ({ setActivePage, setSelectedProduct }) => {
         <div className="features-container glass-panel p-4 p-md-5">
           <div className="row align-items-center g-5">
             <div className="col-lg-7 features-info">
-              <span className="section-subtitle">Lựa chọn bền vững</span>
-              <h2 className="section-title fw-bold">Vì sao TechCycle là lựa chọn hàng đầu?</h2>
-              <p className="section-desc-left text-muted mb-4">Chúng tôi hướng đến xây dựng vòng đời công nghệ tuần hoàn bằng sự minh bạch và chuyên nghiệp hàng đầu.</p>
+              <span className="section-subtitle">{featureSectionSubtitle}</span>
+              <h2 className="section-title fw-bold">{featureSectionTitle}</h2>
+              <p className="section-desc-left text-muted mb-4">{featureSectionDesc}</p>
               
               <div className="feature-bullets d-flex flex-column gap-4">
-                <div className="feature-bullet-item d-flex gap-3">
-                  <div className="bullet-icon-box">
-                    <Cpu size={20} />
-                  </div>
-                  <div>
-                    <h4 className="fw-bold">Hệ thống chẩn đoán AI</h4>
-                    <p className="text-muted m-0">Dự báo hư hỏng linh kiện chính xác và dự toán giá cả sửa chữa minh bạch, không phát sinh phụ phí.</p>
-                  </div>
-                </div>
-
-                <div className="feature-bullet-item d-flex gap-3">
-                  <div className="bullet-icon-box green">
-                    <Recycle size={20} />
-                  </div>
-                  <div>
-                    <h4 className="fw-bold">Linh kiện chuẩn Eco</h4>
-                    <p className="text-muted m-0">Ưu tiên sử dụng linh kiện tái chế chất lượng cao, linh kiện bóc máy chính hãng giúp giảm thiểu tác động carbon.</p>
-                  </div>
-                </div>
-
-                <div className="feature-bullet-item d-flex gap-3">
-                  <div className="bullet-icon-box orange">
-                    <ShieldCheck size={20} />
-                  </div>
-                  <div>
-                    <h4 className="fw-bold">Cam kết độ bền xanh</h4>
-                    <p className="text-muted m-0">100% thiết bị bán ra tại Cửa hàng Eco đều trải qua quy trình kiểm thử 24 bước nghiêm ngặt trước khi xuất xưởng.</p>
-                  </div>
-                </div>
+                {featureItems.map((item, idx) => {
+                  const iconMap = {
+                    cpu: <Cpu size={20} />,
+                    recycle: <Recycle size={20} />,
+                    shield: <ShieldCheck size={20} />,
+                    sparkles: <Sparkles size={20} />,
+                    check: <Check size={20} />,
+                  };
+                  return (
+                    <div key={idx} className="feature-bullet-item d-flex gap-3">
+                      <div className={`bullet-icon-box ${item.iconColor || ''}`}>
+                        {iconMap[item.featureIcon] || <Cpu size={20} />}
+                      </div>
+                      <div>
+                        <h4 className="fw-bold">{item.featureTitle}</h4>
+                        <p className="text-muted m-0">{item.featureDesc}</p>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
             
             <div className="col-lg-5 features-visual position-relative d-flex justify-content-center align-items-center">
               <img 
-                src="https://images.unsplash.com/photo-1604754742629-3e5728249d73?w=700" 
+                src={featureSectionImage || "https://images.unsplash.com/photo-1604754742629-3e5728249d73?w=700"} 
                 alt="Environmental electronic diagnostics" 
                 className="features-img w-100"
                 onError={(e) => {

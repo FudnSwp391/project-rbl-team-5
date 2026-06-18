@@ -67,6 +67,17 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
   const [heroBanners, setHeroBanners] = useState([]);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
 
+  // --- FEATURES SECTION MANAGEMENT ---
+  const [featureItems, setFeatureItems] = useState([
+    { featureIcon: 'cpu', featureTitle: 'Hệ thống chẩn đoán AI', featureDesc: 'Dự báo hư hỏng linh kiện chính xác và dự toán giá cả sửa chữa minh bạch, không phát sinh phụ phí.' },
+    { featureIcon: 'recycle', featureTitle: 'Linh kiện chuẩn Eco', featureDesc: 'Ưu tiên sử dụng linh kiện tái chế chất lượng cao, linh kiện bóc máy chính hãng giúp giảm thiểu tác động carbon.' },
+    { featureIcon: 'shield', featureTitle: 'Cam kết độ bền xanh', featureDesc: '100% thiết bị bán ra tại Cửa hàng Eco đều trải qua quy trình kiểm thử 24 bước nghiêm ngặt trước khi xuất xưởng.' }
+  ]);
+  const [featureSectionTitle, setFeatureSectionTitle] = useState('Vì sao TechCycle là lựa chọn hàng đầu?');
+  const [featureSectionSubtitle, setFeatureSectionSubtitle] = useState('Lựa chọn bền vững');
+  const [featureSectionDesc, setFeatureSectionDesc] = useState('Chúng tôi hướng đến xây dựng vòng đời công nghệ tuần hoàn bằng sự minh bạch và chuyên nghiệp hàng đầu.');
+  const [featureSectionImage, setFeatureSectionImage] = useState('https://images.unsplash.com/photo-1604754742629-3e5728249d73?w=700');
+
   // --- CHAT SYSTEM STATES ---
   const [chatConversations, setChatConversations] = useState([]);
   const [selectedBooking, setSelectedBooking] = useState(null);
@@ -137,6 +148,23 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
       if (resBanners.ok) {
         const dataBanners = await resBanners.json();
         setHeroBanners(dataBanners);
+      }
+
+      // Fetch features
+      const resFeatures = await fetch(`${API_BASE}/api/features`);
+      if (resFeatures.ok) {
+        const dataFeatures = await resFeatures.json();
+        if (Array.isArray(dataFeatures) && dataFeatures.length > 0) {
+          if (dataFeatures[0].sectionTitle) setFeatureSectionTitle(dataFeatures[0].sectionTitle);
+          if (dataFeatures[0].sectionSubtitle) setFeatureSectionSubtitle(dataFeatures[0].sectionSubtitle);
+          if (dataFeatures[0].sectionDesc) setFeatureSectionDesc(dataFeatures[0].sectionDesc);
+          if (dataFeatures[0].sectionImage) setFeatureSectionImage(dataFeatures[0].sectionImage);
+          setFeatureItems(dataFeatures.map(f => ({
+            featureIcon: f.featureIcon || 'cpu',
+            featureTitle: f.featureTitle || '',
+            featureDesc: f.featureDesc || ''
+          })));
+        }
       }
     } catch (err) {
       console.error('Lỗi tải dữ liệu bảng điều khiển:', err);
@@ -548,6 +576,37 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
       }
     } catch (err) {
       alert('Lỗi lưu banner: ' + err.message);
+    }
+  };
+
+  const handleSaveFeatures = async () => {
+    try {
+      const payload = featureItems.map(f => ({
+        sectionSubtitle: featureSectionSubtitle,
+        sectionTitle: featureSectionTitle,
+        sectionDesc: featureSectionDesc,
+        sectionImage: featureSectionImage,
+        featureIcon: f.featureIcon,
+        featureTitle: f.featureTitle,
+        featureDesc: f.featureDesc
+      }));
+      const res = await fetch(`${API_BASE}/api/features`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ features: payload })
+      });
+      if (res.ok) {
+        alert('💾 Lưu nội dung section thành công!');
+        fetchData();
+      } else {
+        const d = await res.json();
+        alert(d.message || 'Lỗi lưu features.');
+      }
+    } catch (err) {
+      alert('Lỗi lưu features: ' + err.message);
     }
   };
 
@@ -1826,6 +1885,198 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                 </div>
               </div>
               
+              {/* Features Section Editor */}
+              <div className="stats-card-widget glass-panel" style={{ marginBottom: '28px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <h3 style={{ margin: 0 }}>📝 Chỉnh Sửa Section "Vì sao TechCycle"</h3>
+                  <button 
+                    className="btn btn-primary" 
+                    style={{ background: '#F59E0B', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.9rem' }}
+                    onClick={() => {
+                      setFeatureItems(prev => [...prev, {
+                        featureIcon: 'cpu',
+                        featureTitle: 'Tiêu đề mới',
+                        featureDesc: 'Mô tả tính năng mới...'
+                      }]);
+                    }}
+                  >
+                    ➕ Thêm Tính Năng
+                  </button>
+                </div>
+
+                {/* Section-level fields */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+                  <div className="form-group">
+                    <label className="form-label-sm">TIÊU ĐỀ PHỤ (SUBTITLE)</label>
+                    <input 
+                      type="text" 
+                      className="form-control" 
+                      placeholder="Lựa chọn bền vững"
+                      value={featureSectionSubtitle}
+                      onChange={e => setFeatureSectionSubtitle(e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label-sm">TIÊU ĐỀ CHÍNH</label>
+                    <input 
+                      type="text" 
+                      className="form-control" 
+                      placeholder="Vì sao TechCycle là lựa chọn hàng đầu?"
+                      value={featureSectionTitle}
+                      onChange={e => setFeatureSectionTitle(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="form-group" style={{ marginBottom: '20px' }}>
+                  <label className="form-label-sm">MÔ TẢ SECTION</label>
+                  <textarea 
+                    className="form-control" 
+                    rows="2"
+                    placeholder="Chúng tôi hướng đến xây dựng..."
+                    value={featureSectionDesc}
+                    onChange={e => setFeatureSectionDesc(e.target.value)}
+                  ></textarea>
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '20px' }}>
+                  <label className="form-label-sm">HÌNH ẢNH MINH HỌA SECTION (BÊN PHẢI)</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                    <div 
+                      className="hero-upload-area" 
+                      style={{ border: '2px dashed var(--border-color)', borderRadius: '12px', padding: '24px', background: 'var(--neutral-lightest)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '200px', cursor: 'pointer', transition: 'all 0.3s' }}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const file = e.dataTransfer.files[0];
+                        if (file && file.type.startsWith('image/')) {
+                          const reader = new FileReader();
+                          reader.onload = (ev) => setFeatureSectionImage(ev.target.result);
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      onClick={() => {
+                        const input = document.createElement('input');
+                        input.type = 'file';
+                        input.accept = 'image/*';
+                        input.onchange = (e) => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (ev) => setFeatureSectionImage(ev.target.result);
+                            reader.readAsDataURL(file);
+                          }
+                        };
+                        input.click();
+                      }}
+                    >
+                      {featureSectionImage ? (
+                        <div style={{ width: '100%', height: '100%', position: 'relative', textAlign: 'center' }}>
+                          <img src={featureSectionImage} alt="Features Section Visual" style={{ maxHeight: '180px', maxWidth: '100%', objectFit: 'contain', borderRadius: '8px' }} />
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); setFeatureSectionImage(''); }}
+                            style={{ position: 'absolute', top: '4px', right: '4px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '50%', width: '28px', height: '28px', cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          >×</button>
+                        </div>
+                      ) : (
+                        <>
+                          <div style={{ fontSize: '32px', marginBottom: '8px' }}>🖼️</div>
+                          <h5 style={{ marginBottom: '4px', color: 'var(--neutral-dark)' }}>Kéo thả hoặc click tải ảnh</h5>
+                          <p style={{ fontSize: '0.8rem', color: 'var(--neutral-medium)', marginBottom: '8px' }}>Hỗ trợ: JPG, PNG, WEBP</p>
+                          <button type="button" className="btn btn-primary btn-sm" style={{ background: '#F59E0B', border: 'none', fontWeight: 'bold' }}>
+                            Chọn Ảnh
+                          </button>
+                        </>
+                      )}
+                    </div>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                      <label className="form-label-sm" style={{ marginBottom: '8px' }}>ĐƯỜNG DẪN ẢNH (HOẶC BASE64)</label>
+                      <input 
+                        type="text" 
+                        className="form-control"
+                        placeholder="Nhập đường dẫn ảnh Unsplash hoặc Base64..."
+                        value={featureSectionImage || ''}
+                        onChange={e => setFeatureSectionImage(e.target.value)}
+                      />
+                      <p style={{ fontSize: '0.75rem', color: 'var(--neutral-medium)', marginTop: '8px' }}>
+                        Khuyên dùng: Ảnh vuông hoặc ảnh ngang tỷ lệ 4:3 sắc nét (VD: Unsplash). Dùng nút bên trái để tải ảnh từ máy tính.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Feature items list */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
+                  {featureItems.map((item, idx) => (
+                    <div key={idx} style={{ padding: '16px', background: 'var(--neutral-lightest)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <span style={{ fontWeight: 'bold', fontSize: '0.9rem', color: 'var(--neutral-dark)' }}>Tính năng #{idx + 1}</span>
+                        <button 
+                          onClick={() => setFeatureItems(prev => prev.filter((_, i) => i !== idx))}
+                          style={{ background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', padding: '4px 12px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold' }}
+                        >🗑️ Xóa</button>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '12px' }}>
+                        <div className="form-group">
+                          <label className="form-label-sm">ICON</label>
+                          <select 
+                            className="form-control"
+                            value={item.featureIcon}
+                            onChange={e => {
+                              const updated = [...featureItems];
+                              updated[idx] = { ...updated[idx], featureIcon: e.target.value };
+                              setFeatureItems(updated);
+                            }}
+                          >
+                            <option value="cpu">🖥️ CPU (Chẩn đoán)</option>
+                            <option value="recycle">♻️ Recycle (Tái chế)</option>
+                            <option value="shield">🛡️ Shield (Bảo vệ)</option>
+                            <option value="sparkles">✨ Sparkles (Nổi bật)</option>
+                            <option value="check">✅ Check (Xác nhận)</option>
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label-sm">TIÊU ĐỀ TÍNH NĂNG</label>
+                          <input 
+                            type="text" 
+                            className="form-control"
+                            value={item.featureTitle}
+                            onChange={e => {
+                              const updated = [...featureItems];
+                              updated[idx] = { ...updated[idx], featureTitle: e.target.value };
+                              setFeatureItems(updated);
+                            }}
+                          />
+                        </div>
+                      </div>
+                      <div className="form-group" style={{ marginTop: '8px' }}>
+                        <label className="form-label-sm">MÔ TẢ</label>
+                        <textarea 
+                          className="form-control" 
+                          rows="2"
+                          value={item.featureDesc}
+                          onChange={e => {
+                            const updated = [...featureItems];
+                            updated[idx] = { ...updated[idx], featureDesc: e.target.value };
+                            setFeatureItems(updated);
+                          }}
+                        ></textarea>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <button 
+                  type="button" 
+                  className="btn btn-primary" 
+                  style={{ background: '#10B981', border: 'none', padding: '12px 24px', borderRadius: '8px', fontWeight: 'bold' }}
+                  onClick={handleSaveFeatures}
+                  disabled={featureItems.length === 0}
+                >
+                  💾 Lưu Nội Dung Section
+                </button>
+              </div>
+
               <div className="seller-main-layout-grid" style={{ gridTemplateColumns: '1fr', display: 'grid', gap: '28px' }}>
                 <div className="layout-col-left" style={{ width: '100%' }}>
                   <div className="stats-card-widget glass-panel">
