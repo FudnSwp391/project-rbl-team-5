@@ -448,7 +448,7 @@ const Home = ({ setActivePage, setSelectedProduct }) => {
       <section className="features-section container my-5">
         <div className="features-container glass-panel p-4 p-md-5">
           <div className="row align-items-center g-5">
-            <div className="col-lg-7 features-info">
+            <div className="col-lg-6 features-info">
               <span className="section-subtitle">{featureSectionSubtitle}</span>
               <h2 className="section-title fw-bold">{featureSectionTitle}</h2>
               <p className="section-desc-left text-muted mb-4">{featureSectionDesc}</p>
@@ -477,14 +477,14 @@ const Home = ({ setActivePage, setSelectedProduct }) => {
               </div>
             </div>
             
-            <div className="col-lg-5 features-visual position-relative d-flex justify-content-center align-items-center">
+            <div className="col-lg-6 features-visual position-relative d-flex justify-content-center align-items-center">
               <img 
-                src={featureSectionImage || "https://images.unsplash.com/photo-1604754742629-3e5728249d73?w=700"} 
+                src={featureSectionImage || "https://images.unsplash.com/photo-1604754742629-3e5728249d73?w=1200"} 
                 alt="Environmental electronic diagnostics" 
                 className="features-img w-100"
                 onError={(e) => {
                   e.target.onerror = null;
-                  e.target.src = "https://images.unsplash.com/photo-1596495578065-6e0763fa1178?w=700";
+                  e.target.src = "https://images.unsplash.com/photo-1596495578065-6e0763fa1178?w=1200";
                 }}
               />
               <div className="features-overlay-card card position-absolute p-3 shadow-lg d-flex flex-row align-items-center gap-2">
