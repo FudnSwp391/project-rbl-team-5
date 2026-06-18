@@ -168,7 +168,7 @@ process.on('SIGINT', cleanup);
 initDB()
     .then(() => {
         app.listen(3002, () => {
-            console.log('✅ Chatbot Server 2 (Gemini 3.1 Flash Lite) chạy tại http://localhost:3002');
+            console.log('✅ Chatbot Server 1 (Gemini 3.1 Flash Lite) chạy tại http://localhost:3002');
             console.log('   - POST http://localhost:3002/api/chat');
             console.log('   - GET  http://localhost:3002/health');
         });

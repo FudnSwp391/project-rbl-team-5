@@ -1858,11 +1858,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden auto;
+  padding: 20px 0;
 }
 
 .modal-content {
   width: 500px;
   max-width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
   background-color: var(--white);
   box-shadow: var(--shadow-lg);
   padding: 24px;

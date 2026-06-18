@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../../context/AuthContext';
 import io from 'socket.io-client';
 import { getProductImage } from '../../components/ProductCard';
@@ -2389,7 +2390,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
         </main>
       </div>
 
-      {viewingUser && subTab === 'users' && (
+      {viewingUser && subTab === 'users' && createPortal(
         <div className="modal-backdrop" onClick={() => setViewingUser(null)}>
           <div className="modal-content glass-panel" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
@@ -2421,10 +2422,11 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {editingProduct && (
+      {editingProduct && createPortal(
         <div className="modal-backdrop" onClick={() => setEditingProduct(null)}>
           <div className="modal-content glass-panel" onClick={e => e.stopPropagation()} style={{ width: '680px', maxWidth: '95%' }}>
             <div className="modal-header">
@@ -2475,7 +2477,20 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                         <img 
                           src={editProdImage} 
                           alt="Preview" 
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                          style={{ 
+                            width: '100%', 
+                            height: '100%', 
+                            objectFit: 'contain',
+                            objectPosition: 'center',
+                            background: 'rgba(0,0,0,0.15)',
+                            display: 'block'
+                          }}
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling && (e.target.nextSibling.style.display = 'none');
+                            e.target.parentElement.querySelector('.img-error-placeholder') && 
+                              (e.target.parentElement.querySelector('.img-error-placeholder').style.display = 'flex');
+                          }}
                         />
                         <div style={{
                           position: 'absolute',
@@ -2490,6 +2505,10 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                           fontWeight: '500'
                         }}>
                           Click để đổi ảnh
+                        </div>
+                        <div className="img-error-placeholder" style={{ display: 'none', flexDirection: 'column', alignItems: 'center', gap: '8px', color: 'var(--text-color)', opacity: 0.6, position: 'absolute', inset: 0, justifyContent: 'center' }}>
+                          <span style={{ fontSize: '1.8rem' }}>🖼️</span>
+                          <span style={{ fontSize: '0.75rem', textAlign: 'center' }}>Ảnh không tải được</span>
                         </div>
                       </>
                     ) : (
@@ -2599,7 +2618,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                     <div className="form-group">
                       <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>Đường dẫn ảnh (Image URL)</label>
                       <input 
-                        type="url" 
+                        type="text" 
                         className="form-control" 
                         value={editProdImage && editProdImage.startsWith('data:image/') ? '[Tải lên từ file]' : editProdImage}
                         onChange={e => setEditProdImage(e.target.value)}
@@ -2637,10 +2656,11 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {showAvatarModal && (
+      {showAvatarModal && createPortal(
         <div className="modal-backdrop" onClick={() => setShowAvatarModal(false)} style={{ zIndex: 9999 }}>
           <div className="modal-content glass-panel" onClick={e => e.stopPropagation()} style={{ width: '450px', padding: '24px' }}>
             <div className="modal-header" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -2751,7 +2771,8 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
               >Lưu thay đổi</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
