@@ -73,7 +73,7 @@
   
   --neutral-darkest: #F3F4F6;   /* Light text color */
   --neutral-dark: #D1FAe5;      /* Tinted text */
-  --neutral-medium: #9CA3AF;    /* Muted text color */
+  --neutral-medium: #CBD5E1;    /* Bright slate gray for high contrast text */
   --neutral-light: #4B5563;
   --neutral-lightest: #1F2937;  /* Dark headers */
   --neutral-bg: #0B0F19;        /* Dark slate background */
@@ -90,6 +90,13 @@
   --bs-border-color: #1F2937;
   --bs-tertiary-bg: #161C2A;
   --bs-secondary-bg: #1F2937;
+  --bs-link-color: #10B981;
+}
+
+/* Dark Mode Helpers for Bootstrap text classes */
+[data-theme='dark'] .text-muted,
+[data-theme='dark'] .text-secondary {
+  color: var(--neutral-medium) !important;
 }
 
 /* Base resets */
