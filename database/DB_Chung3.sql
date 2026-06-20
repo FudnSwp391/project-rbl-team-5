@@ -29,11 +29,11 @@ CREATE TABLE roles (
     created_at DATETIME DEFAULT GETDATE()
 );
 
-/* 1.2 - Bảng Users (Tài khoản chính - Plain text password, hỗ trợ Unicode cho username) */
+/* 1.2 - Bảng Users (Tài khoản chính - Plain text password) */
 CREATE TABLE users (
     id INT PRIMARY KEY IDENTITY(1,1),
     role_id INT NOT NULL,
-    username NVARCHAR(50) UNIQUE NOT NULL,  -- Dùng để Login (NVARCHAR hỗ trợ Tiếng Việt)
+    username VARCHAR(50) UNIQUE NOT NULL,  -- Dùng để Login
     email VARCHAR(100) UNIQUE NOT NULL,    -- Dùng để Login / Khôi phục
     password VARCHAR(255) NOT NULL,        -- LƯU CHUỖI GỐC KHÔNG MÃ HÓA (Plain Text)
     full_name NVARCHAR(100) NOT NULL,
@@ -158,6 +158,7 @@ CREATE TABLE products (
     category_id INT NOT NULL,
     title NVARCHAR(255) NOT NULL,
     user_description NVARCHAR(MAX) NOT NULL,
+    purchase_date DATE NULL, -- ngày thu mua sản phẩm
     ai_condition NVARCHAR(50) NULL,        -- Đánh giá độ mới qua AI
     ai_min_price DECIMAL(12,2) NULL,       -- Giá sàn AI gợi ý
     ai_max_price DECIMAL(12,2) NULL,       -- Giá trần AI gợi ý
@@ -353,7 +354,18 @@ INSERT INTO product_categories (category_name, description) VALUES
 (N'AirConditioner', N'Hệ thống điều hòa thanh lý'),
 (N'Audio', N'Tai nghe bluetooth, loa không dây, phụ kiện âm thanh'),
 (N'Laptop', N'Laptop văn phòng, laptop gaming giá tốt'),
-(N'Smartwatch', N'Đồng hồ thông minh qua sử dụng');
+(N'Smartwatch', N'Đồng hồ thông minh qua sử dụng'),
+
+(N'Smartphone', N'Điện thoại thông minh đã qua sử dụng'),
+(N'Tablet', N'Máy tính bảng'),
+(N'GamingConsole', N'Máy chơi game'),
+(N'Camera', N'Máy ảnh DSLR Mirrorless'),
+(N'TV', N'Tivi thông minh'),
+(N'Monitor', N'Màn hình máy tính'),
+(N'PC', N'Máy tính để bàn'),
+(N'Printer', N'Máy in'),
+(N'Router', N'Thiết bị mạng'),
+(N'Accessory', N'Phụ kiện điện tử');
 
 -- Lưu trữ cấu hình hệ thống TechCycle
 INSERT INTO system_info (system_name, founder_name, founder_role, founder_age, support_email, hotline, established_date, description)
@@ -373,26 +385,26 @@ SELECT @RoleSeller = id FROM roles WHERE role_name = 'seller';
 
 -- 3.1 - Tài khoản Admin chính (Mật khẩu text rõ ràng: admin123)
 INSERT INTO users (role_id, username, email, password, full_name, phone, avatar, status) VALUES
-(@RoleAdmin, N'admin_huy', 'Huynhlekimhuy12345@gmail.com', 'admin123', N'Huỳnh Lê Kim Huy', '0325225503', NULL, 'active'),
-(@RoleAdmin, N'admin', 'admin@techcycle.vn', 'admin123', N'Administrator System', '0912345678', '/avatars/admin.jpg', 'active');
+(@RoleAdmin, 'admin_huy', 'Huynhlekimhuy12345@gmail.com', 'admin123', N'Huỳnh Lê Kim Huy', '0325225503', NULL, 'active'),
+(@RoleAdmin, 'admin', 'admin@techcycle.vn', 'admin123', N'Administrator System', '0912345678', '/avatars/admin.jpg', 'active');
 
 -- 3.2 - Tài khoản Người bán (Seller - Mật khẩu: seller123)
 INSERT INTO users (role_id, username, email, password, full_name, phone, avatar, status) VALUES
-(@RoleSeller, N'Eco Seller', 'seller@techcycle.vn', 'seller123', N'Cửa Hàng Công Nghệ Eco Seller', '0909090909', '/avatars/seller.jpg', 'active');
+(@RoleSeller, 'Eco Seller', 'seller@techcycle.vn', 'seller123', N'Cửa Hàng Công Nghệ Eco Seller', '0909090909', '/avatars/seller.jpg', 'active');
 
 DECLARE @IdEcoSeller INT;
-SELECT @IdEcoSeller = id FROM users WHERE username = N'Eco Seller';
+SELECT @IdEcoSeller = id FROM users WHERE username = 'Eco Seller';
 INSERT INTO seller_profiles (user_id, shop_name, balance, total_products_sold) 
 VALUES (@IdEcoSeller, N'Tổng Kho Linh Kiện & Đồ Cũ Eco Seller', 15500000.00, 12);
 
 -- 3.3 - Tài khoản Thợ (Technicians - Mật khẩu: tech123)
 INSERT INTO users (role_id, username, email, password, full_name, phone, avatar, status) VALUES
-(@RoleTech, N'Kỹ thuật viên Minh', 'minh.tech@techcycle.vn', 'tech123', N'Nguyễn Hoàng Minh', '0987654321', '/avatars/tech_minh.jpg', 'active'),
-(@RoleTech, N'Kỹ thuật viên Tuấn', 'tuan.tech@techcycle.vn', 'tech123', N'Phạm Anh Tuấn', '0977654321', '/avatars/tech_tuan.jpg', 'active');
+(@RoleTech, 'Kỹ thuật viên Minh', 'minh.tech@techcycle.vn', 'tech123', N'Nguyễn Hoàng Minh', '0987654321', '/avatars/tech_minh.jpg', 'active'),
+(@RoleTech, 'Kỹ thuật viên Tuấn', 'tuan.tech@techcycle.vn', 'tech123', N'Phạm Anh Tuấn', '0977654321', '/avatars/tech_tuan.jpg', 'active');
 
 DECLARE @IdTechMinh INT, @IdTechTuan INT;
-SELECT @IdTechMinh = id FROM users WHERE username = N'Kỹ thuật viên Minh';
-SELECT @IdTechTuan = id FROM users WHERE username = N'Kỹ thuật viên Tuấn';
+SELECT @IdTechMinh = id FROM users WHERE username = 'Kỹ thuật viên Minh';
+SELECT @IdTechTuan = id FROM users WHERE username = 'Kỹ thuật viên Tuấn';
 
 INSERT INTO technician_profiles (user_id, experience_years, bio, rating_avg, is_available, total_repairs) VALUES
 (@IdTechMinh, 5, N'Chuyên viên khắc phục sự cố Laptop, phần cứng di động Apple/Samsung.', 4.85, 1, 142),
@@ -417,10 +429,10 @@ INSERT INTO technician_skills (technician_id, category_id, expertise_level) VALU
 
 -- 3.4 - Tài khoản Khách hàng (Customer - Mật khẩu: user123)
 INSERT INTO users (role_id, username, email, password, full_name, phone, avatar, status) VALUES
-(@RoleCustomer, N'Hoàng Nguyễn', 'customer@gmail.com', 'user123', N'Nguyễn Huy Hoàng', '0900112233', '/avatars/customer_hoang.jpg', 'active');
+(@RoleCustomer, 'Hoàng Nguyễn', 'customer@gmail.com', 'user123', N'Nguyễn Huy Hoàng', '0900112233', '/avatars/customer_hoang.jpg', 'active');
 
 DECLARE @IdCustHoang INT;
-SELECT @IdCustHoang = id FROM users WHERE username = N'Hoàng Nguyễn';
+SELECT @IdCustHoang = id FROM users WHERE username = 'Hoàng Nguyễn';
 INSERT INTO customer_profiles (user_id, address, total_spent)
 VALUES (@IdCustHoang, N'123 Đường Ba Tháng Hai, Quận 10, TP. Hồ Chí Minh', 8300000.00);
 GO
@@ -439,6 +451,163 @@ SELECT @CatAC = id FROM product_categories WHERE category_name = 'AirConditioner
 SELECT @CatAU = id FROM product_categories WHERE category_name = 'Audio';
 SELECT @CatLT = id FROM product_categories WHERE category_name = 'Laptop';
 SELECT @CatSW = id FROM product_categories WHERE category_name = 'Smartwatch';
+DECLARE @CatPhone2 INT,
+        @CatTablet2 INT,
+        @CatGame INT,
+        @CatCamera INT,
+        @CatTV INT,
+        @CatMonitor INT,
+        @CatPC INT,
+        @CatAccessory INT;
+
+SELECT @CatPhone2 = id FROM product_categories WHERE category_name='Smartphone';
+SELECT @CatTablet2 = id FROM product_categories WHERE category_name='Tablet';
+SELECT @CatGame = id FROM product_categories WHERE category_name='GamingConsole';
+SELECT @CatCamera = id FROM product_categories WHERE category_name='Camera';
+SELECT @CatTV = id FROM product_categories WHERE category_name='TV';
+SELECT @CatMonitor = id FROM product_categories WHERE category_name='Monitor';
+SELECT @CatPC = id FROM product_categories WHERE category_name='PC';
+SELECT @CatAccessory = id FROM product_categories WHERE category_name='Accessory';
+CREATE TABLE #real_products(
+    title NVARCHAR(255),
+    category_id INT,
+    min_price DECIMAL(12,2),
+    max_price DECIMAL(12,2)
+);
+
+INSERT INTO #real_products VALUES
+(N'iPhone 16 Pro Max 256GB', @CatPhone2, 25000000, 29000000),
+(N'iPhone 16 Pro 128GB', @CatPhone2, 22000000, 26000000),
+(N'iPhone 15 Pro Max 256GB', @CatPhone2, 18000000, 22000000),
+(N'iPhone 15 Pro 128GB', @CatPhone2, 16000000, 20000000),
+(N'iPhone 14 Pro Max 256GB', @CatPhone2, 15000000, 19000000),
+
+(N'Samsung Galaxy S25 Ultra 512GB', @CatPhone2, 23000000, 28000000),
+(N'Samsung Galaxy S24 Ultra 256GB', @CatPhone2, 18000000, 22000000),
+(N'Samsung Galaxy S23 Ultra 256GB', @CatPhone2, 14000000, 18000000),
+(N'Samsung Galaxy Z Fold6', @CatPhone2, 25000000, 32000000),
+(N'Samsung Galaxy Z Flip6', @CatPhone2, 18000000, 25000000),
+
+(N'Xiaomi 15 Ultra', @CatPhone2, 17000000, 22000000),
+(N'Xiaomi 14 Ultra', @CatPhone2, 15000000, 19000000),
+(N'Xiaomi 14T Pro', @CatPhone2, 11000000, 15000000),
+(N'Redmi Note 14 Pro+', @CatPhone2, 7000000, 10000000),
+
+(N'OPPO Find X8 Pro', @CatPhone2, 18000000, 24000000),
+(N'OPPO Reno13 Pro', @CatPhone2, 11000000, 16000000),
+(N'Vivo X200 Pro', @CatPhone2, 17000000, 22000000),
+
+(N'MacBook Air M4 16GB 512GB', @CatLT, 23000000, 29000000),
+(N'MacBook Air M3 16GB 512GB', @CatLT, 19000000, 25000000),
+(N'MacBook Pro M4 14 inch', @CatLT, 32000000, 42000000),
+
+(N'ASUS ROG Strix G16 RTX4060', @CatLT, 22000000, 29000000),
+(N'Lenovo Legion 5 RTX4070', @CatLT, 24000000, 32000000),
+(N'MSI Katana 15 RTX4060', @CatLT, 18000000, 25000000),
+
+(N'iPad Pro M4 13 inch', @CatTablet2, 24000000, 32000000),
+(N'iPad Air M3', @CatTablet2, 13000000, 18000000),
+(N'iPad Gen 10', @CatTablet2, 7000000, 10000000),
+
+(N'Apple Watch Series 10', @CatSW, 7000000, 10000000),
+(N'Apple Watch Ultra 2', @CatSW, 14000000, 19000000),
+
+(N'Sony WH-1000XM5', @CatAU, 4500000, 7000000),
+(N'AirPods Pro 2 USB-C', @CatAU, 3500000, 6000000),
+
+(N'PlayStation 5 Slim', @CatGame, 9000000, 13000000),
+(N'PlayStation 5 Pro', @CatGame, 15000000, 22000000),
+(N'Xbox Series X', @CatGame, 8000000, 12000000),
+(N'Nintendo Switch OLED', @CatGame, 5000000, 9000000),
+
+(N'Sony Alpha A7 IV', @CatCamera, 32000000, 45000000),
+(N'Canon EOS R6 Mark II', @CatCamera, 30000000, 43000000),
+
+(N'Samsung Smart TV 55 Inch', @CatTV, 7000000, 13000000),
+(N'LG OLED C4 55 Inch', @CatTV, 18000000, 28000000),
+
+(N'Dell UltraSharp U2724D', @CatMonitor, 5000000, 9000000),
+(N'LG UltraGear 27GP850', @CatMonitor, 6000000, 10000000),
+
+(N'PC Gaming RTX 4070', @CatPC, 25000000, 40000000),
+(N'PC Gaming RTX 4060', @CatPC, 18000000, 28000000),
+
+(N'Router ASUS AX6000', @CatAccessory, 2500000, 4500000),
+(N'Logitech MX Master 3S', @CatAccessory, 1500000, 2500000),
+(N'Keychron K8 Pro', @CatAccessory, 1800000, 3500000);
+
+DECLARE @loop INT = 1;
+
+WHILE @loop <= 3
+BEGIN
+
+INSERT INTO products
+(
+    seller_id,
+    category_id,
+    title,
+    user_description,
+    purchase_date,
+    ai_condition,
+    ai_min_price,
+    ai_max_price,
+    ai_analysis,
+    listed_price,
+    stock,
+    status
+)
+SELECT
+    @IdSeller,
+    category_id,
+    title,
+    N'Sản phẩm công nghệ chính hãng, đã kiểm định kỹ thuật.',
+    DATEADD(DAY,-ABS(CHECKSUM(NEWID()) % 365),GETDATE()),
+
+    CASE @loop
+        WHEN 1 THEN N'99%'
+        WHEN 2 THEN N'>90%'
+        ELSE N'>80%'
+    END,
+
+    min_price,
+    max_price,
+
+    N'AI đánh giá chất lượng tốt',
+
+    min_price + (
+        ABS(CHECKSUM(NEWID()))
+        % CAST(max_price - min_price AS INT)
+    ),
+
+    1 + ABS(CHECKSUM(NEWID()) % 5),
+
+    'active'
+FROM #real_products;
+
+SET @loop = @loop + 1;
+
+END;
+
+DROP TABLE #real_products;
+GO
+DECLARE @IdSeller INT,
+        @CatWM INT,
+        @CatRF INT,
+        @CatAC INT,
+        @CatAU INT,
+        @CatLT INT,
+        @CatSW INT;
+
+SELECT @IdSeller=id
+FROM seller_profiles
+WHERE shop_name=N'Tổng Kho Linh Kiện & Đồ Cũ Eco Seller';
+
+SELECT @CatWM=id FROM product_categories WHERE category_name='WashingMachine';
+SELECT @CatRF=id FROM product_categories WHERE category_name='Refrigerator';
+SELECT @CatAC=id FROM product_categories WHERE category_name='AirConditioner';
+SELECT @CatAU=id FROM product_categories WHERE category_name='Audio';
+SELECT @CatLT=id FROM product_categories WHERE category_name='Laptop';
+SELECT @CatSW=id FROM product_categories WHERE category_name='Smartwatch';
 
 INSERT INTO products (seller_id, category_id, title, user_description, ai_condition, ai_min_price, ai_max_price, ai_analysis, listed_price, stock, status) VALUES
 (@IdSeller, @CatWM, N'Máy giặt LG Inverter 9kg', N'Máy giặt cửa trước LG Inverter tiết kiệm điện nước tối ưu, truyền động trực tiếp êm ái. Tình trạng 95% nguyên bản.', N'Excellent (95%)', 4800000.00, 5500000.00, N'AI: Giá đề xuất hợp lý.', 5200000.00, 1, 'active'),
@@ -453,12 +622,13 @@ SELECT id, '/images/products/item_' + CAST(id AS VARCHAR) + '_main.jpg', 1 FROM 
 GO
 
 
+
 /* ==========================================================
    PART 5: CHÈN DỮ LIỆU ĐƠN HÀNG
    ========================================================== */
 
 DECLARE @IdCustomerProf INT, @ProdSony INT, @ProdAppleWatch INT;
-SELECT @IdCustomerProf = id FROM customer_profiles WHERE user_id = (SELECT id FROM users WHERE username = N'Hoàng Nguyễn');
+SELECT @IdCustomerProf = id FROM customer_profiles WHERE user_id = (SELECT id FROM users WHERE username = 'Hoàng Nguyễn');
 SELECT @ProdSony = id FROM products WHERE title = N'Tai nghe Sony WH-1000XM4';
 SELECT @ProdAppleWatch = id FROM products WHERE title = N'Apple Watch Series 7 45mm GPS';
 
@@ -495,9 +665,9 @@ GO
    ========================================================== */
 
 DECLARE @IdCustProf INT, @IdTechProfMinh INT, @IdTechProfTuan INT, @CatIdPhone INT, @CatIdLaptop INT;
-SELECT @IdCustProf = id FROM customer_profiles WHERE user_id = (SELECT id FROM users WHERE username = N'Hoàng Nguyễn');
-SELECT @IdTechProfMinh = id FROM technician_profiles WHERE user_id = (SELECT id FROM users WHERE username = N'Kỹ thuật viên Minh');
-SELECT @IdTechProfTuan = id FROM technician_profiles WHERE user_id = (SELECT id FROM users WHERE username = N'Kỹ thuật viên Tuấn');
+SELECT @IdCustProf = id FROM customer_profiles WHERE user_id = (SELECT id FROM users WHERE username = 'Hoàng Nguyễn');
+SELECT @IdTechProfMinh = id FROM technician_profiles WHERE user_id = (SELECT id FROM users WHERE username = 'Kỹ thuật viên Minh');
+SELECT @IdTechProfTuan = id FROM technician_profiles WHERE user_id = (SELECT id FROM users WHERE username = 'Kỹ thuật viên Tuấn');
 SELECT @CatIdPhone = id FROM service_categories WHERE category_name = N'Điện thoại';
 SELECT @CatIdLaptop = id FROM service_categories WHERE category_name = N'Laptop';
 
@@ -530,8 +700,8 @@ GO
    ========================================================== */
 
 DECLARE @IdUserCust INT, @IdUserTechMinh INT, @IdBook1 INT;
-SELECT @IdUserCust = id FROM users WHERE username = N'Hoàng Nguyễn';
-SELECT @IdUserTechMinh = id FROM users WHERE username = N'Kỹ thuật viên Minh';
+SELECT @IdUserCust = id FROM users WHERE username = 'Hoàng Nguyễn';
+SELECT @IdUserTechMinh = id FROM users WHERE username = 'Kỹ thuật viên Minh';
 SELECT @IdBook1 = id FROM repair_bookings WHERE address LIKE N'%Ba Tháng Hai%';
 
 INSERT INTO messages (sender_id, receiver_id, booking_id, text_content, timestamp) VALUES
@@ -597,3 +767,4 @@ SELECT COUNT(*) AS [Tổng Số Sản Phẩm] FROM products;
 SELECT COUNT(*) AS [Lịch Đặt Hẹn Thợ] FROM repair_bookings;
 SELECT COUNT(*) AS [Tổng Số Đơn Hàng] FROM orders;
 GO
+

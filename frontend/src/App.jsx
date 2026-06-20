@@ -20,7 +20,7 @@ function MainApp() {
     if (!hash.startsWith('#/')) {
       return { page: 'home', subTab: null };
     }
-    const path = hash.slice(2); // remove '#/'
+    const path = hash.slice(2);
     const parts = path.split('/');
     return { page: parts[0] || 'home', subTab: parts[1] || null };
   };
@@ -34,7 +34,6 @@ function MainApp() {
 
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
 
-  // Reset showFilters when navigating away from shop
   useEffect(() => {
     if (activePage !== 'shop') {
       setShowFilters(false);
@@ -46,7 +45,6 @@ function MainApp() {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  // Sync hash changes with react state
   useEffect(() => {
     if (window.location.hash === '') {
       window.location.hash = '#/home';
@@ -62,14 +60,12 @@ function MainApp() {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  // Reset dashboard sub-tab when navigating away from dashboard
   useEffect(() => {
     if (activePage !== 'dashboard' && dashboardSubTab !== null) {
       setDashboardSubTab(null);
     }
   }, [activePage, dashboardSubTab]);
 
-  // Sync state changes back to hash
   useEffect(() => {
     const current = parseHash();
     if (current.page !== activePage || current.subTab !== dashboardSubTab) {
@@ -80,12 +76,9 @@ function MainApp() {
     }
   }, [activePage, dashboardSubTab]);
 
-  // Scroll to top on page navigation
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [activePage]);
-
-
 
   const renderPage = () => {
     switch (activePage) {
@@ -117,14 +110,14 @@ function MainApp() {
         {renderPage()}
       </main>
       {!isConsoleDashboard && <Footer />}
-      {!isConsoleDashboard && <ChatBot />}
+      {/* ✅ SỬA DÒNG NÀY — thêm 2 props */}
+      {!isConsoleDashboard && <ChatBot setActivePage={setActivePage} setSelectedProduct={setSelectedProduct} />}
     </div>
   );
 }
 
 function App() {
   return (
-
     <AuthProvider>
       <CartProvider>
         <MainApp />

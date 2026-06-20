@@ -24,10 +24,8 @@ const dbConfig = {
     options: {
         encrypt: process.env.DB_ENCRYPT === 'true',
         trustServerCertificate: process.env.DB_TRUST_SERVER_CERTIFICATE === 'true',
-        instanceName: process.env.DB_INSTANCE || undefined,
     }
 };
-
 
 let pool;
 
@@ -76,11 +74,15 @@ const getStoreData = async () => {
     }
 };
 
+
 app.post('/api/chat', async (req, res) => {
     try {
         const { history } = req.body;
 
         const storeData = await getStoreData();
+
+        // ✅ DEBUG LOG — kiểm tra số sản phẩm thực tế lấy từ SQL
+        console.log("🔍 Số sản phẩm thực tế lấy từ SQL:", storeData.products.length);
 
         const context = `
 === THÔNG TIN TECHCYCLE ===
@@ -88,6 +90,8 @@ Tên: ${storeData.systemInfo.system_name}
 Hotline: ${storeData.systemInfo.hotline}
 Email: ${storeData.systemInfo.support_email}
 Mô tả: ${storeData.systemInfo.description}
+
+=== TỔNG SỐ SẢN PHẨM ĐANG BÁN: ${storeData.products.length} sản phẩm ===
 
 === SẢN PHẨM ĐANG BÁN (CÒN HÀNG) ===
 ${JSON.stringify(storeData.products, null, 2)}
@@ -106,10 +110,11 @@ ${JSON.stringify(storeData.services, null, 2)}
 5. Nếu khách muốn đặt lịch → hướng dẫn liên hệ hotline: ${storeData.systemInfo.hotline}
 6. Luôn trả lời bằng tiếng Việt, lịch sự và chuyên nghiệp.
 7. Nếu khách chốt mua hoặc cần hỗ trợ thêm → xin số điện thoại.
+8. BẮT BUỘC: mỗi khi nhắc tên sản phẩm, PHẢI viết theo định dạng link markdown CHÍNH XÁC: [Tên sản phẩm](#product-ID), trong đó ID LẤY ĐÚNG từ trường "id" trong dữ liệu JSON của ĐÚNG sản phẩm đang nói tới. TUYỆT ĐỐI không lấy nhầm id của sản phẩm khác cùng tên. Ví dụ nếu sản phẩm có id=50, title="iPhone 14 Pro Max 256GB" thì viết: [iPhone 14 Pro Max 256GB](#product-50)
+9. Nếu khách hỏi tổng số sản phẩm, trả lời CHÍNH XÁC bằng số ${storeData.products.length}.
         `;
-
         const model = genAI.getGenerativeModel({
-            model: "gemini-2.5-flash",
+            model: "gemini-3.1-flash-lite",
             systemInstruction: `Bạn là trợ lý ảo AI của TechCycle — nền tảng mua bán đồ cũ và sửa chữa thiết bị công nghệ.\n${context}`
         });
 
@@ -129,7 +134,9 @@ ${JSON.stringify(storeData.services, null, 2)}
             formattedHistory[formattedHistory.length - 1].parts[0].text
         );
 
-        res.json({ reply: result.response.text() });
+        const rawReply = result.response.text();
+
+        res.json({ reply: rawReply });
 
     } catch (error) {
         console.error("Lỗi:", error.message);
@@ -137,7 +144,6 @@ ${JSON.stringify(storeData.services, null, 2)}
     }
 });
 
-// ✅ Khởi động server SAU KHI kết nối DB thành công
 initDB()
     .then(() => {
         app.listen(3001, () => console.log('✅ Chatbot server chạy tại http://localhost:3001'));

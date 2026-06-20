@@ -1,4 +1,3 @@
-
 * {
     margin: 0;
     padding: 0;
@@ -347,4 +346,17 @@
         transform: translateY(-10px);
         opacity: 1;
     }
+}
+
+.message-text a.product-link {
+    color: #10B981;
+    font-weight: 600;
+    text-decoration: underline;
+    text-decoration-color: #10B981;
+    cursor: pointer;
+}
+
+.message-text a.product-link:hover {
+    color: #064E3B;
+    text-decoration-color: #064E3B;
 }
