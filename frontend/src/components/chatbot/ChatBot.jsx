@@ -23,8 +23,9 @@ const ChatBot = () => {
                 history,
             });
             updateHistory(response.data.reply);
-        } catch {
-            updateHistory("Xin lỗi, tôi gặp sự cố kỹ thuật.");
+        } catch (error) {
+            const errorMsg = error.response?.data?.error || "Xin lỗi, tôi gặp sự cố kỹ thuật.";
+            updateHistory(`[Lỗi] ${errorMsg}`);
         }
     };
 

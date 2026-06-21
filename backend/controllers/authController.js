@@ -28,16 +28,32 @@ const otpStore = new Map();
 exports.register = async (req, res) => {
   const { username, email, password, full_name, phone, role } = req.body;
   const finalFullName = full_name || username;
-  const finalPhone = phone || '0900000000';
 
   if (!username || !email || !password || !finalFullName) {
     return res.status(400).json({ message: 'Vui lòng điền đầy đủ thông tin.' });
+  }
+
+  // Validate số điện thoại bắt buộc
+  if (!phone || !phone.trim()) {
+    return res.status(400).json({ message: 'Vui lòng nhập số điện thoại.' });
+  }
+
+  // Kiểm tra định dạng SĐT Việt Nam (10-11 chữ số, bắt đầu bằng 0)
+  const phoneRegex = /^0\d{9,10}$/;
+  if (!phoneRegex.test(phone.trim())) {
+    return res.status(400).json({ message: 'Số điện thoại không hợp lệ. Vui lòng nhập 10-11 chữ số bắt đầu bằng 0.' });
   }
 
   try {
     const existingUser = await db.findOne('users', { email });
     if (existingUser) {
       return res.status(400).json({ message: 'Email đã được đăng ký.' });
+    }
+
+    // Kiểm tra trùng SĐT
+    const existingPhone = await db.findOne('users', { phone: phone.trim() });
+    if (existingPhone) {
+      return res.status(400).json({ message: 'Số điện thoại này đã được sử dụng.' });
     }
 
     // Chuyển đổi từ chuỗi role sang ID số nguyên tương ứng cho SQL Server
@@ -53,7 +69,7 @@ exports.register = async (req, res) => {
       email,
       password: hashedPassword,
       full_name: finalFullName,
-      phone: finalPhone,
+      phone: phone.trim(),
       avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${username}`,
       status: 'active'
     });

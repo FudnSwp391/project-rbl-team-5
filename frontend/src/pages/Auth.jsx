@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Recycle, Mail, Lock, User, ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Recycle, Mail, Lock, User, ArrowRight, AlertCircle, Eye, EyeOff, Phone } from 'lucide-react';
 import './Auth.css';
 
 const Auth = ({ setActivePage }) => {
@@ -14,6 +14,7 @@ const Auth = ({ setActivePage }) => {
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
 
   // Các state cho chức năng Quên mật khẩu
@@ -136,9 +137,19 @@ const Auth = ({ setActivePage }) => {
           setLoading(false);
           return;
         }
-        // Send default phone '0900000000' to satisfy API schema
-        await register(username, email, password, '0900000000', 'customer');
-        setActivePage('home');
+        if (!phoneNumber || !phoneNumber.trim()) {
+          setFormError('Vui lòng nhập số điện thoại.');
+          setLoading(false);
+          return;
+        }
+        const phoneRegex = /^0\d{9,10}$/;
+        if (!phoneRegex.test(phoneNumber.trim())) {
+          setFormError('Số điện thoại không hợp lệ. Vui lòng nhập 10-11 số bắt đầu bằng 0.');
+          setLoading(false);
+          return;
+        }
+        await register(username, email, password, phoneNumber.trim(), 'customer');
+        window.location.hash = '#/home';
       }
     } catch (err) {
       console.error('Authentication Error:', err);
@@ -417,6 +428,24 @@ const Auth = ({ setActivePage }) => {
                   >
                     {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
+                </div>
+              </div>
+            )}
+
+            {!isLogin && (
+              /* Phone field for Register */
+              <div className="form-group">
+                <label className="form-label">Số điện thoại</label>
+                <div className="auth-input-wrapper">
+                  <Phone size={18} className="input-icon" />
+                  <input 
+                    type="tel" 
+                    className="form-control" 
+                    placeholder="0901234567" 
+                    value={phoneNumber}
+                    onChange={e => setPhoneNumber(e.target.value)}
+                    required
+                  />
                 </div>
               </div>
             )}

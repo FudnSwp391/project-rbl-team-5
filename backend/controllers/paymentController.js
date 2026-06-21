@@ -1,23 +1,6 @@
 const crypto = require('crypto');
 const { db } = require('../db');
 
-function sortObject(obj) {
-  let sorted = {};
-  let str = [];
-  let key;
-  for (key in obj) {
-    if (obj.hasOwnProperty(key)) {
-      str.push(encodeURIComponent(key));
-    }
-  }
-  str.sort();
-  for (key = 0; key < str.length; key++) {
-    sorted[str[key]] = encodeURIComponent(obj[str[key]]).replace(/%20/g, "+");
-  }
-  return sorted;
-}
-
-// Hàm format ngày giờ theo định dạng YYYYMMDDHHmmss
 function formatVnpayDate(date) {
   const pad = (n) => (n < 10 ? '0' + n : n);
   const year = date.getFullYear();
@@ -29,6 +12,21 @@ function formatVnpayDate(date) {
   return `${year}${month}${day}${hour}${minute}${second}`;
 }
 
+function sortObject(obj) {
+  let sorted = {};
+  let str = [];
+  let key;
+  for (key in obj){
+    if (obj.hasOwnProperty(key)) {
+      str.push(encodeURIComponent(key));
+    }
+  }
+  str.sort();
+  for (key = 0; key < str.length; key++) {
+    sorted[str[key]] = encodeURIComponent(obj[str[key]]).replace(/%20/g, "+");
+  }
+  return sorted;
+}
 exports.createPaymentUrl = async (req, res) => {
   // Logic này sẽ được gọi từ orderController.js, hoặc được expose thành API riêng.
   // Tuy nhiên trong thiết kế, ta sẽ tích hợp thẳng vào createOrder, nên ta xuất 1 hàm helper.
@@ -40,56 +38,73 @@ exports.generateVnpayUrl = (orderId, amount, ipAddr, orderInfo) => {
   const vnpUrl = process.env.VNP_URL;
   const returnUrl = process.env.VNP_RETURNURL;
 
-  const date = new Date();
-  const createDate = formatVnpayDate(date);
-  
-  // Hết hạn sau 15 phút
-  date.setMinutes(date.getMinutes() + 15);
-  const expireDate = formatVnpayDate(date);
+  // Hàm tạo ngày giờ đúng chuẩn múi giờ Việt Nam (GMT+7)
+  const getVietnamTime = (addMinutes = 0) => {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() + addMinutes);
+    const options = { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+    const formatter = new Intl.DateTimeFormat('en-US', options);
+    const parts = formatter.formatToParts(d);
+    let out = {};
+    parts.forEach(p => out[p.type] = p.value);
+    // Xử lý trường hợp hour12=false trả về 24 thay vì 00
+    if (out.hour === '24') out.hour = '00';
+    return `${out.year}${out.month}${out.day}${out.hour}${out.minute}${out.second}`;
+  };
 
-  let vnp_Params = {};
-  vnp_Params['vnp_Version'] = '2.1.0';
-  vnp_Params['vnp_Command'] = 'pay';
-  vnp_Params['vnp_TmnCode'] = tmnCode;
-  vnp_Params['vnp_Locale'] = 'vn';
-  vnp_Params['vnp_CurrCode'] = 'VND';
-  vnp_Params['vnp_TxnRef'] = orderId;
-  vnp_Params['vnp_OrderInfo'] = orderInfo || `Thanh toan don hang ${orderId}`;
-  vnp_Params['vnp_OrderType'] = 'other';
-  vnp_Params['vnp_Amount'] = amount * 100;
-  vnp_Params['vnp_ReturnUrl'] = returnUrl;
-  vnp_Params['vnp_IpAddr'] = ipAddr || '127.0.0.1';
-  vnp_Params['vnp_CreateDate'] = createDate;
-  vnp_Params['vnp_ExpireDate'] = expireDate;
+  const createDate = getVietnamTime();
+  const expireDate = getVietnamTime(15);
 
-  vnp_Params = sortObject(vnp_Params);
+  // VNPay yêu cầu IP phải là chuỗi không có khoảng trắng, không chứa dấu phẩy
+  let safeIpAddr = ipAddr ? ipAddr.toString().split(',')[0].trim() : '127.0.0.1';
+  if (safeIpAddr === '::1' || safeIpAddr.includes(':')) {
+    safeIpAddr = '127.0.0.1';
+  }
 
-  const querystring = require('querystring');
-  const signData = querystring.stringify(vnp_Params, { encode: false });
+  const vnp_Params = {
+    'vnp_Amount': Math.floor(amount * 100).toString(),
+    'vnp_Command': 'pay',
+    'vnp_CreateDate': createDate,
+    'vnp_CurrCode': 'VND',
+    'vnp_ExpireDate': expireDate,
+    'vnp_IpAddr': safeIpAddr,
+    'vnp_Locale': 'vn',
+    'vnp_OrderInfo': orderInfo || `Thanh toan don hang ${orderId}`,
+    'vnp_OrderType': 'other',
+    'vnp_ReturnUrl': returnUrl,
+    'vnp_TmnCode': tmnCode,
+    'vnp_TxnRef': orderId.toString(),
+    'vnp_Version': '2.1.0'
+  };
+
+  let sortedParams = sortObject(vnp_Params);
+  const qs = require('qs');
+  const signData = qs.stringify(sortedParams, { encode: false });
   const hmac = crypto.createHmac("sha512", secretKey);
-  const signed = hmac.update(new Buffer.from(signData, 'utf-8')).digest("hex"); 
-  vnp_Params['vnp_SecureHash'] = signed;
-  
-  const vnpUrlFinal = vnpUrl + '?' + querystring.stringify(vnp_Params, { encode: false });
-  
+  const signed = hmac.update(Buffer.from(signData, 'utf-8')).digest("hex");
+
+  sortedParams['vnp_SecureHash'] = signed;
+
+  const vnpUrlFinal = vnpUrl + '?' + qs.stringify(sortedParams, { encode: false });
+  console.log("VNPAY DEBUG - Generated URL:", vnpUrlFinal);
   return vnpUrlFinal;
 };
 
 // GET /api/payment/vnpay_return
 exports.vnpayReturn = async (req, res) => {
-  let vnp_Params = req.query;
+  const vnp_Params = { ...req.query };
   const secureHash = vnp_Params['vnp_SecureHash'];
 
   delete vnp_Params['vnp_SecureHash'];
   delete vnp_Params['vnp_SecureHashType'];
 
-  vnp_Params = sortObject(vnp_Params);
+  let sortedParams = sortObject(vnp_Params);
 
   const secretKey = process.env.VNP_HASHSECRET;
-  const querystring = require('qs');
-  const signData = querystring.stringify(vnp_Params, { encode: false });
+  const qs = require('qs');
+  const signData = qs.stringify(sortedParams, { encode: false });
   const hmac = crypto.createHmac("sha512", secretKey);
-  const signed = hmac.update(new Buffer.from(signData, 'utf-8')).digest("hex");
+  const signed = hmac.update(Buffer.from(signData, 'utf-8')).digest("hex");
 
   const orderId = vnp_Params['vnp_TxnRef'];
   const rspCode = vnp_Params['vnp_ResponseCode'];
@@ -103,7 +118,29 @@ exports.vnpayReturn = async (req, res) => {
           "UPDATE orders SET status = 'paid' WHERE id = @orderId",
           [{ name: 'orderId', value: orderId }]
         );
-        res.status(200).json({ code: rspCode, message: 'Thành công', orderId });
+
+        // Fetch order items to return for the invoice
+        const itemsResult = await db.query(
+          'SELECT * FROM order_items WHERE order_id = @orderId',
+          [{ name: 'orderId', value: orderId }]
+        );
+        
+        const enrichedItems = await Promise.all(itemsResult.recordset.map(async (item) => {
+          const prod = await db.findOne('products', { id: item.product_id });
+          return {
+            productId: item.product_id,
+            name: prod ? (prod.title || prod.name) : 'Sản phẩm',
+            price: item.price,
+            quantity: item.quantity
+          };
+        }));
+
+        res.status(200).json({ 
+          code: rspCode, 
+          message: 'Thành công', 
+          orderId,
+          orderItems: enrichedItems
+        });
       } catch (err) {
         console.error('Lỗi cập nhật đơn hàng VNPay:', err);
         res.status(500).json({ code: '99', message: 'Lỗi server' });
@@ -115,8 +152,16 @@ exports.vnpayReturn = async (req, res) => {
           "UPDATE orders SET status = 'cancelled' WHERE id = @orderId",
           [{ name: 'orderId', value: orderId }]
         );
+        // HOÀN LẠI SẢN PHẨM: Cập nhật lại trạng thái sản phẩm trong đơn hàng thành active vì đơn hàng đã bị hủy
+        await db.query(`
+          UPDATE products 
+          SET status = 'active' 
+          WHERE id IN (SELECT product_id FROM order_items WHERE order_id = @orderId)
+        `, [{ name: 'orderId', value: orderId }]);
+
         res.status(200).json({ code: rspCode, message: 'Thanh toán thất bại', orderId });
       } catch (err) {
+        console.error('Lỗi khi hủy đơn hàng:', err);
         res.status(500).json({ code: '99', message: 'Lỗi server' });
       }
     }

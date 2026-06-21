@@ -151,6 +151,24 @@ exports.createOrder = async (req, res) => {
       const ipAddr = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
       const orderInfo = `Thanh toan don hang ${newOrder.id}`;
       vnpayUrl = paymentController.generateVnpayUrl(newOrder.id, totalAmount, ipAddr, orderInfo);
+
+      // Đặt timeout 15 phút để tự động hủy đơn và hoàn kho nếu chưa thanh toán
+      setTimeout(async () => {
+        try {
+          const order = await db.findOne('orders', { id: newOrder.id });
+          if (order && order.status === 'pending') {
+            await db.update('orders', 'id', newOrder.id, { status: 'cancelled' });
+            await db.query(`
+              UPDATE products 
+              SET status = 'active' 
+              WHERE id IN (SELECT product_id FROM order_items WHERE order_id = @orderId)
+            `, [{ name: 'orderId', value: newOrder.id }]);
+            console.log(`Auto-cancelled order ${newOrder.id} and restored products due to 15m payment timeout.`);
+          }
+        } catch (e) {
+          console.error(`Error auto-cancelling order ${newOrder.id}:`, e);
+        }
+      }, 15 * 60 * 1000);
     }
 
     // Trả về đúng cấu trúc mà Checkout.jsx mong đợi

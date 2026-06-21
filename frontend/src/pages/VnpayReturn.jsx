@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle, XCircle } from 'lucide-react';
+import { CheckCircle, XCircle, Printer, Download } from 'lucide-react';
 import './VnpayReturn.css';
 
 const VnpayReturn = ({ setActivePage }) => {
   const [status, setStatus] = useState('loading'); // loading, success, error
   const [message, setMessage] = useState('Đang xác minh giao dịch...');
-  const [orderId, setOrderId] = useState('');
+  const [orderData, setOrderData] = useState(null);
 
   useEffect(() => {
     const verifyPayment = async () => {
@@ -22,11 +22,25 @@ const VnpayReturn = ({ setActivePage }) => {
         const response = await fetch(`${API_BASE}/api/payment/vnpay_return${searchParams}`);
         const data = await response.json();
 
-        setOrderId(data.orderId || '');
+        const urlParams = new URLSearchParams(searchParams);
+        const amountStr = urlParams.get('vnp_Amount');
+        const amount = amountStr ? parseInt(amountStr) / 100 : 0;
+        const payDateStr = urlParams.get('vnp_PayDate'); 
+        const payDate = payDateStr ? `${payDateStr.substring(6,8)}/${payDateStr.substring(4,6)}/${payDateStr.substring(0,4)} ${payDateStr.substring(8,10)}:${payDateStr.substring(10,12)}` : new Date().toLocaleString('vi-VN');
+        const transactionNo = urlParams.get('vnp_TransactionNo');
+        const bankCode = urlParams.get('vnp_BankCode');
 
         if (response.ok && data.code === '00') {
           setStatus('success');
           setMessage('Thanh toán thành công! Đơn hàng của bạn đã được ghi nhận.');
+          setOrderData({
+            orderId: data.orderId,
+            items: data.orderItems || [],
+            amount,
+            payDate,
+            transactionNo,
+            bankCode
+          });
         } else {
           setStatus('error');
           setMessage(`Thanh toán thất bại hoặc đã bị hủy. ${data.message || ''}`);
@@ -51,16 +65,56 @@ const VnpayReturn = ({ setActivePage }) => {
           </div>
         )}
 
-        {status === 'success' && (
-          <div className="result-success animate-scale-up">
-            <CheckCircle size={64} className="icon-success" />
-            <h2>Giao Dịch Thành Công!</h2>
-            <p>{message}</p>
-            {orderId && <p>Mã Đơn Hàng: <strong>{orderId}</strong></p>}
+        {status === 'success' && orderData && (
+          <div className="result-success animate-scale-up invoice-container">
+            <div className="invoice-header no-print">
+              <CheckCircle size={64} className="icon-success" />
+              <h2>Thanh Toán Thành Công!</h2>
+              <p>{message}</p>
+            </div>
+
+            {/* INVOICE BILL */}
+            <div className="invoice-bill" id="invoice-bill">
+              <div className="invoice-bill-header">
+                <h3>HÓA ĐƠN ĐIỆN TỬ</h3>
+                <p>TechCycle - Uy tín & Chất lượng</p>
+              </div>
+              <div className="invoice-info">
+                <div className="info-row"><span>Mã Đơn Hàng:</span> <strong>#{orderData.orderId}</strong></div>
+                <div className="info-row"><span>Mã Giao Dịch (VNPay):</span> <strong>{orderData.transactionNo}</strong></div>
+                <div className="info-row"><span>Ngân Hàng:</span> <strong>{orderData.bankCode}</strong></div>
+                <div className="info-row"><span>Thời Gian:</span> <strong>{orderData.payDate}</strong></div>
+              </div>
+              
+              <div className="invoice-items">
+                <div className="item-row header">
+                  <span className="name">Sản phẩm</span>
+                  <span className="qty">SL</span>
+                  <span className="price">Đơn giá</span>
+                </div>
+                {orderData.items.map((item, idx) => (
+                  <div className="item-row" key={idx}>
+                    <span className="name">{item.name}</span>
+                    <span className="qty">{item.quantity}</span>
+                    <span className="price">{item.price.toLocaleString()}đ</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="invoice-total">
+                <span>Tổng Thanh Toán:</span>
+                <span className="total-amount">{orderData.amount.toLocaleString()} VND</span>
+              </div>
+              <div className="invoice-footer">
+                Cảm ơn quý khách đã mua sắm tại TechCycle!
+              </div>
+            </div>
             
-            <div className="result-actions">
+            <div className="result-actions no-print">
+              <button className="btn btn-secondary btn-print" onClick={() => window.print()}>
+                <Printer size={18} /> In Hóa Đơn
+              </button>
               <button className="btn btn-primary" onClick={() => {
-                // Clear URL params
                 window.history.replaceState({}, document.title, window.location.pathname);
                 setActivePage('shop');
               }}>

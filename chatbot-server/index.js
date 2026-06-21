@@ -120,7 +120,7 @@ ${JSON.stringify(storeData.services, null, 2)}
         `;
 
         const model = genAI.getGenerativeModel({
-            model: "gemini-2.5-flash",
+            model: "gemini-flash-latest",
             systemInstruction: `Bạn là trợ lý ảo AI của TechCycle — nền tảng mua bán đồ cũ và sửa chữa thiết bị công nghệ.\n${context}`
         });
 
@@ -144,7 +144,7 @@ ${JSON.stringify(storeData.services, null, 2)}
 
     } catch (error) {
         console.error("Lỗi:", error.message);
-        res.status(500).json({ error: "Có lỗi xảy ra" });
+        res.status(500).json({ error: error.message || "Có lỗi xảy ra" });
     }
 });
 
