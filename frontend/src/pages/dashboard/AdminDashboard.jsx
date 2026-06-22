@@ -49,6 +49,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
   const [editProdImage, setEditProdImage] = useState('');
   const [editProdDesc, setEditProdDesc] = useState('');
   const [editProdStatus, setEditProdStatus] = useState('available');
+  const [isEditImageHovered, setIsEditImageHovered] = useState(false);
 
   // --- FORM STATES FOR PROMO CODES ---
   const [promoCodes, setPromoCodes] = useState([]);
@@ -2455,18 +2456,20 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                       };
                       input.click();
                     }}
+                    onMouseEnter={() => setIsEditImageHovered(true)}
+                    onMouseLeave={() => setIsEditImageHovered(false)}
                     style={{ 
                       width: '100%', 
                       height: '180px', 
                       borderRadius: '12px', 
-                      border: '2px dashed var(--border-color)', 
+                      border: `2px dashed ${isEditImageHovered ? '#006D44' : 'var(--border-color)'}`, 
                       display: 'flex', 
                       flexDirection: 'column',
                       alignItems: 'center', 
                       justifyContent: 'center', 
                       overflow: 'hidden',
                       position: 'relative',
-                      background: 'rgba(255, 255, 255, 0.03)',
+                      background: isEditImageHovered ? 'rgba(0, 109, 68, 0.03)' : 'rgba(255, 255, 255, 0.03)',
                       cursor: 'pointer',
                       transition: 'all 0.2s'
                     }}
@@ -2494,17 +2497,21 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                         />
                         <div style={{
                           position: 'absolute',
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          background: 'rgba(0,0,0,0.6)',
+                          inset: 0,
+                          background: 'rgba(0,0,0,0.5)',
+                          backdropFilter: 'blur(4px)',
                           color: '#fff',
-                          textAlign: 'center',
-                          fontSize: '0.75rem',
-                          padding: '4px 0',
-                          fontWeight: '500'
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          opacity: isEditImageHovered ? 1 : 0,
+                          transition: 'opacity 0.2s ease-in-out',
+                          pointerEvents: 'none'
                         }}>
-                          Click để đổi ảnh
+                          <span style={{ fontSize: '1.5rem' }}>📷</span>
+                          <span style={{ fontSize: '0.8rem', fontWeight: '500' }}>Click để đổi ảnh</span>
                         </div>
                         <div className="img-error-placeholder" style={{ display: 'none', flexDirection: 'column', alignItems: 'center', gap: '8px', color: 'var(--text-color)', opacity: 0.6, position: 'absolute', inset: 0, justifyContent: 'center' }}>
                           <span style={{ fontSize: '1.8rem' }}>🖼️</span>
