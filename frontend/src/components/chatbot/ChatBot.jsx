@@ -13,7 +13,7 @@ const ChatBot = () => {
     const generateBotResponse = async (history) => {
         const updateHistory = (text) => {
             setChatHistory((prev) => [
-                ...prev.filter((msg) => msg.text !== "Thinking..."),
+                ...prev.filter((msg) => msg.text !== "Đang suy nghĩ..."),
                 { role: "model", text },
             ]);
         };
@@ -54,8 +54,8 @@ const ChatBot = () => {
                     <div className="header-info">
                         <ChatbotIcon />
                         <div>
-                            <h3>ChatBot TechCycle AI</h3>
-                            <p>Online</p>
+                            <h3>Trợ lý TechCycle AI</h3>
+                            <p>Trực tuyến</p>
                         </div>
                     </div>
                     <button

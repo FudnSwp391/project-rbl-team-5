@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
 import { getProductImage } from '../components/ProductCard';
 import { Trash2, ArrowLeft, ShoppingBag, CreditCard, Recycle, ShieldAlert } from 'lucide-react';
@@ -5,6 +6,37 @@ import './Cart.css';
 
 const Cart = ({ setActivePage }) => {
   const { cartItems, removeFromCart, cartTotal } = useCart();
+  const [itemsStatus, setItemsStatus] = useState({});
+  const [loadingStatuses, setLoadingStatuses] = useState(false);
+
+  useEffect(() => {
+    const checkProductStatuses = async () => {
+      if (cartItems.length === 0) return;
+      try {
+        setLoadingStatuses(true);
+        const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000' : '';
+        const statusMap = {};
+        await Promise.all(
+          cartItems.map(async (item) => {
+            const res = await fetch(`${API_BASE}/api/products/${item.id}`);
+            if (res.ok) {
+              const data = await res.json();
+              statusMap[item.id] = data.status; // 'available' or 'sold'
+            }
+          })
+        );
+        setItemsStatus(statusMap);
+      } catch (err) {
+        console.error('Lỗi kiểm tra trạng thái sản phẩm:', err);
+      } finally {
+        setLoadingStatuses(false);
+      }
+    };
+
+    checkProductStatuses();
+  }, [cartItems]);
+
+  const hasSoldItems = cartItems.some(item => itemsStatus[item.id] === 'sold');
 
   const getConditionLabel = (cond) => {
     switch (cond) {
@@ -57,9 +89,24 @@ const Cart = ({ setActivePage }) => {
                   <span className="item-cat">{item.category}</span>
                 </div>
                 <h3 className="item-title">{item.name}</h3>
-                <p className="item-price">
-                  {(item.price || 0).toLocaleString('en-US')} <span className="currency">VND</span>
-                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <p className="item-price" style={{ margin: 0 }}>
+                    {(item.price || 0).toLocaleString('en-US')} <span className="currency">VND</span>
+                  </p>
+                  {itemsStatus[item.id] === 'sold' && (
+                    <span className="badge badge-danger" style={{ 
+                      backgroundColor: '#fee2e2', 
+                      color: '#dc2626', 
+                      fontWeight: 'bold',
+                      fontSize: '0.8rem',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      textTransform: 'none'
+                    }}>
+                      Đã bán / Đặt trước
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className="item-actions">
@@ -110,6 +157,13 @@ const Cart = ({ setActivePage }) => {
             </div>
           </div>
 
+          {hasSoldItems && (
+            <div className="safety-warning-box" style={{ borderColor: '#ff6b6b', backgroundColor: 'rgba(255, 107, 107, 0.1)', color: '#ff6b6b' }}>
+              <ShieldAlert size={18} className="warn-icon" style={{ color: '#ff6b6b' }} />
+              <p>Có sản phẩm trong giỏ hàng đã được bán hoặc giữ chỗ. Vui lòng xóa sản phẩm đó để tiếp tục thanh toán.</p>
+            </div>
+          )}
+
           <div className="safety-warning-box">
             <ShieldAlert size={18} className="warn-icon" />
             <p>Thiết bị công nghệ cũ đã qua kiểm định chất lượng nghiêm ngặt bởi chuyên viên TechCycle.</p>
@@ -118,6 +172,7 @@ const Cart = ({ setActivePage }) => {
           <button 
             className="btn btn-secondary checkout-btn" 
             onClick={() => setActivePage('checkout')}
+            disabled={hasSoldItems || loadingStatuses}
           >
             <CreditCard size={18} />
             Tiến hành thanh toán

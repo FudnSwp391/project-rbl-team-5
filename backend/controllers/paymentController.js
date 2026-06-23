@@ -38,6 +38,11 @@ exports.generateVnpayUrl = (orderId, amount, ipAddr, orderInfo) => {
   const vnpUrl = process.env.VNP_URL;
   const returnUrl = process.env.VNP_RETURNURL;
 
+  // Validate required environment variables
+  if (!tmnCode || !secretKey || !vnpUrl || !returnUrl) {
+    throw new Error('Missing required VNPay environment variables: VNP_TMNCODE, VNP_HASHSECRET, VNP_URL, VNP_RETURNURL');
+  }
+
   // Hàm tạo ngày giờ đúng chuẩn múi giờ Việt Nam (GMT+7)
   const getVietnamTime = (addMinutes = 0) => {
     const d = new Date();
@@ -101,6 +106,9 @@ exports.vnpayReturn = async (req, res) => {
   let sortedParams = sortObject(vnp_Params);
 
   const secretKey = process.env.VNP_HASHSECRET;
+  if (!secretKey) {
+    return res.status(500).json({ code: '99', message: 'VNP_HASHSECRET not configured' });
+  }
   const qs = require('qs');
   const signData = qs.stringify(sortedParams, { encode: false });
   const hmac = crypto.createHmac("sha512", secretKey);

@@ -36,7 +36,7 @@
 }
 
 .shop-title {
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-body);
   font-size: 2.75rem;
   font-weight: 900;
   background: linear-gradient(135deg, var(--primary-dark), var(--primary), var(--secondary));
@@ -467,7 +467,7 @@
 }
 
 .modal-title {
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-body);
   font-size: 2.25rem;
   font-weight: 850;
   color: var(--primary-dark);
@@ -476,7 +476,7 @@
 }
 
 .modal-price {
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-body);
   font-size: 2rem;
   font-weight: 800;
   color: var(--secondary);

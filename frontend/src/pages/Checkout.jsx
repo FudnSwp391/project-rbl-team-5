@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { MapPin, CreditCard, CheckCircle2, ArrowRight, ShieldCheck, Printer, Calendar } from 'lucide-react';
+import { MapPin, CreditCard, CheckCircle2, ArrowRight, ShieldCheck, Printer, Calendar, Check, X } from 'lucide-react';
 import './Checkout.css';
+import PaymentConfirmationModal from '../components/PaymentConfirmationModal';
 
 const Checkout = ({ setActivePage }) => {
   const { cartItems, cartTotal, clearCart } = useCart();
@@ -28,6 +29,28 @@ const Checkout = ({ setActivePage }) => {
   const [appliedPromo, setAppliedPromo] = useState(null);
   const [promoError, setPromoError] = useState('');
   const [isApplyingPromo, setIsApplyingPromo] = useState(false);
+
+  // System info and payment confirmation states
+  const [systemInfo, setSystemInfo] = useState(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentOrderId, setPaymentOrderId] = useState(null);
+
+  // Fetch system info from backend
+  useEffect(() => {
+    const fetchSystemInfo = async () => {
+      try {
+        const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:5000' : '/api';
+        const response = await fetch(`${API_BASE}/api/system-info`);
+        if (response.ok) {
+          const data = await response.json();
+          setSystemInfo(data);
+        }
+      } catch (error) {
+        console.error('Lỗi lấy system info:', error);
+      }
+    };
+    fetchSystemInfo();
+  }, []);
 
   if (!user) {
     return (
@@ -154,10 +177,66 @@ const Checkout = ({ setActivePage }) => {
       }
 
       setCompletedOrder(data);
-      clearCart(); // Empty the cart
-      setStep('invoice'); // Transition to Invoice step
+      
+      if (paymentMethod === 'bank_transfer') {
+        setPaymentOrderId(data.id);
+        setShowPaymentModal(true);
+      } else {
+        clearCart();
+        setStep('invoice');
+      }
+
     } catch (err) {
       setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirmPayment = async () => {
+    try {
+      setLoading(true);
+      const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000' : '';
+      const response = await fetch(`${API_BASE}/api/orders/${paymentOrderId}/confirm-payment`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        setShowPaymentModal(false);
+        clearCart();
+        setStep('invoice');
+      }
+    } catch (error) {
+      setError('Lỗi xác nhận thanh toán');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleWaitPayment = () => {
+    setShowPaymentModal(false);
+    clearCart();
+    alert('Đơn đặt hàng của bạn đã được lưu ở trạng thái "Chờ thanh toán" trong 10 phút. Bạn có thể kiểm tra hoặc hủy đơn bất cứ lúc nào trong trang cá nhân.');
+    setActivePage('dashboard');
+  };
+
+  const handleCancelOrder = async () => {
+    try {
+      setLoading(true);
+      const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000' : '';
+      const response = await fetch(`${API_BASE}/api/orders/${paymentOrderId}/cancel`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        setShowPaymentModal(false);
+        // Do NOT call clearCart() so the items remain in the cart for a quick retry with a different method.
+        alert('Đơn hàng đã được hủy thành công. Bạn có thể chọn phương thức thanh toán khác và đặt hàng lại.');
+        setStep('shipping');
+        setPaymentMethod('cod');
+      }
+    } catch (error) {
+      setError('Lỗi hủy đơn hàng');
     } finally {
       setLoading(false);
     }
@@ -549,6 +628,18 @@ const Checkout = ({ setActivePage }) => {
           </aside>
         )}
       </div>
+
+      {/* Payment Confirmation Modal */}
+      {showPaymentModal && systemInfo && (
+        <PaymentConfirmationModal
+          orderId={paymentOrderId}
+          totalAmount={finalTotal}
+          onConfirm={handleConfirmPayment}
+          onWait={handleWaitPayment}
+          onCancel={handleCancelOrder}
+          systemInfo={systemInfo}
+        />
+      )}
     </div>
   );
 };

@@ -17,6 +17,7 @@ const userRoutes = require('./routes/userRoutes');
 const messageRoutes = require('./routes/messageRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
+const systemRoutes = require('./routes/systemRoutes');
 
 const app = express();
 const server = http.createServer(app);
@@ -53,6 +54,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/payment', paymentRoutes);
+app.use('/api', systemRoutes);
 
 // In-memory notifications database (avoids touching SQL)
 let notifications = [
@@ -64,6 +66,7 @@ let notifications = [
     createdAt: new Date().toISOString()
   }
 ];
+app.set('notifications', notifications);
 
 // In-memory complaints database
 let complaints = [];

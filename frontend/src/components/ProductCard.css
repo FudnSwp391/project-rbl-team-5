@@ -65,7 +65,7 @@
 
 .sold-overlay span {
   color: var(--white);
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-body);
   font-size: 1.25rem;
   font-weight: 800;
   text-transform: uppercase;
@@ -193,7 +193,7 @@
 }
 
 .price-tag {
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-body);
   font-size: 1.25rem;
   font-weight: 800;
   color: var(--secondary);

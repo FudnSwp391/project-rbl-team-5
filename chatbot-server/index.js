@@ -120,7 +120,7 @@ ${JSON.stringify(storeData.services, null, 2)}
         `;
 
         const model = genAI.getGenerativeModel({
-            model: "gemini-flash-latest",
+            model: "gemini-3.5-flash",
             systemInstruction: `Bạn là trợ lý ảo AI của TechCycle — nền tảng mua bán đồ cũ và sửa chữa thiết bị công nghệ.\n${context}`
         });
 

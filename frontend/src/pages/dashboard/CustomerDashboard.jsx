@@ -16,11 +16,15 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
   const { addToCart } = useCart();
   const subTab = initialSubTab || 'overview';
   const setSubTab = setInitialSubTab;
-
   // --- DATA STATES ---
   const [bookingsList, setBookingsList] = useState([]);
   const [ordersList, setOrdersList] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // --- RESCHEDULE STATES ---
+  const [editingOrderId, setEditingOrderId] = useState(null);
+  const [newDate, setNewDate] = useState('');
+  const [newTime, setNewTime] = useState('09:00 AM');
 
   // --- CHAT SYSTEM STATES ---
   const [chatConversations, setChatConversations] = useState([]);
@@ -177,7 +181,7 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
   };
 
   const handleCancelOrder = async (orderId) => {
-    if (!window.confirm('Bạn có chắc chắn muốn hủy đơn hàng này không?')) return;
+    if (!window.confirm('Bạn có chắc chắn muốn hủy lịch hẹn này không?')) return;
     try {
       const res = await fetch(`${API_BASE}/api/orders/${orderId}/status`, {
         method: 'PUT',
@@ -188,11 +192,41 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
         body: JSON.stringify({ status: 'canceled' })
       });
       if (res.ok) {
-        alert('Hủy đơn hàng thành công');
+        alert('Hủy lịch hẹn thành công');
         fetchData();
       } else {
         const data = await res.json();
-        alert(data.message || 'Lỗi hủy đơn');
+        alert(data.message || 'Lỗi hủy lịch hẹn');
+      }
+    } catch (err) {
+      alert('Lỗi kết nối');
+    }
+  };
+
+  const handleSaveReschedule = async (orderId) => {
+    if (!newDate) {
+      alert('Vui lòng chọn ngày hẹn mới.');
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE}/api/orders/${orderId}/reschedule`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          appointmentDate: newDate,
+          appointmentTime: newTime
+        })
+      });
+      if (res.ok) {
+        alert('Cập nhật lịch hẹn thành công');
+        setEditingOrderId(null);
+        fetchData();
+      } else {
+        const data = await res.json();
+        alert(data.message || 'Lỗi cập nhật lịch hẹn');
       }
     } catch (err) {
       alert('Lỗi kết nối');
@@ -248,12 +282,15 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
 
   const getStatusLabel = (st) => {
     switch (st) {
-      case 'pending': return 'Pending';
-      case 'assigned': return 'Assigned';
-      case 'inspecting': return 'Inspecting';
-      case 'repairing': return 'Repairing';
-      case 'completed': return 'Completed';
-      case 'canceled': return 'Canceled';
+      case 'pending': return 'Đang chờ';
+      case 'assigned': return 'Đã phân công';
+      case 'inspecting': return 'Đang kiểm tra';
+      case 'repairing': return 'Đang sửa chữa';
+      case 'completed': return 'Hoàn thành';
+      case 'canceled': return 'Đã hủy';
+      case 'cancelled': return 'Đã hủy';
+      case 'reserved': return 'Đã giữ chỗ';
+      case 'waiting_payment': return 'Chờ thanh toán';
       default: return st;
     }
   };
@@ -507,13 +544,20 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
                       <th>Purchased Devices</th>
                       <th>Total Amount</th>
                       <th>Payment Method</th>
-                      <th>Delivery Status</th>
+                      <th>Trạng thái lịch hẹn</th>
                     </tr>
                   </thead>
                   <tbody>
                     {ordersList.map(ord => (
                       <tr key={ord.id}>
-                        <td><strong>{ord.invoiceNumber}</strong></td>
+                        <td>
+                          <strong>{ord.invoiceNumber}</strong>
+                          {ord.appointmentInfo?.appointmentDate && (
+                            <div className="tbl-subtext" style={{ fontSize: '0.78rem', color: 'var(--neutral-medium)', marginTop: '4px' }}>
+                              Hẹn: {ord.appointmentInfo.appointmentDate} ({ord.appointmentInfo.appointmentTime})
+                            </div>
+                          )}
+                        </td>
                         <td>{new Date(ord.createdAt).toLocaleDateString('en-US')}</td>
                         <td>
                           {ord.items.map((i, idx) => (
@@ -521,16 +565,67 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
                           ))}
                         </td>
                         <td><strong>{ord.totalAmount.toLocaleString('en-US')} VND</strong></td>
-                        <td>{ord.paymentMethod === 'cod' ? 'Cash on Delivery' : 'Bank Transfer'}</td>
+                        <td>{ord.paymentMethod === 'cod' ? 'Thanh toán tại cửa hàng (COD)' : ord.paymentMethod === 'vnpay' ? 'Thanh toán qua VNPay' : 'Chuyển khoản'}</td>
                         <td>
                           <span className={`status-delivery-tag ${ord.status}`}>
-                            {ord.status === 'pending' ? 'Đang duyệt' : ord.status === 'shipping' ? 'Đang gửi' : ord.status === 'canceled' ? 'Đã hủy' : 'Hoàn thành'}
+                            {ord.status === 'pending' ? 'Đang chờ' : ord.status === 'reserved' ? 'Đã hẹn (Đang giữ máy)' : ord.status === 'waiting_payment' ? 'Chờ thanh toán (Đang giữ máy)' : ord.status === 'completed' ? 'Thành công (Đã mua)' : ord.status === 'canceled' || ord.status === 'cancelled' ? 'Đã hủy' : ord.status}
                           </span>
-                          {ord.status === 'pending' && (
-                            <button className="btn btn-outline btn-sm" style={{marginTop: '8px', display: 'block', padding: '4px 8px', fontSize: '0.8rem', borderColor: '#ff6b6b', color: '#ff6b6b'}} onClick={() => handleCancelOrder(ord.id)}>
-                              Hủy đơn
-                            </button>
+                          
+                          {editingOrderId === ord.id ? (
+                            <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px', maxWidth: '200px', padding: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px' }}>
+                              <label style={{ fontSize: '0.75rem', color: 'var(--neutral-medium)' }}>Chọn ngày hẹn mới:</label>
+                              <input 
+                                type="date" 
+                                value={newDate} 
+                                onChange={e => setNewDate(e.target.value)} 
+                                className="form-control" 
+                                style={{ fontSize: '0.8rem', padding: '4px', background: 'var(--background)', color: 'var(--text)', border: '1px solid var(--border-color)', borderRadius: '4px' }} 
+                              />
+                              <label style={{ fontSize: '0.75rem', color: 'var(--neutral-medium)' }}>Chọn giờ hẹn:</label>
+                              <select 
+                                value={newTime} 
+                                onChange={e => setNewTime(e.target.value)} 
+                                className="form-control" 
+                                style={{ fontSize: '0.8rem', padding: '4px', background: 'var(--background)', color: 'var(--text)', border: '1px solid var(--border-color)', borderRadius: '4px' }}
+                              >
+                                <option value="09:00 AM">09:00 AM</option>
+                                <option value="10:00 AM">10:00 AM</option>
+                                <option value="11:00 AM">11:00 AM</option>
+                                <option value="02:00 PM">02:00 PM</option>
+                                <option value="03:00 PM">03:00 PM</option>
+                                <option value="04:00 PM">04:00 PM</option>
+                                <option value="05:00 PM">05:00 PM</option>
+                              </select>
+                              <div style={{ display: 'flex', gap: '6px' }}>
+                                <button className="btn btn-primary btn-sm" style={{ padding: '4px 8px', fontSize: '0.75rem', flex: 1 }} onClick={() => handleSaveReschedule(ord.id)}>Lưu</button>
+                                <button className="btn btn-secondary btn-sm" style={{ padding: '4px 8px', fontSize: '0.75rem', flex: 1 }} onClick={() => setEditingOrderId(null)}>Hủy</button>
+                              </div>
+                            </div>
+                          ) : (
+                            (ord.status === 'pending' || ord.status === 'reserved' || ord.status === 'waiting_payment') && (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
+                                <button 
+                                  className="btn btn-outline btn-sm" 
+                                  style={{ padding: '4px 8px', fontSize: '0.8rem', borderColor: 'var(--primary)', color: 'var(--primary)', display: 'block', width: '100%', textAlign: 'center' }} 
+                                  onClick={() => {
+                                    setEditingOrderId(ord.id);
+                                    setNewDate(ord.appointmentInfo?.appointmentDate || '');
+                                    setNewTime(ord.appointmentInfo?.appointmentTime || '09:00 AM');
+                                  }}
+                                >
+                                  Đổi lịch hẹn
+                                </button>
+                                <button 
+                                  className="btn btn-outline btn-sm" 
+                                  style={{ padding: '4px 8px', fontSize: '0.8rem', borderColor: '#ff6b6b', color: '#ff6b6b', display: 'block', width: '100%', textAlign: 'center' }} 
+                                  onClick={() => handleCancelOrder(ord.id)}
+                                >
+                                  Hủy đơn hàng
+                                </button>
+                              </div>
+                            )
                           )}
+                          
                           {ord.status === 'canceled' && (
                             <button className="btn btn-primary btn-sm" style={{marginTop: '8px', display: 'block', padding: '4px 8px', fontSize: '0.8rem'}} onClick={() => handleReorder(ord)}>
                               Đặt lại
@@ -672,7 +767,7 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
                     <div className="details-row">
                       <span>Estimated Cost:</span>
                       <span className="details-cost-val">
-                        {selectedBooking.cost > 0 ? `${selectedBooking.cost.toLocaleString('en-US')} VND` : 'Inspect pending'}
+                        {selectedBooking.cost > 0 ? `${selectedBooking.cost.toLocaleString('en-US')} VND` : 'Chờ kiểm tra báo giá'}
                       </span>
                     </div>
 

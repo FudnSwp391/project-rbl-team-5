@@ -221,15 +221,16 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
       alert('Không thể cập nhật.');
     }
   };
-
   const getStatusLabel = (st) => {
     switch (st) {
-      case 'pending': return 'Pending';
-      case 'assigned': return 'Assigned';
-      case 'inspecting': return 'Inspecting';
-      case 'repairing': return 'Repairing';
-      case 'completed': return 'Completed';
-      case 'canceled': return 'Canceled';
+      case 'pending': return 'Đang chờ';
+      case 'assigned': return 'Đã phân công';
+      case 'inspecting': return 'Đang kiểm tra';
+      case 'repairing': return 'Đang sửa chữa';
+      case 'completed': return 'Hoàn thành';
+      case 'canceled': return 'Đã hủy';
+      case 'cancelled': return 'Đã hủy';
+      case 'waiting_payment': return 'Chờ thanh toán';
       default: return st;
     }
   };
@@ -681,8 +682,8 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
           {!loading && subTab === 'chat' && (
             <div className="chat-view-layout glass-panel animate-fade">
               <div className="chat-conversations-sidebar">
-                <h3>Repair Tickets</h3>
-                <p className="chat-sub-lbl">Select a ticket to begin consultation</p>
+                <h3>Vé Bảo Hành</h3>
+                <p className="chat-sub-lbl">Chọn một vé để bắt đầu tư vấn</p>
                 <div className="chat-conversations-list">
                   {chatConversations.map(conv => (
                     <div 
@@ -700,7 +701,7 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
                     </div>
                   ))}
                   {chatConversations.length === 0 && (
-                    <p className="empty-text">No assigned repairs available to start messaging.</p>
+                    <p className="empty-text">Không có bảo hành nào được gán để bắt đầu nhắn tin.</p>
                   )}
                 </div>
               </div>
@@ -754,7 +755,7 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
                       </button>
                       <input 
                         type="text" 
-                        placeholder={isUploadingImage ? "Đang tải ảnh lên..." : "Type your message..."}
+                        placeholder={isUploadingImage ? "Đang tải ảnh lên..." : "Nhập tin nhắn của bạn..."}
                         value={newMessage}
                         onChange={e => setNewMessage(e.target.value)}
                         disabled={isUploadingImage}
@@ -766,14 +767,14 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
                   </>
                 ) : (
                   <div className="no-chat-selected">
-                    <p>Select a conversation from the sidebar to view chat logs.</p>
+                    <p>Chọn một cuộc trò chuyện từ thanh bên để xem nhật ký trò chuyện.</p>
                   </div>
                 )}
               </div>
 
               {selectedBooking && (
                 <div className="chat-case-details-panel">
-                  <h3>Repair Ticket</h3>
+                  <h3>Vé Bảo Hành</h3>
                   <hr className="details-divider" />
                   <div className="details-content">
                     <div className="details-device-header">
@@ -784,39 +785,39 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
                     <div className="details-progress-stepper">
                       <div className={`stepper-step ${['assigned', 'inspecting', 'repairing', 'completed'].includes(selectedBooking.status) ? 'active' : ''}`}>
                         <div className="step-bullet">1</div>
-                        <div className="step-info"><span className="step-name">Assigned</span></div>
+                        <div className="step-info"><span className="step-name">Được Gán</span></div>
                       </div>
                       <div className={`stepper-step ${['inspecting', 'repairing', 'completed'].includes(selectedBooking.status) ? 'active' : ''}`}>
                         <div className="step-bullet">2</div>
-                        <div className="step-info"><span className="step-name">Inspect</span></div>
+                        <div className="step-info"><span className="step-name">Kiểm Tra</span></div>
                       </div>
                       <div className={`stepper-step ${['repairing', 'completed'].includes(selectedBooking.status) ? 'active' : ''}`}>
                         <div className="step-bullet">3</div>
-                        <div className="step-info"><span className="step-name">Repairing</span></div>
+                        <div className="step-info"><span className="step-name">Đang Sửa</span></div>
                       </div>
                       <div className={`stepper-step ${selectedBooking.status === 'completed' ? 'active' : ''}`}>
                         <div className="step-bullet">4</div>
-                        <div className="step-info"><span className="step-name">Done</span></div>
+                        <div className="step-info"><span className="step-name">Hoàn Thành</span></div>
                       </div>
                     </div>
 
                     <hr className="details-divider" />
 
                     <div className="details-row">
-                      <span>Estimated Cost:</span>
+                      <span>Chi Phí Ước Tính:</span>
                       <span className="details-cost-val">
                         {selectedBooking.cost > 0 ? `${selectedBooking.cost.toLocaleString('en-US')} VND` : 'Inspect pending'}
                       </span>
                     </div>
 
                     <div className="details-row-vertical">
-                      <span>Customer Fault Report:</span>
+                      <span>Báo Cáo Lỗi Từ Khách Hàng:</span>
                       <p className="details-issue-text">{selectedBooking.issueDescription}</p>
                     </div>
 
                     <div className="details-row-vertical">
-                      <span>Technician Notes:</span>
-                      <p className="details-notes-text">{selectedBooking.notes || 'No notes added yet.'}</p>
+                      <span>Ghi Chú Kỹ Thuật:</span>
+                      <p className="details-notes-text">{selectedBooking.notes || 'Chưa có ghi chú.'}</p>
                     </div>
 
                     <div className="details-controls-section">

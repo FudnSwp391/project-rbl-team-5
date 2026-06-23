@@ -1,6 +1,6 @@
 :root {
-  --font-heading: 'Fredoka', 'Be Vietnam Pro', sans-serif;
-  --font-body:    'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
+  --font-heading: 'Be Vietnam Pro', system-ui, sans-serif;
+  --font-body:    'Be Vietnam Pro', system-ui, sans-serif;
   /* Brand Colors from Figma Design System */
   --primary-dark: #064E3B;      /* Tertiary (Dark Forest Green) */
   --primary: #10B981;           /* Primary (Bright Emerald Green) */
@@ -263,9 +263,7 @@ h1 span[style*="gradient"] {
 }
 
 .badge-excellent { background-color: #d1fae5; color: #065f46; }
-.badge-good { background-color: #dbeafe; color: #1e40af; }
 .badge-fair { background-color: #fef3c7; color: #92400e; }
-
 .badge-pending { background-color: #fef3c7; color: #d97706; }
 .badge-assigned { background-color: #e0f2fe; color: #0369a1; }
 .badge-inspecting { background-color: #ede9fe; color: #6d28d9; }
@@ -273,6 +271,9 @@ h1 span[style*="gradient"] {
 .badge-completed { background-color: #d1fae5; color: #065f46; }
 .badge-confirmed { background-color: #dbeafe; color: #1d4ed8; }
 .badge-canceled { background-color: #fee2e2; color: #dc2626; }
+.badge-cancelled { background-color: #fee2e2; color: #dc2626; }
+.badge-waiting_payment { background-color: #fef3c7; color: #d97706; }
+.badge-reserved { background-color: #fef3c7; color: #d97706; }
 
 /* Premium Input Forms */
 .form-group {

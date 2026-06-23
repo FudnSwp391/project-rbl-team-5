@@ -289,6 +289,17 @@
   flex-shrink: 0;
 }
 
+.ai-image-btn {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 50% !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+}
+
 /* Responsive booking */
 @media (max-width: 900px) {
   .booking-layout { grid-template-columns: 1fr; gap: 40px; }

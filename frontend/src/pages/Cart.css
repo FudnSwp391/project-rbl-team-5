@@ -108,7 +108,7 @@
 }
 
 .item-price {
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-body);
   font-size: 1.15rem;
   font-weight: 800;
   color: var(--secondary);
@@ -193,7 +193,7 @@
 }
 
 .total-amount {
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-body);
   font-size: 1.45rem;
   font-weight: 800;
   color: var(--secondary);

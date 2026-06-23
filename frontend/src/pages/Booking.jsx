@@ -10,7 +10,7 @@ const Booking = ({ setActivePage }) => {
   const [deviceType, setDeviceType] = useState('Điện thoại (iPhone/Android)');
   const [issueDescription, setIssueDescription] = useState('');
   const [preferredDate, setPreferredDate] = useState('');
-  const [preferredTime, setPreferredTime] = useState('08:00 - 10:00');
+  const [preferredTime, setPreferredTime] = useState('09:00');
   const [contactPhone, setContactPhone] = useState(user ? user.phone : '');
   
   const [loading, setLoading] = useState(false);
@@ -156,6 +156,13 @@ const Booking = ({ setActivePage }) => {
       return;
     }
 
+    const phoneRegex = /^(0|\+84|84)(3|5|7|8|9)[0-9]{8}$/;
+    if (!phoneRegex.test(contactPhone.trim())) {
+      setError('Số điện thoại không hợp lệ. Vui lòng nhập đúng số điện thoại di động Việt Nam (10 số, bắt đầu bằng 0, +84 hoặc 84).');
+      setLoading(false);
+      return;
+    }
+
     try {
       const response = await fetch(`${API_BASE}/api/bookings`, {
         method: 'POST',
@@ -190,7 +197,7 @@ const Booking = ({ setActivePage }) => {
       <div className="booking-page container animate-fade">
         <div className="login-prompt-card glass-panel text-center">
           <PenTool size={48} className="prompt-icon animate-bounce" />
-          <h2>Đặt Lịch Hẹn Sửa Chữa</h2>
+          <h2>Hẹn Giờ Tới Giao Máy Sửa Chữa</h2>
           <p>Để lưu trữ thông tin sửa chữa, trao đổi trực tiếp với kỹ thuật viên và theo dõi tiến độ sửa chữa thời gian thực, bạn vui lòng đăng nhập tài khoản khách hàng.</p>
           <button className="btn btn-primary" onClick={() => setActivePage('auth')}>
             Đăng nhập / Đăng ký tài khoản
@@ -257,7 +264,7 @@ const Booking = ({ setActivePage }) => {
                         className="btn btn-secondary btn-sm ai-apply-btn"
                         onClick={() => handleApplySuggestion(msg.suggestion)}
                       >
-                        Áp dụng chẩn đoán vào Form đặt lịch
+                        Áp dụng chẩn đoán vào Form hẹn giờ
                       </button>
                     )}
                   </div>
@@ -291,9 +298,8 @@ const Booking = ({ setActivePage }) => {
               />
               <button 
                 type="button" 
-                className="btn btn-outline" 
+                className="btn btn-outline ai-image-btn" 
                 onClick={() => document.getElementById('ai-image-upload-input').click()}
-                style={{ width: '36px', height: '36px', borderRadius: '50%', padding: '0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid var(--border-color)', color: 'var(--neutral-dark)' }}
                 title="Đính kèm hình ảnh lỗi thiết bị"
               >
                 <Image size={16} />
@@ -318,7 +324,7 @@ const Booking = ({ setActivePage }) => {
           {success ? (
             <div className="booking-success-view text-center animate-scale-up">
               <CheckCircle size={60} className="success-icon" />
-              <h2>Đặt Lịch Thành Công!</h2>
+              <h2>Đặt Giờ Giao Máy Thành Công!</h2>
               <p>Lịch hẹn sửa chữa của bạn đã được tiếp nhận. Đội ngũ nhân viên TechCycle sẽ sớm liên hệ xác nhận cuộc hẹn.</p>
               <p className="sub-note">Bạn có thể theo dõi và chat với Kỹ thuật viên phụ trách tại Bảng điều khiển.</p>
               <button className="btn btn-primary" onClick={() => setActivePage('dashboard')}>
@@ -328,7 +334,7 @@ const Booking = ({ setActivePage }) => {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="booking-form">
-              <h3>Điền thông tin đặt lịch</h3>
+              <h3>Hẹn giờ tới giao máy sửa chữa</h3>
               <p className="form-helper">Vui lòng điền chính xác thông tin để chúng tôi liên hệ.</p>
               
               {error && <div className="booking-error-alert">{error}</div>}
@@ -344,6 +350,8 @@ const Booking = ({ setActivePage }) => {
                     placeholder="09xx xxx xxx" 
                     value={contactPhone}
                     onChange={e => setContactPhone(e.target.value)}
+                    pattern="^(0|\+84|84)(3|5|7|8|9)[0-9]{8}$"
+                    title="Vui lòng nhập đúng số điện thoại di động Việt Nam (10 số, bắt đầu bằng 0, +84 hoặc 84)"
                     required
                   />
                 </div>
@@ -386,19 +394,16 @@ const Booking = ({ setActivePage }) => {
 
               {/* Time slot */}
               <div className="form-group">
-                <label className="form-label">Khung giờ phù hợp</label>
+                <label className="form-label">Giờ hẹn tới giao máy</label>
                 <div className="booking-input-wrapper">
                   <Clock size={18} className="input-icon" />
-                  <select 
+                  <input 
+                    type="time"
                     className="form-control"
                     value={preferredTime}
                     onChange={e => setPreferredTime(e.target.value)}
-                  >
-                    <option value="08:00 - 10:00">08:00 - 10:00 (Sáng)</option>
-                    <option value="10:00 - 12:00">10:00 - 12:00 (Sáng)</option>
-                    <option value="14:00 - 16:00">14:00 - 16:00 (Chiều)</option>
-                    <option value="16:00 - 18:00">16:00 - 18:00 (Chiều)</option>
-                  </select>
+                    required
+                  />
                 </div>
               </div>
 
@@ -416,7 +421,7 @@ const Booking = ({ setActivePage }) => {
               </div>
 
               <button type="submit" className="btn btn-primary booking-submit-btn" disabled={loading}>
-                {loading ? 'Đang gửi thông tin...' : 'Gửi yêu cầu đặt lịch'}
+                {loading ? 'Đang gửi thông tin...' : 'Xác nhận hẹn giờ tới giao máy'}
                 <ArrowRight size={18} />
               </button>
             </form>

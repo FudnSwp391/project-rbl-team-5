@@ -11,6 +11,8 @@ const __dirname = path.dirname(__filename);
 
 // Đọc API Key và cấu hình DB từ file .env
 dotenv.config({ path: path.join(__dirname, '..', 'backend', '.env') });
+dotenv.config({ path: path.join(__dirname, '.env') });
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 const app = express();
 app.use(cors());
@@ -24,13 +26,17 @@ const sqlConfig = {
     password: process.env.DB_PASSWORD || "your_password",
     database: process.env.DB_DATABASE || process.env.DB_NAME || "techcycle_db",
     server: process.env.DB_SERVER || "localhost",
-    port: parseInt(process.env.DB_PORT) || 1433,
     pool: { max: 10, min: 1, idleTimeoutMillis: 30000 },
     options: {
-        encrypt: process.env.DB_ENCRYPT === "true" || false,
-        trustServerCertificate: true // Rất quan trọng khi chạy trên localhost
+        instanceName: process.env.DB_INSTANCE || undefined,
+        encrypt: process.env.DB_ENCRYPT === "true",
+        trustServerCertificate: process.env.DB_TRUST_SERVER_CERTIFICATE === "true" || true // Rất quan trọng khi chạy trên localhost
     }
 };
+
+if (!process.env.DB_INSTANCE) {
+    sqlConfig.port = parseInt(process.env.DB_PORT) || 1433;
+}
 
 let pool;
 
@@ -126,7 +132,7 @@ YÊU CẦU QUAN TRỌNG:
 
         // Gọi API của Google Gemini
         const response = await ai.models.generateContent({
-            model: "gemma-4-31b-it",
+            model: "gemini-3.5-flash",
             contents: formattedHistory,
             config: {
                 systemInstruction: systemPrompt,
@@ -142,7 +148,7 @@ YÊU CẦU QUAN TRỌNG:
 });
 
 app.get('/health', (req, res) => {
-    res.json({ status: 'ok', model: 'gemma-4-31b-it' });
+    res.json({ status: 'ok', model: 'gemini-3.5-flash' });
 });
 
 // Keepalive để giữ tiến trình không bị tắt
@@ -168,7 +174,7 @@ process.on('SIGINT', cleanup);
 initDB()
     .then(() => {
         app.listen(3002, () => {
-            console.log('✅ Chatbot Server 1 (Gemini 3.1 Flash Lite) chạy tại http://localhost:3002');
+            console.log('✅ Chatbot Server 1 (Gemini 2.5 Flash) chạy tại http://localhost:3002');
             console.log('   - POST http://localhost:3002/api/chat');
             console.log('   - GET  http://localhost:3002/health');
         });

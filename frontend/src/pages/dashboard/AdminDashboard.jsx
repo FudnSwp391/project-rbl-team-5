@@ -27,6 +27,8 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
   const [productsList, setProductsList] = useState([]);
   const [bookingsList, setBookingsList] = useState([]);
   const [ordersList, setOrdersList] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const [techsList, setTechsList] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -168,6 +170,14 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
           })));
         }
       }
+
+      const resNotifs = await fetch(`${API_BASE}/api/notifications`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (resNotifs.ok) {
+        const dataNotifs = await resNotifs.json();
+        setNotifications(dataNotifs);
+      }
     } catch (err) {
       console.error('Lỗi tải dữ liệu bảng điều khiển:', err);
     } finally {
@@ -289,6 +299,16 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
         setChatMessages(prev => Array.isArray(prev) ? [...prev, message] : [message]);
       }
       if (fetchConversationsListRef.current) fetchConversationsListRef.current();
+    });
+
+    socketRef.current.on('newOrderForSeller', (data) => {
+      alert(`🔔 [HẸN XEM MÁY MỚI] ${data.message}`);
+      fetchData(); // Reload dashboard and notifications
+    });
+
+    socketRef.current.on('newBookingForSeller', (data) => {
+      alert(`🔔 [HẸN SỬA MÁY MỚI] ${data.message}`);
+      fetchData(); // Reload dashboard and notifications
     });
 
     return () => {
@@ -783,7 +803,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
     }
   };
 
-  const handleUpdateBookingCostNotes = async (bookingId, cost, notes) => {
+  const handleUpdateBookingDetails = async (bookingId, payload) => {
     try {
       const res = await fetch(`${API_BASE}/api/bookings/${bookingId}`, {
         method: 'PUT',
@@ -791,15 +811,68 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ cost, notes })
+        body: JSON.stringify(payload)
       });
       if (res.ok) {
-        alert('Cập nhật chi phí sửa chữa thành công.');
+        console.log('Booking details updated successfully.');
         fetchData();
+      } else {
+        const errData = await res.json();
+        alert(errData.message || 'Lỗi cập nhật lịch hẹn.');
       }
-    } catch {
-      alert('Không thể cập nhật.');
+    } catch (err) {
+      console.error(err);
+      alert('Không thể cập nhật lịch hẹn.');
     }
+  };
+
+  const handleConfirmOrderVisit = async (orderId) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/orders/${orderId}/confirm-visit`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        alert('Đã xác nhận khách hàng tới xem máy thành công!');
+        fetchData();
+      } else {
+        const err = await res.json();
+        alert(err.message || 'Lỗi xác nhận.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Không thể kết nối đến máy chủ.');
+    }
+  };
+
+  const handleCancelOrder = async (orderId) => {
+    if (!window.confirm('Bạn có chắc chắn muốn hủy đơn hàng này?')) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/orders/${orderId}/cancel`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        alert('Hủy đơn hàng thành công!');
+        fetchData();
+      } else {
+        const err = await res.json();
+        alert(err.message || 'Lỗi hủy đơn hàng.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Không thể kết nối đến máy chủ.');
+    }
+  };
+
+  const handleCancelBooking = async (bookingId) => {
+    if (!window.confirm('Bạn có chắc chắn muốn hủy lịch hẹn sửa chữa này?')) return;
+    await handleUpdateBookingDetails(bookingId, { status: 'cancelled' });
   };
 
   const getConditionLabel = (cond) => {
@@ -810,15 +883,19 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
       default: return cond;
     }
   };
-
   const getStatusLabel = (st) => {
     switch (st) {
-      case 'pending': return 'Pending';
-      case 'assigned': return 'Assigned';
-      case 'inspecting': return 'Inspecting';
-      case 'repairing': return 'Repairing';
-      case 'completed': return 'Completed';
-      case 'canceled': return 'Canceled';
+      case 'pending': return 'Đang chờ';
+      case 'assigned': return 'Đã phân công';
+      case 'inspecting': return 'Đang kiểm tra';
+      case 'repairing': return 'Đang sửa chữa';
+      case 'completed': return 'Hoàn thành';
+      case 'canceled': return 'Đã hủy';
+      case 'cancelled': return 'Đã hủy';
+      case 'reserved': return 'Đã giữ chỗ';
+      case 'active': return 'Đang hiển thị';
+      case 'sold_out': return 'Đã bán';
+      case 'waiting_payment': return 'Chờ thanh toán';
       default: return st;
     }
   };
@@ -892,9 +969,82 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
               <button className="topbar-action-btn theme-toggle" onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')} title="Toggle Light/Dark theme">
                 {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
               </button>
-              <button className="topbar-action-btn notification" onClick={() => alert("No new notifications.")} title="Notifications">
-                <Bell size={20} />
-              </button>
+              <div style={{ position: 'relative' }}>
+                <button 
+                  className="topbar-action-btn notification" 
+                  onClick={() => setShowNotifDropdown(!showNotifDropdown)} 
+                  title="Notifications"
+                >
+                  <Bell size={20} />
+                  {notifications.length > 0 && (
+                    <span style={{
+                      position: 'absolute',
+                      top: '-4px',
+                      right: '-4px',
+                      backgroundColor: 'var(--accent-red)',
+                      color: 'white',
+                      borderRadius: '50%',
+                      width: '18px',
+                      height: '18px',
+                      fontSize: '0.65rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 700
+                    }}>
+                      {notifications.length}
+                    </span>
+                  )}
+                </button>
+
+                {showNotifDropdown && (
+                  <div 
+                    className="glass-panel" 
+                    style={{
+                      position: 'absolute',
+                      right: 0,
+                      top: '40px',
+                      width: '320px',
+                      maxHeight: '400px',
+                      overflowY: 'auto',
+                      zIndex: 1000,
+                      padding: '16px',
+                      boxShadow: 'var(--shadow-lg)',
+                      borderRadius: 'var(--border-radius-md)',
+                      backgroundColor: 'var(--card-bg, #ffffff)',
+                      border: '1px solid var(--border-color)',
+                      textAlign: 'left'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+                      <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700 }}>Thông báo</h4>
+                      <button 
+                        style={{ background: 'none', border: 'none', color: '#006D44', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600 }}
+                        onClick={() => setNotifications([])}
+                      >
+                        Xóa tất cả
+                      </button>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {notifications.length === 0 ? (
+                        <p style={{ fontSize: '0.8rem', color: 'var(--neutral-medium)', textAlign: 'center', margin: '20px 0' }}>Không có thông báo mới.</p>
+                      ) : (
+                        notifications.map(n => (
+                          <div key={n.id} style={{ padding: '8px', borderRadius: '4px', backgroundColor: 'var(--neutral-lightest)', borderLeft: '3px solid var(--primary)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                              <strong style={{ fontSize: '0.8rem', color: 'var(--neutral-darkest)' }}>{n.title}</strong>
+                              <span style={{ fontSize: '0.65rem', color: 'var(--neutral-medium)' }}>
+                                {new Date(n.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                            <p style={{ margin: '4px 0 0 0', fontSize: '0.75rem', color: 'var(--neutral-dark)' }}>{n.message}</p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
               
               <button className="topbar-action-btn messages" onClick={() => setSubTab('chat')} title="Messages">
                 <MessageSquare size={20} />
@@ -1162,73 +1312,220 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
 
           {!loading && subTab === 'bookings' && (
             <div className="bookings-view animate-fade">
-              <h2>Repair Bookings & Staff Dispatch</h2>
-              <p className="view-desc">Assign customer hardware inspection and repair requests to registered technicians.</p>
+              {/* Section 1: Lịch Hẹn Xem Máy */}
+              <div className="section-block-wrapper" style={{ marginBottom: '32px', paddingBottom: '24px', borderBottom: '1px dashed var(--border-color)' }}>
+                <h2>Lịch Hẹn Xem Máy (Mua Thiết Bị)</h2>
+                <p className="view-desc">Quản lý danh sách khách hàng đặt lịch hẹn tới xem và kiểm tra máy trực tiếp tại cửa hàng.</p>
 
-              <div className="table-responsive">
-                <table className="dashboard-table">
-                  <thead>
-                    <tr>
-                      <th>Customer</th>
-                      <th>Device</th>
-                      <th>Issue Description</th>
-                      <th>Preferred Time</th>
-                      <th>Assigned Tech</th>
-                      <th>Status</th>
-                      <th>Cost & Notes</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {bookingsList.map(bk => (
-                      <tr key={bk.id}>
-                        <td>
-                          <strong>{bk.customerName}</strong>
-                          <div className="tbl-subtext">{bk.customerPhone}</div>
-                        </td>
-                        <td>{bk.deviceType}</td>
-                        <td>
-                          <p className="tbl-desc" title={bk.issueDescription}>{bk.issueDescription}</p>
-                        </td>
-                        <td>{bk.preferredDate} ({bk.preferredTime})</td>
-                        <td>
-                          <select 
-                            className="form-control tbl-select"
-                            value={bk.technicianId || ''}
-                            onChange={(e) => handleAssignTechnician(bk.id, e.target.value)}
-                          >
-                            <option value="">-- Unassigned --</option>
-                            {techsList.map(t => (
-                              <option key={t.id} value={t.id}>{t.username}</option>
-                            ))}
-                          </select>
-                        </td>
-                        <td>
-                          <span className={`badge badge-${bk.status}`}>
-                            {getStatusLabel(bk.status)}
-                          </span>
-                        </td>
-                        <td>
-                          <div className="cost-edit-wrapper">
-                            <input 
-                              type="number" 
-                              className="form-control tbl-cost-input" 
-                              defaultValue={bk.cost || 0}
-                              onBlur={(e) => handleUpdateBookingCostNotes(bk.id, e.target.value, bk.notes)}
-                              placeholder="Price (VND)"
-                            />
-                            <input 
-                              type="text" 
-                              className="form-control tbl-note-input"
-                              defaultValue={bk.notes || ''}
-                              onBlur={(e) => handleUpdateBookingCostNotes(bk.id, bk.cost, e.target.value)}
-                              placeholder="Technician notes..."
-                            />
-                          </div>
-                        </td>
+                <div className="table-responsive">
+                  <table className="dashboard-table">
+                    <thead>
+                      <tr>
+                        <th>Khách hàng</th>
+                        <th>Sản phẩm</th>
+                        <th>Ngày & Giờ hẹn</th>
+                        <th>Tổng thanh toán</th>
+                        <th>Hình thức</th>
+                        <th>Trạng thái</th>
+                        <th>Thao tác</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {ordersList.length === 0 ? (
+                        <tr>
+                          <td colSpan="7" style={{ textAlign: 'center', padding: '20px', color: 'var(--neutral-medium)' }}>Chưa có lịch hẹn xem máy nào.</td>
+                        </tr>
+                      ) : (
+                        ordersList.map(o => (
+                          <tr key={o.id}>
+                            <td>
+                              <strong>{o.appointmentInfo?.fullName || o.shippingInfo?.fullName || 'Khách hàng'}</strong>
+                              <div className="tbl-subtext">{o.appointmentInfo?.phone || o.shippingInfo?.phone || ''}</div>
+                            </td>
+                            <td>
+                              {o.items?.map((item, idx) => (
+                                <div key={idx} style={{ fontSize: '0.85rem' }}>• {item.name}</div>
+                              ))}
+                            </td>
+                            <td>
+                              <strong>{o.appointmentInfo?.appointmentDate || o.shippingInfo?.appointmentDate || 'Chưa hẹn ngày'}</strong>
+                              <div className="tbl-subtext" style={{ color: 'var(--primary-dark)', fontWeight: 600 }}>{o.appointmentInfo?.appointmentTime || o.shippingInfo?.appointmentTime || ''}</div>
+                            </td>
+                            <td>
+                              <strong>{(o.totalAmount || 0).toLocaleString('vi-VN')} VND</strong>
+                            </td>
+                            <td>
+                              <span style={{ fontSize: '0.85rem' }}>
+                                {o.paymentMethod === 'cod' ? 'Thanh toán tại cửa hàng (COD)' : o.paymentMethod === 'vnpay' ? 'VNPay' : 'Chuyển khoản QR'}
+                              </span>
+                            </td>
+                            <td>
+                              <span className={`badge badge-${o.status}`}>
+                                {o.status === 'pending' ? 'Chờ xem máy' : 
+                                 o.status === 'confirmed' ? 'Đã xác nhận' : 
+                                 o.status === 'completed' ? 'Khách đã tới (Đã bán)' : 
+                                 o.status === 'cancelled' || o.status === 'canceled' ? 'Đã hủy' : 
+                                 o.status === 'reserved' ? 'Đã giữ máy' : 
+                                 o.status === 'waiting_payment' ? 'Chờ thanh toán (Đang giữ máy)' : o.status}
+                              </span>
+                            </td>
+                            <td>
+                              {(o.status === 'pending' || o.status === 'confirmed' || o.status === 'reserved' || o.status === 'waiting_payment') ? (
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                  <button 
+                                    className="btn btn-secondary btn-sm" 
+                                    onClick={() => handleConfirmOrderVisit(o.id)}
+                                    style={{ padding: '6px 12px', fontSize: '0.85rem', backgroundColor: 'var(--primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                                  >
+                                    Xác nhận khách đã tới
+                                  </button>
+                                  <button 
+                                    className="btn btn-outline-danger btn-sm" 
+                                    onClick={() => handleCancelOrder(o.id)}
+                                    style={{ padding: '6px 12px', fontSize: '0.85rem', borderColor: 'var(--accent-red)', color: 'var(--accent-red)', background: 'transparent', borderRadius: '4px', cursor: 'pointer' }}
+                                  >
+                                    Hủy
+                                  </button>
+                                </div>
+                              ) : (
+                                <span style={{ color: 'var(--neutral-medium)', fontSize: '0.85rem' }}>Không có thao tác</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Section 2: Phiếu Hẹn Sửa Chữa */}
+              <div>
+                <h2>Phiếu Hẹn Sửa Chữa (Dịch Vụ)</h2>
+                <p className="view-desc">Danh sách tiếp nhận sửa chữa phần cứng thiết bị, gán kỹ thuật viên, chốt ngày hẹn trả máy và điền thông tin lỗi.</p>
+
+                <div className="table-responsive">
+                  <table className="dashboard-table">
+                    <thead>
+                      <tr>
+                        <th>Khách hàng</th>
+                        <th>Thiết bị & Lỗi</th>
+                        <th>Ngày hẹn giao máy</th>
+                        <th>Phân công thợ</th>
+                        <th>Trạng thái</th>
+                        <th>Chi phí & Ghi chú</th>
+                        <th>Linh kiện & Báo lỗi</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bookingsList.length === 0 ? (
+                        <tr>
+                          <td colSpan="7" style={{ textAlign: 'center', padding: '20px', color: 'var(--neutral-medium)' }}>Chưa có phiếu hẹn sửa chữa nào.</td>
+                        </tr>
+                      ) : (
+                        bookingsList.map(bk => (
+                          <tr key={bk.id}>
+                            <td>
+                              <strong>{bk.customerName}</strong>
+                              <div className="tbl-subtext">{bk.customerPhone}</div>
+                            </td>
+                            <td>
+                              <strong>{bk.deviceType || 'Thiết bị điện tử'}</strong>
+                              <p className="tbl-desc" title={bk.issueDescription} style={{ fontSize: '0.8rem', color: 'var(--neutral-medium)', marginTop: '4px' }}>{bk.issueDescription}</p>
+                            </td>
+                            <td>
+                              <strong>{bk.preferred_date || 'Chưa hẹn ngày'}</strong>
+                              <div className="tbl-subtext">{bk.notes && bk.notes.includes('Khung giờ:') ? bk.notes : 'Khung giờ: Sáng'}</div>
+                            </td>
+                            <td>
+                              <select 
+                                className="form-control"
+                                value={bk.technicianId || ''}
+                                onChange={(e) => {
+                                  const techId = e.target.value ? Number(e.target.value) : null;
+                                  handleUpdateBookingDetails(bk.id, { technicianId: techId });
+                                }}
+                                style={{ padding: '6px', fontSize: '0.85rem', width: '100%', minWidth: '120px', borderRadius: '4px', border: '1px solid var(--border-color)' }}
+                              >
+                                <option value="">Chưa phân công</option>
+                                {techsList.map(t => (
+                                  <option key={t.id} value={t.id}>{t.full_name || t.username}</option>
+                                ))}
+                              </select>
+                            </td>
+                            <td>
+                              <select 
+                                className="form-control"
+                                value={bk.status}
+                                onChange={(e) => {
+                                  handleUpdateBookingDetails(bk.id, { status: e.target.value });
+                                }}
+                                style={{ padding: '6px', fontSize: '0.85rem', width: '100%', minWidth: '120px', fontWeight: 'bold', borderRadius: '4px', border: '1px solid var(--border-color)' }}
+                              >
+                                <option value="pending">Chờ xử lý</option>
+                                <option value="assigned">Đã phân công</option>
+                                <option value="inspecting">Đang kiểm tra</option>
+                                <option value="repairing">Đang sửa chữa</option>
+                                <option value="completed">Hoàn thành</option>
+                                <option value="canceled">Đã hủy</option>
+                              </select>
+                            </td>
+                            <td>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '150px' }}>
+                                <input 
+                                  type="number" 
+                                  className="form-control" 
+                                  defaultValue={bk.cost || 0}
+                                  onBlur={(e) => handleUpdateBookingDetails(bk.id, { cost: Number(e.target.value) })}
+                                  placeholder="Chi phí (VND)"
+                                  style={{ padding: '4px 8px', fontSize: '0.85rem' }}
+                                />
+                                <input 
+                                  type="text" 
+                                  className="form-control"
+                                  defaultValue={bk.notes && !bk.notes.includes('Khung giờ:') ? bk.notes : ''}
+                                  onBlur={(e) => handleUpdateBookingDetails(bk.id, { notes: e.target.value })}
+                                  placeholder="Ghi chú kỹ thuật..."
+                                  style={{ padding: '4px 8px', fontSize: '0.85rem' }}
+                                />
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '4px' }}>
+                                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--neutral-medium)' }}>Chốt ngày nhận máy:</label>
+                                  <input 
+                                    type="date" 
+                                    className="form-control"
+                                    defaultValue={bk.pickup_date ? bk.pickup_date.split('T')[0] : ''}
+                                    onChange={(e) => handleUpdateBookingDetails(bk.id, { pickupDate: e.target.value })}
+                                    style={{ padding: '4px', fontSize: '0.8rem' }}
+                                  />
+                                </div>
+                              </div>
+                            </td>
+                            <td>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '150px' }}>
+                                <textarea
+                                  className="form-control"
+                                  defaultValue={bk.replaced_parts || ''}
+                                  onBlur={(e) => handleUpdateBookingDetails(bk.id, { replacedParts: e.target.value })}
+                                  placeholder="Linh kiện thay thế..."
+                                  rows="2"
+                                  style={{ fontSize: '0.8rem', padding: '4px 8px', resize: 'vertical' }}
+                                />
+                                <textarea
+                                  className="form-control"
+                                  defaultValue={bk.fault_report || ''}
+                                  onBlur={(e) => handleUpdateBookingDetails(bk.id, { faultReport: e.target.value })}
+                                  placeholder="Báo lỗi chi tiết..."
+                                  rows="2"
+                                  style={{ fontSize: '0.8rem', padding: '4px 8px', resize: 'vertical' }}
+                                />
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}
@@ -1664,7 +1961,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                               </td>
                               <td>
                                 <span className={`status-delivery-tag ${o.status}`}>
-                                  {o.status.toUpperCase()}
+                                  {getStatusLabel(o.status).toUpperCase()}
                                 </span>
                               </td>
                             </tr>
@@ -2246,8 +2543,8 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
           {!loading && subTab === 'chat' && (
             <div className="chat-view-layout glass-panel animate-fade">
               <div className="chat-conversations-sidebar">
-                <h3>Repair Tickets</h3>
-                <p className="chat-sub-lbl">Select a ticket to begin consultation</p>
+                <h3>Vé Bảo Hành</h3>
+                <p className="chat-sub-lbl">Chọn một vé để bắt đầu tư vấn</p>
                 <div className="chat-conversations-list">
                   {chatConversations.map(conv => (
                     <div 
@@ -2265,7 +2562,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                     </div>
                   ))}
                   {chatConversations.length === 0 && (
-                    <p className="empty-text">No assigned repairs available to start messaging.</p>
+                    <p className="empty-text">Không có bảo hành nào được gán để bắt đầu nhắn tin.</p>
                   )}
                 </div>
               </div>
@@ -2319,7 +2616,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                       </button>
                       <input 
                         type="text" 
-                        placeholder={isUploadingImage ? "Đang tải ảnh lên..." : "Type your message..."}
+                        placeholder={isUploadingImage ? "Đang tải ảnh lên..." : "Nhập tin nhắn của bạn..."}
                         value={newMessage}
                         onChange={e => setNewMessage(e.target.value)}
                         disabled={isUploadingImage}
@@ -2331,14 +2628,14 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                   </>
                 ) : (
                   <div className="no-chat-selected">
-                    <p>Select a conversation from the sidebar to view chat logs.</p>
+                    <p>Chọn một cuộc trò chuyện từ thanh bên để xem nhật ký trò chuyện.</p>
                   </div>
                 )}
               </div>
 
               {selectedBooking && (
                 <div className="chat-case-details-panel">
-                  <h3>Repair Ticket</h3>
+                  <h3>Vé Bảo Hành</h3>
                   <hr className="details-divider" />
                   <div className="details-content">
                     <div className="details-device-header">
@@ -2349,39 +2646,39 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                     <div className="details-progress-stepper">
                       <div className={`stepper-step ${['assigned', 'inspecting', 'repairing', 'completed'].includes(selectedBooking.status) ? 'active' : ''}`}>
                         <div className="step-bullet">1</div>
-                        <div className="step-info"><span className="step-name">Assigned</span></div>
+                        <div className="step-info"><span className="step-name">Được Gán</span></div>
                       </div>
                       <div className={`stepper-step ${['inspecting', 'repairing', 'completed'].includes(selectedBooking.status) ? 'active' : ''}`}>
                         <div className="step-bullet">2</div>
-                        <div className="step-info"><span className="step-name">Inspect</span></div>
+                        <div className="step-info"><span className="step-name">Kiểm Tra</span></div>
                       </div>
                       <div className={`stepper-step ${['repairing', 'completed'].includes(selectedBooking.status) ? 'active' : ''}`}>
                         <div className="step-bullet">3</div>
-                        <div className="step-info"><span className="step-name">Repairing</span></div>
+                        <div className="step-info"><span className="step-name">Đang Sửa</span></div>
                       </div>
                       <div className={`stepper-step ${selectedBooking.status === 'completed' ? 'active' : ''}`}>
                         <div className="step-bullet">4</div>
-                        <div className="step-info"><span className="step-name">Done</span></div>
+                        <div className="step-info"><span className="step-name">Hoàn Thành</span></div>
                       </div>
                     </div>
 
                     <hr className="details-divider" />
 
                     <div className="details-row">
-                      <span>Estimated Cost:</span>
+                      <span>Chi Phí Ước Tính:</span>
                       <span className="details-cost-val">
                         {selectedBooking.cost > 0 ? `${selectedBooking.cost.toLocaleString('en-US')} VND` : 'Inspect pending'}
                       </span>
                     </div>
 
                     <div className="details-row-vertical">
-                      <span>Customer Fault Report:</span>
+                      <span>Báo Cáo Lỗi Từ Khách Hàng:</span>
                       <p className="details-issue-text">{selectedBooking.issueDescription}</p>
                     </div>
 
                     <div className="details-row-vertical">
-                      <span>Technician Notes:</span>
-                      <p className="details-notes-text">{selectedBooking.notes || 'No notes added yet.'}</p>
+                      <span>Ghi Chú Kỹ Thuật:</span>
+                      <p className="details-notes-text">{selectedBooking.notes || 'Chưa có ghi chú.'}</p>
                     </div>
                   </div>
                 </div>

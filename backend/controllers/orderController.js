@@ -20,8 +20,11 @@ exports.getOrders = async (req, res) => {
     }
 
     const enrichedOrders = await Promise.all(orders.map(async (ord) => {
-      let paymentMethod = 'cod';
+      let paymentMethod = 'at_store';
       let invoiceNumber = `INV-${ord.id}`;
+      let appointmentDate = null;
+      let appointmentTime = null;
+      
       if (ord.notes) {
         const parts = ord.notes.split('|');
         parts.forEach(part => {
@@ -48,17 +51,18 @@ exports.getOrders = async (req, res) => {
         };
       }));
 
-      let shippingInfo = {};
+      // Parse appointment info from shipping_address field
+      let appointmentInfo = {};
       if (ord.shipping_address) {
         const trimmed = ord.shipping_address.trim();
         if (trimmed.startsWith('{')) {
           try {
-            shippingInfo = JSON.parse(trimmed);
+            appointmentInfo = JSON.parse(trimmed);
           } catch (e) {
-            shippingInfo = { address: ord.shipping_address };
+            appointmentInfo = { address: ord.shipping_address };
           }
         } else {
-          shippingInfo = { address: ord.shipping_address };
+          appointmentInfo = { address: ord.shipping_address };
         }
       }
 
@@ -70,7 +74,9 @@ exports.getOrders = async (req, res) => {
         paymentMethod,
         status: ord.status,
         items: enrichedItems,
-        shippingInfo
+        appointmentInfo,
+        // Backward compat
+        shippingInfo: appointmentInfo
       };
     }));
 
@@ -81,12 +87,15 @@ exports.getOrders = async (req, res) => {
   }
 };
 
-// POST /api/orders - Tạo đơn hàng mới
+// POST /api/orders - Tạo đơn hàng mới (Đặt lịch tới xem máy)
 exports.createOrder = async (req, res) => {
-  const { items, shippingInfo, paymentMethod, totalAmount } = req.body;
+  const { items, appointmentInfo, shippingInfo, paymentMethod, totalAmount } = req.body;
+  
+  // Support both old (shippingInfo) and new (appointmentInfo) format
+  const info = appointmentInfo || shippingInfo;
 
-  if (!items || items.length === 0 || !shippingInfo || !paymentMethod) {
-    return res.status(400).json({ message: 'Thiếu thông tin đơn hàng.' });
+  if (!items || items.length === 0 || !info || !paymentMethod) {
+    return res.status(400).json({ message: 'Thiếu thông tin đặt hàng.' });
   }
 
   try {
@@ -98,7 +107,7 @@ exports.createOrder = async (req, res) => {
         return res.status(400).json({ message: `Sản phẩm "${item.name || 'này'}" không tồn tại.` });
       }
       if (prod.status && prod.status.toLowerCase() !== 'active') {
-        return res.status(400).json({ message: `Sản phẩm "${prod.title || item.name}" đã được bán.` });
+        return res.status(400).json({ message: `Sản phẩm "${prod.title || item.name}" đã được đặt trước hoặc đã bán.` });
       }
     }
 
@@ -107,7 +116,7 @@ exports.createOrder = async (req, res) => {
     if (!customerProfile) {
       customerProfile = await db.insert('customer_profiles', {
         user_id: req.user.id,
-        address: shippingInfo.address || 'Chưa cập nhật',
+        address: 'Chưa cập nhật',
         total_spent: 0
       });
     }
@@ -116,21 +125,22 @@ exports.createOrder = async (req, res) => {
     const now = new Date().toISOString();
 
     // 3. Chèn đơn hàng vào bảng orders
+    const orderStatus = paymentMethod === 'bank_transfer' ? 'waiting_payment' : 'pending';
     const newOrder = await db.insert('orders', {
       customer_id: customerProfile.id,
       total_amount: totalAmount,
-      shipping_address: typeof shippingInfo === 'object' ? JSON.stringify(shippingInfo) : shippingInfo,
-      status: 'pending',
+      shipping_address: typeof info === 'object' ? JSON.stringify(info) : info,
+      status: orderStatus,
       notes: `payment:${paymentMethod}|invoice:${invoiceNumber}`,
       created_at: now,
       updated_at: now
     });
 
-    // 4. Cập nhật sản phẩm sang 'sold_out' và chèn vào order_items
+    // 4. Cập nhật sản phẩm sang 'reserved' (giữ chỗ) và chèn vào order_items
     for (let item of items) {
       const productId = item.product_id || item.productId || item.id;
       if (productId) {
-        await db.update('products', 'id', productId, { status: 'sold_out' });
+        await db.update('products', 'id', productId, { status: 'reserved' });
         await db.insert('order_items', {
           order_id: newOrder.id,
           product_id: productId,
@@ -146,13 +156,14 @@ exports.createOrder = async (req, res) => {
       total_spent: currentSpent + totalAmount
     });
 
+    // 6. Xử lý VNPay
     let vnpayUrl = null;
     if (paymentMethod === 'vnpay') {
       const ipAddr = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
       const orderInfo = `Thanh toan don hang ${newOrder.id}`;
       vnpayUrl = paymentController.generateVnpayUrl(newOrder.id, totalAmount, ipAddr, orderInfo);
 
-      // Đặt timeout 15 phút để tự động hủy đơn và hoàn kho nếu chưa thanh toán
+      // Timeout 15 phút cho VNPay
       setTimeout(async () => {
         try {
           const order = await db.findOne('orders', { id: newOrder.id });
@@ -163,20 +174,119 @@ exports.createOrder = async (req, res) => {
               SET status = 'active' 
               WHERE id IN (SELECT product_id FROM order_items WHERE order_id = @orderId)
             `, [{ name: 'orderId', value: newOrder.id }]);
-            console.log(`Auto-cancelled order ${newOrder.id} and restored products due to 15m payment timeout.`);
+            console.log(`Tự động hủy đơn ${newOrder.id} do hết thời gian thanh toán VNPay.`);
           }
         } catch (e) {
-          console.error(`Error auto-cancelling order ${newOrder.id}:`, e);
+          console.error(`Lỗi tự hủy đơn ${newOrder.id}:`, e);
         }
       }, 15 * 60 * 1000);
     }
 
-    // Trả về đúng cấu trúc mà Checkout.jsx mong đợi
+    // 6b. Timeout 10 phút cho Bank Transfer (waiting_payment)
+    if (paymentMethod === 'bank_transfer') {
+      setTimeout(async () => {
+        try {
+          const order = await db.findOne('orders', { id: newOrder.id });
+          if (order && order.status === 'waiting_payment') {
+            await db.update('orders', 'id', newOrder.id, { status: 'cancelled' });
+            await db.query(`
+              UPDATE products 
+              SET status = 'active' 
+              WHERE id IN (SELECT product_id FROM order_items WHERE order_id = @orderId)
+            `, [{ name: 'orderId', value: newOrder.id }]);
+            console.log(`Tự động hủy đơn ${newOrder.id} do hết thời gian xác nhận thanh toán (10 phút).`);
+            
+            // Send notification
+            const notificationsList = req.app.get('notifications');
+            if (notificationsList) {
+              notificationsList.push({
+                id: String(Date.now() + Math.random()),
+                title: '⏰ Hết hạn xác nhận thanh toán',
+                message: `Đơn hàng #${newOrder.id} đã bị hủy do quá thời gian xác nhận thanh toán.`,
+                sender: 'System',
+                createdAt: new Date().toISOString()
+              });
+            }
+          }
+        } catch (e) {
+          console.error(`Lỗi tự hủy đơn ${newOrder.id}:`, e);
+        }
+      }, 10 * 60 * 1000); // 10 minutes
+    }
+
+    // 7. Tự động hủy nếu khách không tới sau giờ hẹn + 2 giờ
+    if (info.appointmentDate && info.appointmentTime) {
+      let hour = 8;
+      let minute = 0;
+      if (info.appointmentTime.includes('-')) {
+        const firstPart = info.appointmentTime.split('-')[0].trim();
+        const parts = firstPart.split(':');
+        hour = Number(parts[0]) || 8;
+        minute = Number(parts[1]) || 0;
+      } else {
+        const parts = info.appointmentTime.split(':');
+        hour = Number(parts[0]) || 8;
+        minute = Number(parts[1]) || 0;
+      }
+      const appointmentDateTime = new Date(`${info.appointmentDate}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`);
+      const cancelTime = new Date(appointmentDateTime.getTime() + 2 * 60 * 60 * 1000); // +2 giờ
+      const timeUntilCancel = cancelTime.getTime() - Date.now();
+      
+      if (timeUntilCancel > 0) {
+        setTimeout(async () => {
+          try {
+            const order = await db.findOne('orders', { id: newOrder.id });
+            if (order && (order.status === 'pending' || order.status === 'confirmed')) {
+              await db.update('orders', 'id', newOrder.id, { status: 'cancelled', updated_at: new Date().toISOString() });
+              await db.query(`
+                UPDATE products 
+                SET status = 'active' 
+                WHERE id IN (SELECT product_id FROM order_items WHERE order_id = @orderId)
+              `, [{ name: 'orderId', value: newOrder.id }]);
+              console.log(`Tự động hủy đơn ${newOrder.id} - khách không tới sau giờ hẹn.`);
+            }
+          } catch (e) {
+            console.error(`Lỗi tự hủy đơn ${newOrder.id}:`, e);
+          }
+        }, timeUntilCancel);
+      }
+    }
+
+    // 8. Gửi thông báo cho Seller qua Socket.IO và đẩy vào danh sách chuông
+    const customer = await db.findOne('users', { id: req.user.id });
+    if (req.app.get('io')) {
+      req.app.get('io').emit('newOrderForSeller', {
+        orderId: newOrder.id,
+        invoiceNumber,
+        customerName: customer ? (customer.full_name || customer.username) : 'Khách hàng',
+        customerPhone: customer ? customer.phone : '',
+        totalAmount,
+        appointmentDate: info.appointmentDate || null,
+        appointmentTime: info.appointmentTime || null,
+        createdAt: now,
+        message: `Đơn hàng mới #${invoiceNumber} từ ${customer ? customer.full_name || customer.username : 'Khách hàng'}`
+      });
+    }
+
+    const notificationsList = req.app.get('notifications');
+    if (notificationsList) {
+      notificationsList.push({
+        id: String(Date.now() + Math.random()),
+        title: '🛒 Lịch hẹn xem máy mới',
+        message: `Khách hàng ${customer ? customer.full_name || customer.username : 'Khách hàng'} đã đặt lịch hẹn xem máy #${invoiceNumber} vào lúc ${info.appointmentTime || ''} ngày ${info.appointmentDate || ''}.`,
+        sender: 'System',
+        createdAt: now
+      });
+    }
+
+    // Trả về kết quả
     res.status(201).json({
-      message: 'Đặt hàng thành công!',
+      id: newOrder.id,
+      message: 'Đặt lịch xem máy thành công!',
       invoiceNumber,
       createdAt: now,
-      shippingInfo,
+      appointmentInfo: info,
+      shippingInfo: info, // backward compat
       items,
       paymentMethod,
       totalAmount,
@@ -188,7 +298,7 @@ exports.createOrder = async (req, res) => {
   }
 };
 
-// PUT /api/orders/:id/status - Cập nhật trạng thái đơn hàng (Hủy đơn)
+// PUT /api/orders/:id/status - Cập nhật trạng thái đơn hàng
 exports.updateOrderStatus = async (req, res) => {
   try {
     const orderId = req.params.id;
@@ -202,16 +312,198 @@ exports.updateOrderStatus = async (req, res) => {
       if (!customerProfile || order.customer_id !== customerProfile.id) {
         return res.status(403).json({ message: 'Không có quyền cập nhật đơn hàng này' });
       }
-      // Customer can only cancel pending orders
+      // Customer chỉ được hủy đơn pending
       if (status === 'canceled' && order.status !== 'pending') {
         return res.status(400).json({ message: 'Chỉ có thể hủy đơn hàng đang chờ duyệt' });
       }
     }
+
+    // Nếu hủy đơn → trả sản phẩm về active
+    if (status === 'canceled' || status === 'cancelled') {
+      await db.query(`
+        UPDATE products 
+        SET status = 'active' 
+        WHERE id IN (SELECT product_id FROM order_items WHERE order_id = @orderId)
+      `, [{ name: 'orderId', value: orderId }]);
+    }
     
-    await db.update('orders', { id: orderId }, { status });
+    await db.update('orders', 'id', orderId, { status, updated_at: new Date().toISOString() });
     res.json({ message: 'Cập nhật trạng thái thành công', status });
   } catch (error) {
-    console.error('Error updating order status:', error);
+    console.error('Lỗi cập nhật trạng thái đơn hàng:', error);
     res.status(500).json({ message: 'Lỗi server khi cập nhật trạng thái đơn hàng' });
+  }
+};
+
+// PUT /api/orders/:id/confirm-visit - Seller xác nhận khách đã tới xem máy
+exports.confirmVisit = async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    
+    // Chỉ seller/admin mới được xác nhận
+    if (req.user.role !== 'Admin' && req.user.role !== 'admin' && req.user.role !== 'seller') {
+      return res.status(403).json({ message: 'Không có quyền thực hiện.' });
+    }
+
+    const order = await db.findOne('orders', { id: orderId });
+    if (!order) return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
+
+    // Cập nhật đơn hàng sang completed
+    await db.update('orders', 'id', orderId, { 
+      status: 'completed',
+      updated_at: new Date().toISOString()
+    });
+
+    // Cập nhật sản phẩm sang sold_out
+    await db.query(`
+      UPDATE products 
+      SET status = 'sold_out' 
+      WHERE id IN (SELECT product_id FROM order_items WHERE order_id = @orderId)
+    `, [{ name: 'orderId', value: orderId }]);
+
+    // Thêm thông báo chuông xác nhận khách hàng đã tới xem máy và mua thành công
+    const notificationsList = req.app.get('notifications');
+    if (notificationsList) {
+      const invNum = order.notes ? order.notes.split('|').find(p => p.startsWith('invoice:'))?.replace('invoice:', '') : `INV-${orderId}`;
+      notificationsList.push({
+        id: String(Date.now() + Math.random()),
+        title: '✅ Đã hoàn tất xem máy',
+        message: `Xác nhận khách hàng đã đến xem máy và mua thành công sản phẩm thuộc đơn hẹn #${invNum}.`,
+        sender: 'System',
+        createdAt: new Date().toISOString()
+      });
+    }
+
+    res.json({ message: 'Đã xác nhận khách hàng tới xem máy. Sản phẩm đã được đánh dấu đã bán.' });
+  } catch (error) {
+    console.error('Lỗi xác nhận tới xem máy:', error);
+    res.status(500).json({ message: 'Lỗi server khi xác nhận.' });
+  }
+};
+
+// POST /api/orders/:id/confirm-payment - Xác nhận thanh toán chuyển khoản
+exports.confirmPayment = async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    
+    const order = await db.findOne('orders', { id: orderId });
+    if (!order) {
+      return res.status(404).json({ message: 'Đơn hàng không tồn tại.' });
+    }
+
+    // Check if order is still in waiting_payment status
+    if (order.status !== 'waiting_payment') {
+      return res.status(400).json({ message: 'Đơn hàng không ở trạng thái chờ xác nhận thanh toán.' });
+    }
+
+    // Check if payment is within 10 minutes (600 seconds)
+    const createdAt = new Date(order.created_at);
+    const now = new Date();
+    const minutesElapsed = (now - createdAt) / (1000 * 60);
+    
+    if (minutesElapsed > 10) {
+      return res.status(400).json({ message: 'Hết thời gian xác nhận thanh toán. Vui lòng đặt lại đơn hàng.' });
+    }
+
+    // Update order status to confirmed
+    await db.update('orders', 'id', orderId, {
+      status: 'confirmed',
+      updated_at: new Date().toISOString()
+    });
+
+    const updatedOrder = await db.findOne('orders', { id: orderId });
+    res.json({ message: 'Thanh toán đã được xác nhận.', order: updatedOrder });
+  } catch (error) {
+    console.error('Lỗi xác nhận thanh toán:', error);
+    res.status(500).json({ message: 'Lỗi server khi xác nhận thanh toán.' });
+  }
+};
+
+// POST /api/orders/:id/cancel - Hủy đơn hàng
+exports.cancelOrder = async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    
+    const order = await db.findOne('orders', { id: orderId });
+    if (!order) {
+      return res.status(404).json({ message: 'Đơn hàng không tồn tại.' });
+    }
+
+    // Cancel the order
+    await db.update('orders', 'id', orderId, {
+      status: 'cancelled',
+      updated_at: new Date().toISOString()
+    });
+
+    // Restore products to 'active' status
+    await db.query(`
+      UPDATE products 
+      SET status = 'active' 
+      WHERE id IN (SELECT product_id FROM order_items WHERE order_id = @orderId)
+    `, [{ name: 'orderId', value: orderId }]);
+
+    res.json({ message: 'Đơn hàng đã được hủy thành công.' });
+  } catch (error) {
+    console.error('Lỗi hủy đơn hàng:', error);
+    res.status(500).json({ message: 'Lỗi server khi hủy đơn hàng.' });
+  }
+};
+
+// PUT /api/orders/:id/reschedule - Chỉnh ngày hẹn
+exports.rescheduleOrder = async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const { appointmentDate, appointmentTime } = req.body;
+
+    if (!appointmentDate || !appointmentTime) {
+      return res.status(400).json({ message: 'Thiếu ngày hoặc giờ hẹn mới.' });
+    }
+
+    const order = await db.findOne('orders', { id: orderId });
+    if (!order) {
+      return res.status(404).json({ message: 'Đơn hàng không tồn tại.' });
+    }
+
+    // Role check: Only customer who owns the order, seller, or admin can modify
+    if (req.user.role === 'customer' || req.user.role === 'Customer') {
+      let customerProfile = await db.findOne('customer_profiles', { user_id: req.user.id });
+      if (!customerProfile || order.customer_id !== customerProfile.id) {
+        return res.status(403).json({ message: 'Không có quyền thay đổi lịch hẹn của đơn hàng này.' });
+      }
+    }
+
+    // Only allow rescheduling pending / waiting / reserved / waiting_payment / confirmed orders
+    const allowedStatuses = ['pending', 'waiting_payment', 'reserved', 'confirmed'];
+    if (!allowedStatuses.includes(order.status)) {
+      return res.status(400).json({ message: 'Không thể chỉnh sửa lịch hẹn cho đơn hàng ở trạng thái này.' });
+    }
+
+    let appointmentInfo = {};
+    if (order.shipping_address) {
+      const trimmed = order.shipping_address.trim();
+      if (trimmed.startsWith('{')) {
+        try {
+          appointmentInfo = JSON.parse(trimmed);
+        } catch (e) {
+          appointmentInfo = { address: order.shipping_address };
+        }
+      } else {
+        appointmentInfo = { address: order.shipping_address };
+      }
+    }
+
+    // Update appointment fields
+    appointmentInfo.appointmentDate = appointmentDate;
+    appointmentInfo.appointmentTime = appointmentTime;
+
+    await db.update('orders', 'id', orderId, {
+      shipping_address: JSON.stringify(appointmentInfo),
+      updated_at: new Date().toISOString()
+    });
+
+    res.json({ message: 'Cập nhật lịch hẹn thành công.', appointmentInfo });
+  } catch (error) {
+    console.error('Lỗi cập nhật lịch hẹn đơn hàng:', error);
+    res.status(500).json({ message: 'Lỗi server khi cập nhật lịch hẹn.' });
   }
 };

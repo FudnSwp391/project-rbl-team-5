@@ -128,6 +128,33 @@ exports.createBooking = async (req, res) => {
       updated_at: now
     });
 
+    // Emit socket.io notification to seller
+    const customer = await db.findOne('users', { id: req.user.id });
+    if (req.app.get('io')) {
+      req.app.get('io').emit('newBookingForSeller', {
+        bookingId: newBooking.id,
+        deviceType,
+        issueDescription,
+        preferredDate,
+        preferredTime,
+        customerName: customer ? (customer.full_name || customer.username) : 'Khách hàng',
+        customerPhone: customer ? customer.phone : '',
+        createdAt: now,
+        message: `Lịch hẹn sửa máy mới từ ${customer ? customer.full_name || customer.username : 'Khách hàng'}`
+      });
+    }
+
+    const notificationsList = req.app.get('notifications');
+    if (notificationsList) {
+      notificationsList.push({
+        id: String(Date.now() + Math.random()),
+        title: '🛠️ Lịch hẹn sửa máy mới',
+        message: `Khách hàng ${customer ? customer.full_name || customer.username : 'Khách hàng'} đã hẹn giờ giao máy [${deviceType || 'Thiết bị'}] lúc ${preferredTime || ''} ngày ${preferredDate || ''}.`,
+        sender: 'System',
+        createdAt: now
+      });
+    }
+
     res.status(201).json({ message: 'Đặt lịch thành công!', booking: newBooking });
   } catch (err) {
     console.error('Lỗi đặt lịch:', err);
@@ -142,7 +169,7 @@ exports.updateBooking = async (req, res) => {
     const booking = await db.findOne('repair_bookings', { id: req.params.id });
     if (!booking) return res.status(404).json({ message: 'Không tìm thấy lịch hẹn.' });
 
-    const { status, technicianId, cost, notes } = req.body;
+    const { status, technicianId, cost, notes, pickup_date, pickupDate, replaced_parts, replacedParts, fault_report, faultReport } = req.body;
     const updates = {};
     if (status) updates.status = status;
     
@@ -157,9 +184,95 @@ exports.updateBooking = async (req, res) => {
     
     if (cost !== undefined) updates.quoted_price = Number(cost);
     if (notes !== undefined) updates.notes = notes;
+
+    // Add support for new columns
+    const finalPickupDate = pickup_date || pickupDate;
+    if (finalPickupDate !== undefined) updates.pickup_date = finalPickupDate;
+
+    const finalReplacedParts = replaced_parts || replacedParts;
+    if (finalReplacedParts !== undefined) updates.replaced_parts = finalReplacedParts;
+
+    const finalFaultReport = fault_report || faultReport;
+    if (finalFaultReport !== undefined) updates.fault_report = finalFaultReport;
+
     updates.updated_at = new Date().toISOString();
 
     await db.update('repair_bookings', 'id', req.params.id, updates);
+
+    // If status updated to completed, send email to customer
+    if (status === 'completed') {
+      const notificationsList = req.app.get('notifications');
+      if (notificationsList) {
+        notificationsList.push({
+          id: String(Date.now() + Math.random()),
+          title: '🛠️ Sửa chữa hoàn tất',
+          message: `Thiết bị thuộc phiếu hẹn #${booking.id} đã được sửa chữa xong. Quý khách vui lòng tới nhận máy.`,
+          sender: 'System',
+          createdAt: new Date().toISOString()
+        });
+      }
+
+      try {
+        const { sendRepairCompletionEmail } = require('../emailService');
+        const reqResult = await db.findOne('repair_requests', { id: booking.repair_request_id });
+        if (reqResult) {
+          const custProfile = await db.findOne('customer_profiles', { id: reqResult.customer_id });
+          if (custProfile) {
+            const userAccount = await db.findOne('users', { id: custProfile.user_id });
+            if (userAccount && userAccount.email) {
+              let deviceType = 'Thiết bị';
+              let desc = reqResult.user_description || '';
+              if (desc.startsWith('[')) {
+                const closeIdx = desc.indexOf(']');
+                if (closeIdx > 0) {
+                  deviceType = desc.substring(1, closeIdx);
+                  desc = desc.substring(closeIdx + 1).trim();
+                }
+              }
+              
+              await sendRepairCompletionEmail(userAccount.email, {
+                deviceType,
+                issueDescription: desc,
+                faultReport: finalFaultReport || booking.fault_report || 'Không phát hiện thêm lỗi',
+                replacedParts: finalReplacedParts || booking.replaced_parts || 'Không thay thế',
+                cost: cost !== undefined ? Number(cost) : (booking.quoted_price || 0),
+                pickupDate: finalPickupDate || booking.pickup_date || null
+              });
+            }
+          }
+        }
+      } catch (emailErr) {
+        console.error('Lỗi gửi email báo sửa xong:', emailErr);
+      }
+    }
+
+    // Thêm thông báo chuông cho khách hàng khi seller chốt lịch nhận máy
+    if (finalPickupDate) {
+      try {
+        const notificationsList = req.app.get('notifications');
+        if (notificationsList) {
+          const reqResult = await db.findOne('repair_requests', { id: booking.repair_request_id });
+          let clientName = 'Khách hàng';
+          if (reqResult) {
+            const custProfile = await db.findOne('customer_profiles', { id: reqResult.customer_id });
+            if (custProfile) {
+              const userAccount = await db.findOne('users', { id: custProfile.user_id });
+              if (userAccount) clientName = userAccount.full_name || userAccount.username;
+            }
+          }
+          notificationsList.push({
+            id: String(Date.now() + Math.random()),
+            title: '📅 Đã chốt lịch nhận máy',
+            message: `Lịch hẹn sửa máy #${booking.id} của ${clientName} đã được chốt ngày nhận lại máy vào: ${new Date(finalPickupDate).toLocaleDateString('vi-VN')}.`,
+            sender: 'System',
+            createdAt: new Date().toISOString()
+          });
+        }
+      } catch (err) {
+        console.error('Error adding pickup date notification:', err);
+      }
+    }
+
     res.json({ message: 'Cập nhật lịch hẹn thành công.' });
   } catch (err) {
     console.error('Lỗi cập nhật lịch hẹn:', err);

@@ -55,9 +55,9 @@ const Navbar = ({ activePage, setActivePage, theme, setTheme, setDashboardSubTab
   };
 
   const navItems = [
-    { id: 'home', label: 'Home', icon: Recycle },
-    { id: 'shop', label: 'Marketplace', icon: ShoppingBag },
-    { id: 'booking', label: 'Book Repair', icon: Calendar },
+    { id: 'home', label: 'Trang chủ', icon: Recycle },
+    { id: 'shop', label: 'Chợ đồ cũ', icon: ShoppingBag },
+    { id: 'booking', label: 'Hẹn giờ tới giao máy', icon: Calendar },
   ];
 
 
@@ -222,7 +222,7 @@ const Navbar = ({ activePage, setActivePage, theme, setTheme, setDashboardSubTab
                     }}
                   >
                     <LayoutDashboard size={16} />
-                    Dashboard
+                    Bảng điều khiển
                   </button>
                   {user.role === 'customer' && (
                     <button 
@@ -234,12 +234,12 @@ const Navbar = ({ activePage, setActivePage, theme, setTheme, setDashboardSubTab
                       }}
                     >
                       <ShoppingBag size={16} />
-                      Order History
+                      Lịch sử đơn hàng
                     </button>
                   )}
                   <button className="dropdown-item logout" onClick={handleLogout}>
                     <LogOut size={16} />
-                    Logout
+                    Đăng xuất
                   </button>
                 </div>
               )}
@@ -247,7 +247,7 @@ const Navbar = ({ activePage, setActivePage, theme, setTheme, setDashboardSubTab
           ) : (
             <button className="btn btn-primary btn-login-nav" onClick={() => setActivePage('auth')}>
               <User size={18} />
-              Login / Register
+              Đăng nhập / Đăng ký
             </button>
           )}
 
@@ -288,7 +288,7 @@ const Navbar = ({ activePage, setActivePage, theme, setTheme, setDashboardSubTab
                 }}
               >
                 <LayoutDashboard size={20} />
-                <span>Dashboard</span>
+                <span>Bảng điều khiển</span>
               </button>
             )}
             
@@ -302,7 +302,7 @@ const Navbar = ({ activePage, setActivePage, theme, setTheme, setDashboardSubTab
                 }}
               >
                 <ShoppingBag size={20} />
-                <span>Order History</span>
+                <span>Lịch sử đơn hàng</span>
               </button>
             )}
 
@@ -311,7 +311,7 @@ const Navbar = ({ activePage, setActivePage, theme, setTheme, setDashboardSubTab
                 setActivePage('auth');
                 setMobileMenuOpen(false);
               }}>
-                Login / Register
+                Đăng nhập / Đăng ký
               </button>
             )}
           </div>

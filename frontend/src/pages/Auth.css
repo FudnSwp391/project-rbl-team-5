@@ -32,7 +32,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-body);
   font-size: 1.6rem;
   font-weight: 800;
   cursor: pointer;
@@ -88,7 +88,7 @@
 }
 
 .auth-stat-num {
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-body);
   font-size: 1.8rem;
   font-weight: 800;
   color: var(--secondary);
@@ -165,7 +165,7 @@
   border: 2px solid var(--neutral-medium);
   border-radius: 6px;
   color: var(--accent-green);
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-body);
   font-weight: 800;
   font-size: 0.8rem;
   display: flex;

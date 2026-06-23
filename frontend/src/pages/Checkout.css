@@ -463,7 +463,7 @@
 }
 
 .total-val {
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-body);
   font-size: 1.3rem;
   font-weight: 800;
   color: var(--secondary);

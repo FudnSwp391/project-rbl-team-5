@@ -12,7 +12,7 @@ const ChatForm = ({ chatHistory, setChatHistory, generateBotResponse }) => {
 
     const userEntry = { role: "user", text: userMessage };
     const newChatHistory = [...chatHistory, userEntry];
-    setChatHistory((prev) => [...prev, userEntry, { role: "model", text: "Thinking..." }]);
+    setChatHistory((prev) => [...prev, userEntry, { role: "model", text: "Đang suy nghĩ..." }]);
     generateBotResponse(newChatHistory);
 
   };
@@ -22,7 +22,7 @@ const ChatForm = ({ chatHistory, setChatHistory, generateBotResponse }) => {
       <input
         type="text"
         className="message-input"
-        placeholder="Type your message..."
+        placeholder="Nhập tin nhắn..."
         ref={inputRef}
       />
       <button className="material-symbols-rounded">arrow_upward</button>

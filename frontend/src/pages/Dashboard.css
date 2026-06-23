@@ -153,7 +153,7 @@
 }
 
 .stat-data .s-val {
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-body);
   font-size: 1.35rem;
   font-weight: 800;
   color: var(--primary-dark);
@@ -589,7 +589,7 @@
 }
 
 .mini-price {
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-body);
   font-weight: 800;
   color: var(--secondary);
   font-size: 0.9rem;
@@ -615,6 +615,10 @@
 .status-delivery-tag.shipping { background-color: #dbeafe; color: #1d4ed8; box-shadow: 0 2px 6px rgba(59,130,246,0.2); }
 .status-delivery-tag.completed { background-color: #d1fae5; color: #047857; box-shadow: 0 2px 6px rgba(16,185,129,0.2); }
 .status-delivery-tag.canceled { background-color: #fee2e2; color: #dc2626; box-shadow: 0 2px 6px rgba(239,68,68,0.2); }
+.status-delivery-tag.cancelled { background-color: #fee2e2; color: #dc2626; box-shadow: 0 2px 6px rgba(239,68,68,0.2); }
+.status-delivery-tag.waiting_payment { background-color: #fef3c7; color: #b45309; box-shadow: 0 2px 6px rgba(245,158,11,0.2); }
+.status-delivery-tag.reserved { background-color: #fef3c7; color: #b45309; box-shadow: 0 2px 6px rgba(245,158,11,0.2); }
+.status-delivery-tag.confirmed { background-color: #dbeafe; color: #1d4ed8; box-shadow: 0 2px 6px rgba(59,130,246,0.2); }
 
 .tbl-mini-item-name {
   font-size: 0.8rem;
@@ -763,7 +767,7 @@
 }
 
 .details-cost-val {
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-body);
   font-weight: 800;
   color: var(--secondary);
   font-size: 1rem;
@@ -2039,7 +2043,7 @@
 }
 
 .s-val {
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-body);
   font-size: 1.85rem;
   font-weight: 850;
   color: var(--primary-dark);
@@ -2282,12 +2286,14 @@ input:checked + .switch-slider:before {
   transform: scale(1.1);
 }
 
-/* Recent orders list widget */
 .seller-orders-list {
   display: flex;
   flex-direction: column;
   gap: 14px;
   margin-top: 12px;
+  max-height: 180px;
+  overflow-y: auto;
+  padding-right: 6px;
 }
 
 .order-ticket-row {
@@ -2476,7 +2482,7 @@ input:checked + .switch-slider:before {
 }
 
 .detail-header-row h2 {
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-body);
   font-weight: 800;
   font-size: 1.5rem;
   color: var(--neutral-darkest);
@@ -2783,7 +2789,7 @@ input:checked + .switch-slider:before {
 
 /* Price VND custom format */
 .price-vnd-formatted {
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-body);
   font-weight: 800;
   color: var(--neutral-darkest);
   font-size: 0.95rem;
