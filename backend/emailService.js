@@ -147,5 +147,90 @@ const sendRepairCompletionEmail = async (toEmail, bookingDetails) => {
   console.log(`[EMAIL] Email hoàn tất sửa chữa đã gửi tới ${toEmail}`);
 };
 
-module.exports = { sendOtpEmail, sendRepairCompletionEmail };
+/**
+ * Gửi email xác nhận thanh toán đơn hàng thành công
+ * @param {string} toEmail - Email người nhận
+ * @param {object} orderDetails - Chi tiết đơn hàng
+ */
+const sendOrderConfirmationEmail = async (toEmail, orderDetails) => {
+  const itemsHtml = orderDetails.items.map(item => `
+    <tr style="border-bottom: 1px solid #eee;">
+      <td style="padding: 8px 0; color: #333;">${item.name}</td>
+      <td style="padding: 8px 0; text-align: right; color: #333;">1</td>
+      <td style="padding: 8px 0; text-align: right; font-weight: bold; color: #333;">${(item.price || 0).toLocaleString('vi-VN')} VND</td>
+    </tr>
+  `).join('');
+
+  const mailOptions = {
+    from: process.env.EMAIL_FROM || `TechCycle <${process.env.EMAIL_USER}>`,
+    to: toEmail,
+    subject: `🛒 Xác nhận thanh toán thành công đơn hàng #${orderDetails.invoiceNumber} - TechCycle`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 540px; margin: 0 auto; background: #f9f9f9; border-radius: 12px; overflow: hidden; border: 1px solid #e0e0e0;">
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%); padding: 32px 24px; text-align: center;">
+          <h1 style="color: white; margin: 0; font-size: 24px; letter-spacing: 1px;">⚡ TechCycle</h1>
+          <p style="color: rgba(255,255,255,0.85); margin: 8px 0 0; font-size: 14px;">Cảm ơn bạn đã mua hàng!</p>
+        </div>
+
+        <!-- Body -->
+        <div style="padding: 32px 24px; background: white;">
+          <h2 style="color: #10b981; margin: 0 0 12px; font-size: 20px;">Thanh Toán Thành Công!</h2>
+          <p style="color: #555; line-height: 1.6; margin: 0 0 24px;">
+            Chào bạn, đơn hàng của bạn đã được thanh toán thành công qua chuyển khoản ngân hàng SePay. Chúng tôi đang chuẩn bị hàng để giao tới bạn trong thời gian sớm nhất.
+          </p>
+
+          <div style="background: #f3f4f6; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+            <p style="margin: 0 0 8px; font-size: 14px; color: #666;">Mã hóa đơn: <strong style="color: #333;">${orderDetails.invoiceNumber}</strong></p>
+            <p style="margin: 0 0 8px; font-size: 14px; color: #666;">Ngày đặt hàng: <strong style="color: #333;">${new Date(orderDetails.createdAt).toLocaleDateString('vi-VN')}</strong></p>
+            <p style="margin: 0; font-size: 14px; color: #666;">Phương thức: <strong style="color: #333;">Chuyển khoản (SePay)</strong></p>
+          </div>
+
+          <h3 style="color: #333; border-bottom: 2px solid #f3f4f6; padding-bottom: 8px; margin-bottom: 12px;">Chi tiết sản phẩm</h3>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 14px;">
+            <thead>
+              <tr style="border-bottom: 2px solid #eee; text-align: left; color: #666;">
+                <th style="padding: 8px 0;">Sản phẩm</th>
+                <th style="padding: 8px 0; text-align: right;">SL</th>
+                <th style="padding: 8px 0; text-align: right;">Thành tiền</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+          </table>
+
+          <div style="text-align: right; margin-bottom: 24px;">
+            <p style="margin: 0; font-size: 14px; color: #666;">Tạm tính: ${(orderDetails.totalAmount || 0).toLocaleString('vi-VN')} VND</p>
+            <p style="margin: 8px 0 0; font-size: 16px; color: #333; font-weight: bold;">Tổng thanh toán: ${(orderDetails.totalAmount || 0).toLocaleString('vi-VN')} VND</p>
+          </div>
+
+          <h3 style="color: #333; border-bottom: 2px solid #f3f4f6; padding-bottom: 8px; margin-bottom: 12px;">Thông tin giao hàng</h3>
+          <p style="color: #555; font-size: 14px; margin: 0 0 8px; line-height: 1.6;">
+            <strong>Người nhận:</strong> ${orderDetails.shippingInfo.fullName}<br>
+            <strong>Số điện thoại:</strong> ${orderDetails.shippingInfo.phone}<br>
+            <strong>Địa chỉ giao:</strong> ${orderDetails.shippingInfo.address}<br>
+            ${orderDetails.shippingInfo.notes ? `<strong>Ghi chú:</strong> ${orderDetails.shippingInfo.notes}` : ''}
+          </p>
+
+          <div style="text-align: center; margin-top: 32px;">
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}" style="background: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Tiếp tục mua sắm</a>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="padding: 16px 24px; background: #f0f0f0; text-align: center;">
+          <p style="color: #aaa; font-size: 12px; margin: 0;">
+            © 2026 TechCycle. 123 Đường Ba Tháng Hai, Quận 10, TP. HCM.
+          </p>
+        </div>
+      </div>
+    `
+  };
+
+  await transporter.sendMail(mailOptions);
+  console.log(`[EMAIL] Đã gửi email xác nhận đơn hàng thành công tới ${toEmail}`);
+};
+
+module.exports = { sendOtpEmail, sendRepairCompletionEmail, sendOrderConfirmationEmail };
 

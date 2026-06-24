@@ -117,7 +117,7 @@ const PaymentConfirmationModal = ({
             <div className="bank-section">
               <h4><CreditCard size={18} /> Thông tin tài khoản:</h4>
               <div className="bank-details">
-                <p><strong>Ngân hàng:</strong> {systemInfo.bank?.name || 'Vietcombank'}</p>
+                <p><strong>Ngân hàng:</strong> {systemInfo.bank?.name || 'TPBank'}</p>
                 <p><strong>Chủ tài khoản:</strong> {systemInfo.bank?.accountHolder || 'TECHCYCLE'}</p>
                 <p><strong>Số tài khoản:</strong> {systemInfo.bank?.accountNumber || '1023456789'}</p>
               </div>
