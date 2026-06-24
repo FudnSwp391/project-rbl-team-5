@@ -68,8 +68,10 @@ exports.getBookings = async (req, res) => {
         device_type: 'Thiết bị điện tử',
         issue_description: b.user_description || '',
         customerName: customer ? (customer.full_name || customer.username) : 'Ẩn danh',
+        customerAvatar: customer ? (customer.avatar || '') : '',
         customerPhone: customer ? customer.phone : '',
         technicianName: technician ? (technician.full_name || technician.username) : 'Chưa phân công',
+        technicianAvatar: technician ? (technician.avatar || '') : '',
         preferred_date: b.appointment_date,
         cost: b.quoted_price
       };

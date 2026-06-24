@@ -4,7 +4,7 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
-const db = require('./db');
+const { db } = require('./db');
 
 // Import modular routes
 const authRoutes = require('./routes/authRoutes');
@@ -228,45 +228,74 @@ io.on('connection', (socket) => {
     console.log(`Socket joined booking room: booking_${bookingId}`);
   });
 
+  // Leave a booking room
+  socket.on('leaveBookingRoom', (roomName) => {
+    socket.leave(roomName);
+  });
+
+  // Typing indicators
+  socket.on('typing', ({ bookingId, userId, username }) => {
+    socket.to(`booking_${bookingId}`).emit('userTyping', { bookingId, userId, username });
+  });
+
+  socket.on('stopTyping', ({ bookingId, userId, username }) => {
+    socket.to(`booking_${bookingId}`).emit('userStopTyping', { bookingId, userId, username });
+  });
+
   // Send messaging event
   socket.on('sendMessage', async (messageData) => {
     const { senderId, receiverId, bookingId, text } = messageData;
-    
+    const now = new Date();
+
+    // Chuẩn bị message object để emit ngay (trước khi save DB)
+    const tempMsg = {
+      id: null,
+      senderId: senderId,
+      receiverId: receiverId,
+      bookingId: bookingId,
+      text: text,
+      createdAt: now.toISOString(),
+      timestamp: now.toISOString(),
+      senderName: 'Loading...'
+    };
+
     try {
-      // Save to database (await vì đây là hàm async)
-      const savedMsg = await db.insert('messages', {
-        sender_id: senderId,
-        receiver_id: receiverId,
-        booking_id: bookingId,
-        text_content: text,
-        timestamp: new Date().toISOString()
-      });
-
-      // Map back to camelCase properties before sending via socket
-      const enrichedMsgBase = {
-        id: savedMsg.id,
-        senderId: savedMsg.sender_id || senderId,
-        receiverId: savedMsg.receiver_id || receiverId,
-        bookingId: savedMsg.booking_id || bookingId,
-        text: savedMsg.text_content || text,
-        timestamp: savedMsg.timestamp || new Date().toISOString()
-      };
-
-      const sender = await db.findOne('users', { id: senderId });
+      // Lấy thông tin sender để enrich message
+      const sender = await db.findOne('users', { id: Number(senderId) });
       const enrichedMsg = {
-        ...enrichedMsgBase,
-        senderName: sender ? sender.username : 'Ẩn danh',
-        senderAvatar: sender ? sender.avatar : ''
+        ...tempMsg,
+        senderName: sender ? (sender.username || sender.full_name || 'Thành viên') : 'Thành viên',
+        senderAvatar: sender ? (sender.avatar || '') : ''
       };
 
-      // Emit to booking room
+      // Save vào DB bằng raw SQL query để tránh vấn đề với db.insert
+      const saveResult = await db.query(
+        `INSERT INTO messages (sender_id, receiver_id, booking_id, text_content, timestamp)
+         VALUES (@senderId, @receiverId, @bookingId, @text, GETDATE());
+         SELECT SCOPE_IDENTITY() AS newId;`,
+        [
+          { name: 'senderId', value: Number(senderId) },
+          { name: 'receiverId', value: Number(receiverId) },
+          { name: 'bookingId', value: Number(bookingId) },
+          { name: 'text', value: text }
+        ]
+      );
+
+      const newId = saveResult.recordset[0]?.newId || null;
+      enrichedMsg.id = newId;
+
+      console.log(`[MSG] Saved message id=${newId} booking=${bookingId} from=${senderId} to=${receiverId}`);
+
+      // Emit to booking room (cả 2 phía)
       io.to(`booking_${bookingId}`).emit('receiveMessage', enrichedMsg);
-      
-      // Also emit directly to individual user rooms to notify/push notifications
-      io.to(receiverId).emit('newMessageNotification', enrichedMsg);
-      io.to(senderId).emit('messageSentConfirmation', enrichedMsg);
+
+      // Notify người nhận (cho badge thông báo)
+      io.to(String(receiverId)).emit('newMessageNotification', enrichedMsg);
+
     } catch (err) {
-      console.error('Lỗi xử lý tin nhắn socket:', err);
+      console.error('[MSG ERROR] Lỗi xử lý tin nhắn socket:', err.message);
+      // Vẫn emit để real-time không bị mất, dù DB fail
+      io.to(`booking_${bookingId}`).emit('receiveMessage', tempMsg);
     }
   });
 
