@@ -317,6 +317,21 @@
   gap: 12px;
 }
 
+.logo-icon-wrapper-invoice {
+  background-color: #f0fdf4;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #dcfce7;
+}
+
+.logo-icon-invoice {
+  color: #0b5a43;
+}
+
 .invoice-logo-img {
   width: 48px;
   height: 48px;
@@ -464,13 +479,13 @@
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: #f0fdf4;
-  color: #0f766e;
+  background: #0b5a43 !important;
+  color: #ffffff !important;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  border: 1px solid #dcfce7;
+  border: none !important;
 }
 
 .card-info-new {
@@ -519,6 +534,11 @@
   letter-spacing: 0.5px;
   text-transform: uppercase;
   white-space: nowrap !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.invoice-table-new th:last-child {
+  border-right: none;
 }
 
 .invoice-table-new td {
@@ -527,6 +547,11 @@
   font-size: 0.85rem;
   color: #334155;
   background: #ffffff;
+  border-right: 1px solid #e2e8f0;
+}
+
+.invoice-table-new td:last-child {
+  border-right: none;
 }
 
 .invoice-table-new tr:last-child td {
@@ -778,6 +803,11 @@
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.contact-item:not(:last-child) {
+  border-right: 1px solid #e2e8f0;
+  padding-right: 16px;
 }
 
 .contact-item svg {

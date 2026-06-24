@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { MapPin, CreditCard, CheckCircle2, ArrowRight, ShieldCheck, Printer, Calendar, Phone, Store, User, ListOrdered, Package, Tag, ShoppingCart, FileText, Coins, Truck, Check, ClipboardCheck, ChevronRight, Mail, Globe } from 'lucide-react';
+import { MapPin, CreditCard, CheckCircle2, ArrowRight, ShieldCheck, Printer, Calendar, Phone, Store, User, ListOrdered, Package, Tag, ShoppingCart, FileText, Coins, Truck, Check, ClipboardCheck, ChevronRight, Mail, Globe, Recycle } from 'lucide-react';
 import './Checkout.css';
 
 const getVietQrBankId = (brand) => {
@@ -683,7 +683,9 @@ const Checkout = ({ setActivePage }) => {
               <div className="invoice-header">
                 <div className="invoice-brand">
                   <div className="invoice-logo-wrapper">
-                    <img src="/logo.png" alt="TechCycle" className="invoice-logo-img" onError={(e) => e.target.style.display = 'none'} />
+                    <div className="logo-icon-wrapper-invoice">
+                      <Recycle size={28} className="logo-icon-invoice" />
+                    </div>
                     <div className="invoice-brand-text">
                       <span className="logo-main">TechCycle</span>
                       <span className="logo-sub">Invoice</span>
@@ -803,7 +805,6 @@ const Checkout = ({ setActivePage }) => {
                 {/* Order status */}
                 <div className="status-box-card">
                   <div className="card-header-new">
-                    <CheckCircle2 size={16} />
                     <span>TRẠNG THÁI HÓA ĐƠN</span>
                   </div>
                   <div className="status-badge-wrapper">
@@ -819,7 +820,6 @@ const Checkout = ({ setActivePage }) => {
                 {/* Next steps timeline */}
                 <div className="next-steps-card">
                   <div className="card-header-new">
-                    <Truck size={16} />
                     <span>CÁC BƯỚC TIẾP THEO</span>
                   </div>
                   <div className="steps-timeline-wrapper">
