@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import io from 'socket.io-client';
+import useBookingChat from '../../hooks/useBookingChat';
+import ChatPanel from '../../components/ChatPanel';
 import { 
   LayoutDashboard, ShoppingBag, Calendar, MessageSquare,
-  Sun, Moon, Search, Bell, HelpCircle, LogOut, Send, Settings, Image, Paperclip
+  Sun, Moon, Bell, HelpCircle, LogOut, Settings
 } from 'lucide-react';
 import ProfileSettings from '../../components/ProfileSettings';
 import { useCart } from '../../context/CartContext';
@@ -26,16 +27,24 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
   const [newDate, setNewDate] = useState('');
   const [newTime, setNewTime] = useState('09:00 AM');
 
-  // --- CHAT SYSTEM STATES ---
-  const [chatConversations, setChatConversations] = useState([]);
-  const [selectedBooking, setSelectedBooking] = useState(null);
-  const [chatMessages, setChatMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [isUploadingImage, setIsUploadingImage] = useState(false);
-  const socketRef = useRef(null);
-  const chatEndRef = useRef(null);
-  const fetchConversationsListRef = useRef(null);
-  const fileInputRef = useRef(null);
+  // --- CHAT HOOK ---
+  const {
+    selectedBooking,
+    chatMessages,
+    newMessage,
+    isUploadingImage,
+    isLoading: chatLoading,
+    unreadCount,
+    typingUsers,
+    handleSelectConversation,
+    handleSendMessage,
+    handleImageUpload,
+    handleTyping,
+    markChatViewActive,
+  } = useBookingChat(user, token);
+
+  // Danh sách conversations: booking đã có technician được phân công
+  const chatConversations = bookingsList.filter(b => b.technicianId && b.status !== 'pending' && b.status !== 'canceled' && b.status !== 'cancelled');
 
   const fetchData = async () => {
     if (!user || !token) return;
@@ -67,118 +76,12 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
     fetchData();
   }, [user, token, subTab]);
 
-  // --- WEBSOCKET CHAT LOGIC ---
+  // Đánh dấu tab chat active/inactive để cập nhật unread badge
   useEffect(() => {
-    if (!user) return;
-    socketRef.current = io(`${API_BASE}`);
-    socketRef.current.emit('registerUser', user.id);
+    markChatViewActive(subTab === 'chat');
+  }, [subTab, markChatViewActive]);
 
-    socketRef.current.on('receiveMessage', (message) => {
-      if (selectedBooking && message.bookingId === selectedBooking.id) {
-        setChatMessages(prev => [...prev, message]);
-      }
-      if (fetchConversationsListRef.current) fetchConversationsListRef.current();
-    });
 
-    return () => {
-      if (socketRef.current) socketRef.current.disconnect();
-    };
-  }, [user, selectedBooking]);
-
-  useEffect(() => {
-    if (chatEndRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [chatMessages]);
-
-  const fetchConversationsList = useCallback(() => {
-    if (bookingsList.length === 0) return;
-    const chats = bookingsList.filter(b => b.status !== 'pending');
-    setChatConversations(chats);
-  }, [bookingsList]);
-
-  useEffect(() => {
-    fetchConversationsListRef.current = fetchConversationsList;
-  }, [fetchConversationsList]);
-
-  useEffect(() => {
-    fetchConversationsList();
-  }, [fetchConversationsList]);
-
-  const handleSelectConversation = (booking) => {
-    setSelectedBooking(booking);
-    setChatMessages([]);
-    if (socketRef.current) {
-      socketRef.current.emit('joinBookingRoom', booking.id);
-    }
-    fetch(`${API_BASE}/api/messages/${booking.id}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(data => setChatMessages(data))
-      .catch(err => console.error('Lỗi tải lịch sử chat:', err));
-  };
-
-  const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file || !selectedBooking) return;
-
-    setIsUploadingImage(true);
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/upload-images`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ images: [reader.result] })
-        });
-        const data = await res.json();
-        if (res.ok && data.urls && data.urls.length > 0) {
-          const imageUrl = data.urls[0];
-          const receiverId = user.role === 'customer' 
-            ? selectedBooking.technicianId 
-            : selectedBooking.customerId;
-          if (socketRef.current) {
-            socketRef.current.emit('sendMessage', {
-              senderId: user.id,
-              receiverId,
-              bookingId: selectedBooking.id,
-              text: `[IMG]${imageUrl}`
-            });
-          }
-        } else {
-          alert('Lỗi tải ảnh lên');
-        }
-      } catch (err) {
-        console.error('Lỗi tải ảnh:', err);
-      } finally {
-        setIsUploadingImage(false);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleSendMessage = (e) => {
-    e.preventDefault();
-    if (!newMessage.trim() || !selectedBooking) return;
-    const receiverId = user.role === 'customer' 
-      ? selectedBooking.technicianId 
-      : selectedBooking.customerId;
-    const messagePayload = {
-      senderId: user.id,
-      receiverId,
-      bookingId: selectedBooking.id,
-      text: newMessage
-    };
-    if (socketRef.current) {
-      socketRef.current.emit('sendMessage', messagePayload);
-      setNewMessage('');
-    }
-  };
 
   const handleCancelOrder = async (orderId) => {
     if (!window.confirm('Bạn có chắc chắn muốn hủy lịch hẹn này không?')) return;
@@ -323,9 +226,18 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
               <ShoppingBag size={18} />
               Order History
             </button>
-            <button className={`sidebar-nav-btn ${subTab === 'chat' ? 'active' : ''}`} onClick={() => setSubTab('chat')}>
+            <button className={`sidebar-nav-btn ${subTab === 'chat' ? 'active' : ''}`} onClick={() => setSubTab('chat')} style={{ position: 'relative' }}>
               <MessageSquare size={18} />
               Technical Support
+              {unreadCount > 0 && (
+                <span style={{
+                  position: 'absolute', top: '6px', right: '10px',
+                  background: '#ef4444', color: '#fff',
+                  fontSize: '0.65rem', fontWeight: 800,
+                  padding: '1px 5px', borderRadius: '10px', minWidth: '18px',
+                  textAlign: 'center', lineHeight: '16px'
+                }}>{unreadCount > 9 ? '9+' : unreadCount}</span>
+              )}
             </button>
           </nav>
 
@@ -641,148 +553,21 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
           )}
 
           {!loading && subTab === 'chat' && (
-            <div className="chat-view-layout glass-panel animate-fade">
-              <div className="chat-conversations-sidebar">
-                <h3>Repair Tickets</h3>
-                <p className="chat-sub-lbl">Select a ticket to begin consultation</p>
-                <div className="chat-conversations-list">
-                  {chatConversations.map(conv => (
-                    <div 
-                      key={conv.id} 
-                      className={`conv-item-card ${selectedBooking?.id === conv.id ? 'active' : ''}`}
-                      onClick={() => handleSelectConversation(conv)}
-                    >
-                      <div className="conv-item-info">
-                        <h4>{conv.deviceType}</h4>
-                        <p className="conv-user-name">
-                          Tech: {conv.technicianName}
-                        </p>
-                      </div>
-                      <span className="conv-id">#{conv.id}</span>
-                    </div>
-                  ))}
-                  {chatConversations.length === 0 && (
-                    <p className="empty-text">No assigned repairs available to start messaging.</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="chat-thread-panel">
-                {selectedBooking ? (
-                  <>
-                    <div className="thread-header">
-                      <div>
-                        <h4>{selectedBooking.deviceType}</h4>
-                        <p>#{selectedBooking.id} • Technician: {selectedBooking.technicianName}</p>
-                      </div>
-                    </div>
-
-                    <div className="chat-messages-thread">
-                      {chatMessages.map(msg => {
-                        const isMe = msg.senderId === user.id;
-                        return (
-                          <div key={msg.id} className={`chat-message-bubble ${isMe ? 'mine' : 'theirs'}`}>
-                             {!isMe && <img src={getAvatarUrl(msg.senderAvatar, msg.senderName)} alt={msg.senderName} className="msg-avatar" />}
-                            <div className="msg-bubble-content">
-                              {!isMe && <span className="sender-name">{msg.senderName}</span>}
-                              {msg.text && msg.text.startsWith('[IMG]') ? (
-                                <img src={msg.text.replace('[IMG]', '')} alt="attachment" className="chat-image-attachment" onClick={() => window.open(msg.text.replace('[IMG]', ''), '_blank')} />
-                              ) : (
-                                <p className="msg-text">{msg.text}</p>
-                              )}
-                              <span className="msg-time">{new Date(msg.createdAt || msg.timestamp || new Date()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                      <div ref={chatEndRef} />
-                    </div>
-
-                    <form className="chat-input-form" onSubmit={handleSendMessage}>
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        ref={fileInputRef} 
-                        style={{ display: 'none' }} 
-                        onChange={handleImageUpload}
-                      />
-                      <button 
-                        type="button" 
-                        className="chat-attach-btn" 
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={isUploadingImage}
-                      >
-                        <Paperclip size={18} />
-                      </button>
-                      <input 
-                        type="text" 
-                        placeholder={isUploadingImage ? "Đang tải ảnh lên..." : "Type your message..."}
-                        value={newMessage}
-                        onChange={e => setNewMessage(e.target.value)}
-                        disabled={isUploadingImage}
-                      />
-                      <button type="submit" className="chat-send-btn" disabled={isUploadingImage}>
-                        <Send size={18} />
-                      </button>
-                    </form>
-                  </>
-                ) : (
-                  <div className="no-chat-selected">
-                    <p>Select a conversation from the sidebar to view chat logs.</p>
-                  </div>
-                )}
-              </div>
-
-              {selectedBooking && (
-                <div className="chat-case-details-panel">
-                  <h3>Repair Ticket</h3>
-                  <hr className="details-divider" />
-                  <div className="details-content">
-                    <div className="details-device-header">
-                      <h4>{selectedBooking.deviceType}</h4>
-                      <span className="details-id">#{selectedBooking.id}</span>
-                    </div>
-                    
-                    <div className="details-progress-stepper">
-                      <div className={`stepper-step ${['assigned', 'inspecting', 'repairing', 'completed'].includes(selectedBooking.status) ? 'active' : ''}`}>
-                        <div className="step-bullet">1</div>
-                        <div className="step-info"><span className="step-name">Assigned</span></div>
-                      </div>
-                      <div className={`stepper-step ${['inspecting', 'repairing', 'completed'].includes(selectedBooking.status) ? 'active' : ''}`}>
-                        <div className="step-bullet">2</div>
-                        <div className="step-info"><span className="step-name">Inspect</span></div>
-                      </div>
-                      <div className={`stepper-step ${['repairing', 'completed'].includes(selectedBooking.status) ? 'active' : ''}`}>
-                        <div className="step-bullet">3</div>
-                        <div className="step-info"><span className="step-name">Repairing</span></div>
-                      </div>
-                      <div className={`stepper-step ${selectedBooking.status === 'completed' ? 'active' : ''}`}>
-                        <div className="step-bullet">4</div>
-                        <div className="step-info"><span className="step-name">Done</span></div>
-                      </div>
-                    </div>
-
-                    <hr className="details-divider" />
-
-                    <div className="details-row">
-                      <span>Estimated Cost:</span>
-                      <span className="details-cost-val">
-                        {selectedBooking.cost > 0 ? `${selectedBooking.cost.toLocaleString('en-US')} VND` : 'Chờ kiểm tra báo giá'}
-                      </span>
-                    </div>
-
-                    <div className="details-row-vertical">
-                      <span>Customer Fault Report:</span>
-                      <p className="details-issue-text">{selectedBooking.issueDescription}</p>
-                    </div>
-
-                    <div className="details-row-vertical">
-                      <span>Technician Notes:</span>
-                      <p className="details-notes-text">{selectedBooking.notes || 'No notes added yet.'}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
+            <div className="animate-fade" style={{ height: 'calc(100vh - 160px)', minHeight: '520px' }}>
+              <ChatPanel
+                conversations={chatConversations}
+                selectedBooking={selectedBooking}
+                chatMessages={chatMessages}
+                newMessage={newMessage}
+                isLoading={chatLoading}
+                isUploadingImage={isUploadingImage}
+                typingUsers={typingUsers}
+                userRole="customer"
+                onSelectConversation={handleSelectConversation}
+                onSendMessage={handleSendMessage}
+                onTyping={handleTyping}
+                onImageUpload={handleImageUpload}
+              />
             </div>
           )}
 

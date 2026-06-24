@@ -449,3 +449,12 @@
     height: 18px !important;
   }
 }
+
+.notification-item-card {
+  transition: all 0.2s ease;
+}
+.notification-item-card:hover {
+  background-color: var(--neutral-light) !important;
+  border-color: var(--primary) !important;
+  transform: translateY(-1px);
+}

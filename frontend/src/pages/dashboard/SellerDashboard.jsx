@@ -42,6 +42,11 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
   const [techsList, setTechsList] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // --- PAGINATION STATES ---
+  const [ordersPage, setOrdersPage] = useState(1);
+  const [bookingsPage, setBookingsPage] = useState(1);
+  const itemsPerPage = 10;
+
   // --- RESCHEDULE STATES ---
   const [editingOrderId, setEditingOrderId] = useState(null);
   const [newDate, setNewDate] = useState('');
@@ -94,6 +99,8 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
   const fetchData = async () => {
     if (!user || !token) return;
     setLoading(true);
+    setOrdersPage(1);
+    setBookingsPage(1);
     try {
       const resBookings = await fetch(`${API_BASE}/api/bookings`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -434,6 +441,20 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
       alert('Không thể kết nối đến máy chủ.');
     }
   };
+
+  const handleNotificationClick = (n) => {
+    setShowNotifDropdown(false);
+    if (n.title?.includes('Lịch hẹn') || n.title?.includes('Đơn hàng') || n.title?.includes('xem máy')) {
+      setSubTab('bookings');
+    } else if (n.title?.includes('Chat') || n.title?.includes('nhắn') || n.title?.includes('Q&A')) {
+      setSubTab('chat');
+    } else if (n.title?.includes('Sản phẩm')) {
+      setSubTab('products');
+    } else {
+      setSubTab('bookings');
+    }
+  };
+
 
   const handleImageFileChange = (e) => {
     const file = e.target.files[0];
@@ -783,6 +804,14 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
 
   combinedItems.sort((a, b) => new Date(b.date) - new Date(a.date));
 
+  const totalOrderPages = Math.ceil(ordersList.length / itemsPerPage) || 1;
+  const activeOrdersPage = ordersPage > totalOrderPages ? totalOrderPages : ordersPage;
+  const currentOrders = ordersList.slice((activeOrdersPage - 1) * itemsPerPage, activeOrdersPage * itemsPerPage);
+
+  const totalBookingPages = Math.ceil(bookingsList.length / itemsPerPage) || 1;
+  const activeBookingsPage = bookingsPage > totalBookingPages ? totalBookingPages : bookingsPage;
+  const currentBookings = bookingsList.slice((activeBookingsPage - 1) * itemsPerPage, activeBookingsPage * itemsPerPage);
+
   return (
     <div className="dashboard-page admin-dashboard-layout seller-portal-layout animate-fade">
       <div className="dashboard-grid-layout">
@@ -935,7 +964,12 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                         <p style={{ fontSize: '0.8rem', color: 'var(--neutral-medium)', textAlign: 'center', margin: '20px 0' }}>Không có thông báo mới.</p>
                       ) : (
                         notifications.map(n => (
-                          <div key={n.id} style={{ padding: '8px', borderRadius: '4px', backgroundColor: 'var(--neutral-lightest)', borderLeft: '3px solid var(--primary)' }}>
+                          <div 
+                            key={n.id} 
+                            onClick={() => handleNotificationClick(n)}
+                            className="notification-item-card"
+                            style={{ padding: '8px', borderRadius: '4px', backgroundColor: 'var(--neutral-lightest)', borderLeft: '3px solid var(--primary)', cursor: 'pointer' }}
+                          >
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                               <strong style={{ fontSize: '0.8rem', color: 'var(--neutral-darkest)' }}>{n.title}</strong>
                               <span style={{ fontSize: '0.65rem', color: 'var(--neutral-medium)' }}>
@@ -1563,7 +1597,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                           <td colSpan="7" style={{ textAlign: 'center', padding: '20px', color: 'var(--neutral-medium)' }}>Chưa có lịch hẹn xem máy nào.</td>
                         </tr>
                       ) : (
-                        ordersList.map(o => (
+                        currentOrders.map(o => (
                           <tr key={o.id}>
                             <td>
                               <strong>{o.appointmentInfo?.fullName || o.shippingInfo?.fullName || 'Khách hàng'}</strong>
@@ -1669,6 +1703,34 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                     </tbody>
                   </table>
                 </div>
+
+                {totalOrderPages > 1 && (
+                  <div className="pagination-wrapper">
+                    <button 
+                      disabled={activeOrdersPage === 1} 
+                      onClick={() => setOrdersPage(activeOrdersPage - 1)}
+                      className="pagination-btn"
+                    >
+                      Trước
+                    </button>
+                    {Array.from({ length: totalOrderPages }, (_, i) => i + 1).map(page => (
+                      <button
+                        key={page}
+                        onClick={() => setOrdersPage(page)}
+                        className={`pagination-btn ${activeOrdersPage === page ? 'active' : ''}`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                    <button 
+                      disabled={activeOrdersPage === totalOrderPages} 
+                      onClick={() => setOrdersPage(activeOrdersPage + 1)}
+                      className="pagination-btn"
+                    >
+                      Sau
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Section 2: Phiếu Hẹn Sửa Chữa */}
@@ -1695,7 +1757,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                           <td colSpan="7" style={{ textAlign: 'center', padding: '20px', color: 'var(--neutral-medium)' }}>Chưa có phiếu hẹn sửa chữa nào.</td>
                         </tr>
                       ) : (
-                        bookingsList.map(bk => (
+                        currentBookings.map(bk => (
                           <tr key={bk.id}>
                             <td>
                               <strong>{bk.customerName}</strong>
@@ -1798,6 +1860,34 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                     </tbody>
                   </table>
                 </div>
+
+                {totalBookingPages > 1 && (
+                  <div className="pagination-wrapper">
+                    <button 
+                      disabled={activeBookingsPage === 1} 
+                      onClick={() => setBookingsPage(activeBookingsPage - 1)}
+                      className="pagination-btn"
+                    >
+                      Trước
+                    </button>
+                    {Array.from({ length: totalBookingPages }, (_, i) => i + 1).map(page => (
+                      <button
+                        key={page}
+                        onClick={() => setBookingsPage(page)}
+                        className={`pagination-btn ${activeBookingsPage === page ? 'active' : ''}`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                    <button 
+                      disabled={activeBookingsPage === totalBookingPages} 
+                      onClick={() => setBookingsPage(activeBookingsPage + 1)}
+                      className="pagination-btn"
+                    >
+                      Sau
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
