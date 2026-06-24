@@ -1146,7 +1146,188 @@ GO
 
 
 /* ==========================================================
-   PART 10: OUTPUT VERIFICATION
+   PART 10: SCHEMA MIGRATION - SERVICE FLOW & APPOINTMENT BOOKING
+   Tuân thủ Claude.md §6 (DB Integrity), §17 (Versioned Migration),
+   §26 (SARGable Queries & Proactive Indexing)
+   ========================================================== */
+
+-- ---------------------------------------------------------------
+-- 10.1 Bổ sung cột cho luồng Service Flow (Quy trình Booking Sửa Chữa)
+--       Bước 2: pickup_date   - Ngày khách đến lấy máy (seller chốt lịch)
+--       Bước 3: fault_report  - Chi tiết lỗi thợ báo (nhập sau khi kiểm tra)
+--       Bước 3: replaced_parts- Danh sách linh kiện thay thế (nhập sau kiểm tra)
+-- ---------------------------------------------------------------
+IF NOT EXISTS (
+    SELECT 1 FROM sys.columns
+    WHERE object_id = OBJECT_ID('repair_bookings')
+      AND name = 'pickup_date'
+)
+    ALTER TABLE repair_bookings ADD pickup_date DATETIME NULL;
+GO
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.columns
+    WHERE object_id = OBJECT_ID('repair_bookings')
+      AND name = 'fault_report'
+)
+    ALTER TABLE repair_bookings ADD fault_report NVARCHAR(MAX) NULL;
+GO
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.columns
+    WHERE object_id = OBJECT_ID('repair_bookings')
+      AND name = 'replaced_parts'
+)
+    ALTER TABLE repair_bookings ADD replaced_parts NVARCHAR(MAX) NULL;
+GO
+
+-- ---------------------------------------------------------------
+-- 10.2 Proactive Indexes - Claude.md §26
+--       Hỗ trợ truy vấn WHERE status, appointment_date, pickup_date
+--       theo đúng nguyên tắc SARGable (không bọc cột trong hàm)
+-- ---------------------------------------------------------------
+
+-- Index cho seller query: lọc theo trạng thái + sắp xếp ngày tạo
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_repair_bookings_status_created' AND object_id = OBJECT_ID('repair_bookings'))
+    CREATE INDEX idx_repair_bookings_status_created
+        ON repair_bookings (status, created_at DESC);
+GO
+
+-- Index hỗ trợ tự động giải phóng giữ chỗ: lọc theo appointment_date
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_repair_bookings_appointment_date' AND object_id = OBJECT_ID('repair_bookings'))
+    CREATE INDEX idx_repair_bookings_appointment_date
+        ON repair_bookings (appointment_date)
+        INCLUDE (status, repair_request_id);
+GO
+
+-- Index hỗ trợ seller lọc đơn hàng theo trạng thái
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_orders_status_created' AND object_id = OBJECT_ID('orders'))
+    CREATE INDEX idx_orders_status_created
+        ON orders (status, created_at DESC);
+GO
+
+-- ---------------------------------------------------------------
+-- 10.3 Cập nhật seed data bảng orders - Chuyển sang format JSON
+--       (appointmentInfo) theo luồng "Đặt lịch xem máy"
+--       Tuân thủ Claude.md §20 (Backward Compatibility - additive only)
+-- ---------------------------------------------------------------
+UPDATE orders
+SET
+    shipping_address = N'{"fullName":"Nguyễn Huy Hoàng","phone":"0900112233","appointmentDate":"2026-05-26","appointmentTime":"09:00 - 11:00","address":"123 Đường Ba Tháng Hai, Quận 10, TP. Hồ Chí Minh","notes":"Vui lòng giữ máy cho tôi"}',
+    status           = 'completed',
+    notes            = 'payment:cod|invoice:INV-2026-0001'
+WHERE notes LIKE '%invoice:INV-2026-0001%'
+   OR (notes = N'Giao giờ hành chính.' AND status = 'delivered');
+GO
+
+UPDATE orders
+SET
+    shipping_address = N'{"fullName":"Nguyễn Huy Hoàng","phone":"0900112233","appointmentDate":"2026-05-29","appointmentTime":"14:00 - 16:00","address":"123 Đường Ba Tháng Hai, Quận 10, TP. Hồ Chí Minh","notes":"Thanh toán khi đến xem"}',
+    status           = 'reserved',
+    notes            = 'payment:bank_transfer|invoice:INV-2026-0002'
+WHERE notes LIKE '%invoice:INV-2026-0002%'
+   OR (notes = N'Cần bọc chống sốc.' AND status = 'processing');
+GO
+
+-- ---------------------------------------------------------------
+-- 10.4 Seed data mẫu bổ sung cho luồng Service Flow (5 bước)
+--       Mỗi booking đại diện cho một giai đoạn khác nhau của flow
+-- ---------------------------------------------------------------
+DECLARE @IdCustProf2    INT;
+DECLARE @IdTechProfMinh2 INT;
+DECLARE @IdTechProfTuan2 INT;
+DECLARE @CatIdLaptop2   INT;
+DECLARE @CatIdPhone2    INT;
+DECLARE @CatIdWashing2  INT;
+
+SELECT @IdCustProf2     = id FROM customer_profiles WHERE user_id = (SELECT id FROM users WHERE username = N'Hoàng Nguyễn');
+SELECT @IdTechProfMinh2 = id FROM technician_profiles WHERE user_id = (SELECT id FROM users WHERE username = N'Kỹ thuật viên Minh');
+SELECT @IdTechProfTuan2 = id FROM technician_profiles WHERE user_id = (SELECT id FROM users WHERE username = N'Kỹ thuật viên Tuấn');
+SELECT @CatIdLaptop2    = id FROM service_categories WHERE category_name = N'Laptop';
+SELECT @CatIdPhone2     = id FROM service_categories WHERE category_name = N'Điện thoại';
+SELECT @CatIdWashing2   = id FROM service_categories WHERE category_name = N'Máy Giặt';
+
+-- --- Booking mẫu: Bước 1 - Khách vừa đặt lịch, đang chờ seller chốt ---
+INSERT INTO repair_requests (customer_id, category_id, user_description, ai_damage_level, ai_conclusion, ai_recommendation, status)
+VALUES (@IdCustProf2, @CatIdLaptop2, N'[Laptop] Màn hình bị chết 1 góc, vết đen lan rộng dần.', 'Medium', N'Vỡ tấm nền LCD.', N'Thay màn hình.', 'pending');
+
+DECLARE @IdReqStep1 INT = SCOPE_IDENTITY();
+INSERT INTO repair_bookings (repair_request_id, technician_id, appointment_date, quoted_price, address, notes, status, pickup_date, fault_report, replaced_parts)
+VALUES (@IdReqStep1, NULL, DATEADD(DAY, 3, GETDATE()), 0.00, N'TechCycle - 45 Đinh Tiên Hoàng, Bình Thạnh, TP. HCM', N'Khách đặt qua website, chờ seller liên hệ xác nhận.', 'pending', NULL, NULL, NULL);
+GO
+
+DECLARE @IdCustProf2    INT;
+DECLARE @IdTechProfMinh2 INT;
+DECLARE @CatIdPhone2    INT;
+
+SELECT @IdCustProf2     = id FROM customer_profiles WHERE user_id = (SELECT id FROM users WHERE username = N'Hoàng Nguyễn');
+SELECT @IdTechProfMinh2 = id FROM technician_profiles WHERE user_id = (SELECT id FROM users WHERE username = N'Kỹ thuật viên Minh');
+SELECT @CatIdPhone2     = id FROM service_categories WHERE category_name = N'Điện thoại';
+
+-- --- Booking mẫu: Bước 2 - Seller đã chốt lịch nhận máy (pickup_date được điền) ---
+INSERT INTO repair_requests (customer_id, category_id, user_description, ai_damage_level, ai_conclusion, ai_recommendation, status)
+VALUES (@IdCustProf2, @CatIdPhone2, N'[Điện thoại] Pin chai, sạc 1 tiếng vẫn không đầy, máy hay tắt đột ngột.', 'Light', N'Pin Li-Po chai nặng.', N'Thay pin chính hãng.', 'approved');
+
+DECLARE @IdReqStep2 INT = SCOPE_IDENTITY();
+INSERT INTO repair_bookings (repair_request_id, technician_id, appointment_date, quoted_price, address, notes, status, pickup_date, fault_report, replaced_parts)
+VALUES (@IdReqStep2, @IdTechProfMinh2, DATEADD(DAY, 1, GETDATE()), 0.00, N'TechCycle - 45 Đinh Tiên Hoàng, Bình Thạnh, TP. HCM', N'Seller đã gọi điện xác nhận. Khách sẽ mang máy tới vào ngày mai.', 'confirmed',
+        DATEADD(DAY, 5, GETDATE()), NULL, NULL);
+GO
+
+DECLARE @IdCustProf2    INT;
+DECLARE @IdTechProfTuan2 INT;
+DECLARE @CatIdWashing2  INT;
+
+SELECT @IdCustProf2     = id FROM customer_profiles WHERE user_id = (SELECT id FROM users WHERE username = N'Hoàng Nguyễn');
+SELECT @IdTechProfTuan2 = id FROM technician_profiles WHERE user_id = (SELECT id FROM users WHERE username = N'Kỹ thuật viên Tuấn');
+SELECT @CatIdWashing2   = id FROM service_categories WHERE category_name = N'Máy Giặt';
+
+-- --- Booking mẫu: Bước 3 - Thợ đã kiểm tra, seller đã báo lỗi & linh kiện ---
+INSERT INTO repair_requests (customer_id, category_id, user_description, ai_damage_level, ai_conclusion, ai_recommendation, status)
+VALUES (@IdCustProf2, @CatIdWashing2, N'[Máy Giặt] Máy không thoát nước sau khi giặt, toàn bộ nước đọng trong lồng.', 'Medium', N'Tắc bơm thoát nước.', N'Vệ sinh hoặc thay bơm xả.', 'approved');
+
+DECLARE @IdReqStep3 INT = SCOPE_IDENTITY();
+INSERT INTO repair_bookings (repair_request_id, technician_id, appointment_date, quoted_price, address, notes, status, pickup_date, fault_report, replaced_parts)
+VALUES (@IdReqStep3, @IdTechProfTuan2, DATEADD(DAY, -2, GETDATE()), 850000.00,
+        N'TechCycle - 45 Đinh Tiên Hoàng, Bình Thạnh, TP. HCM',
+        N'Thợ đã kiểm tra xong. Seller đã gửi báo lỗi và danh sách linh kiện cho khách qua thông báo.',
+        'repairing',
+        DATEADD(DAY, 2, GETDATE()),
+        N'Bơm thoát nước bị tắc nghẽn do rác vải tích tụ. Cánh quạt bơm bị mòn không còn tạo được áp suất đẩy nước ra ngoài.',
+        N'1x Bơm thoát nước (Motor Drain Pump) - Toshiba compatible - 320.000 VND; 1x Lưới lọc bơm mới - 80.000 VND');
+GO
+
+-- ---------------------------------------------------------------
+-- 10.5 Cập nhật repair_booking đã hoàn thành (Lịch 1 ở PART 6)
+--       bổ sung fault_report và replaced_parts cho dữ liệu sẵn có
+-- ---------------------------------------------------------------
+UPDATE rb
+SET
+    fault_report   = N'Tấm nền OLED bị vỡ do va đập vật lý, xuất hiện điểm chết và sọc xanh loang rộng trên 30% màn hình.',
+    replaced_parts = N'1x Màn hình OLED bóc máy cùng model - 1.200.000 VND; 1x Keo tản nhiệt màn hình - 50.000 VND; Công thợ - 250.000 VND',
+    pickup_date    = '2026-05-26 16:00:00',
+    updated_at     = '2026-05-26 15:30:00'
+FROM repair_bookings rb
+INNER JOIN repair_requests rr ON rb.repair_request_id = rr.id
+WHERE rb.status = 'completed'
+  AND rr.user_description LIKE N'%Màn hình bị sọc xanh%';
+GO
+
+UPDATE rb
+SET
+    fault_report   = N'Pin Li-Po phồng bọng ở cạnh giữa, điện áp đo được chỉ còn 3.2V (tiêu chuẩn 3.85V). Dung lượng thực còn khoảng 42% so với dung lượng ban đầu.',
+    replaced_parts = N'1x Pin Li-Polymer 4352mAh - Apple MacBook Pro compatible - 1.450.000 VND; Công thợ - 350.000 VND',
+    pickup_date    = DATEADD(DAY, 2, '2026-05-29 14:00:00'),
+    updated_at     = '2026-05-30 09:00:00'
+FROM repair_bookings rb
+INNER JOIN repair_requests rr ON rb.repair_request_id = rr.id
+WHERE rb.status = 'confirmed'
+  AND rr.user_description LIKE N'%Pin bị phồng%';
+GO
+
+
+/* ==========================================================
+   PART 11: OUTPUT VERIFICATION
    ========================================================== */
 PRINT '=======================================================';
 PRINT '  TECHCYCLE MASTER DATABASE COMPLETED SUCCESSFULLY     ';
@@ -1157,4 +1338,17 @@ SELECT COUNT(*) AS [Tổng Số Sản Phẩm] FROM products;
 SELECT COUNT(*) AS [Lịch Đặt Hẹn Thợ] FROM repair_bookings;
 SELECT COUNT(*) AS [Tổng Số Đơn Hàng] FROM orders;
 SELECT COUNT(*) AS [Tổng Số Lỗi (Cẩm Nang AI)] FROM repair_knowledge;
+
+-- Kiểm tra các cột mới đã tồn tại trong repair_bookings
+SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME = 'repair_bookings'
+  AND COLUMN_NAME IN ('pickup_date', 'fault_report', 'replaced_parts');
+
+-- Kiểm tra dữ liệu booking đã có đầy đủ fault_report và replaced_parts
+SELECT rb.id, rb.status, rb.pickup_date,
+       LEFT(rb.fault_report, 60)    AS fault_report_preview,
+       LEFT(rb.replaced_parts, 60)  AS replaced_parts_preview
+FROM repair_bookings rb
+WHERE rb.fault_report IS NOT NULL OR rb.replaced_parts IS NOT NULL;
 GO
