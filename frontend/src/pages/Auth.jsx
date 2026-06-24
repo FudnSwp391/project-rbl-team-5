@@ -118,14 +118,10 @@ const Auth = ({ setActivePage }) => {
       if (isLogin) {
         const loggedInUser = await login(email, password);
         const role = loggedInUser?.role?.toLowerCase();
-        if (role === 'admin' || role === 'technician' || role === 'seller') {
-          // Add 50ms delay to allow React state propagation before navigation
-          setTimeout(() => {
-            window.location.hash = '#/dashboard';
-          }, 50);
-        } else {
-          window.location.hash = '#/home';
-        }
+        // Redirect all logged in users to dashboard
+        setTimeout(() => {
+          window.location.hash = '#/dashboard';
+        }, 50);
       } else {
         if (!username) {
           setFormError('Vui lòng nhập họ và tên của bạn.');
@@ -497,25 +493,25 @@ const Auth = ({ setActivePage }) => {
               <div className="test-acc-grid">
                 <button 
                   className="test-acc-btn"
-                  onClick={() => { setEmail('customer@gmail.com'); setPassword('123456'); }}
+                  onClick={() => { setEmail('customer@gmail.com'); setPassword('user123'); }}
                 >
                   Khách hàng
                 </button>
                 <button 
                   className="test-acc-btn"
-                  onClick={() => { setEmail('seller@techcycle.vn'); setPassword('123456'); }}
+                  onClick={() => { setEmail('seller@techcycle.vn'); setPassword('seller123'); }}
                 >
                   Người bán
                 </button>
                 <button 
                   className="test-acc-btn"
-                  onClick={() => { setEmail('minh.tech@techcycle.vn'); setPassword('123456'); }}
+                  onClick={() => { setEmail('minh.tech@techcycle.vn'); setPassword('tech123'); }}
                 >
                   Kỹ thuật
                 </button>
                 <button 
                   className="test-acc-btn"
-                  onClick={() => { setEmail('admin@techcycle.vn'); setPassword('123456'); }}
+                  onClick={() => { setEmail('admin@techcycle.vn'); setPassword('admin123'); }}
                 >
                   Quản trị
                 </button>

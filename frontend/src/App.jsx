@@ -21,7 +21,8 @@ function MainApp() {
     if (!hash.startsWith('#/')) {
       return { page: 'home', subTab: null };
     }
-    const path = hash.slice(2); // remove '#/'
+    const cleanHash = hash.split('?')[0];
+    const path = cleanHash.slice(2); // remove '#/'
     const parts = path.split('/');
     return { page: parts[0] || 'home', subTab: parts[1] || null };
   };
