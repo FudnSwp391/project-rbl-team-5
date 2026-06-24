@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { MapPin, CreditCard, CheckCircle2, ArrowRight, ShieldCheck, Printer, Calendar } from 'lucide-react';
+import { MapPin, CreditCard, CheckCircle2, ArrowRight, ShieldCheck, Printer, Calendar, Phone, Store, User, ListOrdered, Package, Tag, ShoppingCart, FileText, Coins, Truck, Check, ClipboardCheck, ChevronRight, Mail, Globe } from 'lucide-react';
 import './Checkout.css';
 
 const getVietQrBankId = (brand) => {
@@ -678,94 +678,208 @@ const Checkout = ({ setActivePage }) => {
 
           {/* STEP 4: INVOICE PRINT VIEW */}
           {step === 'invoice' && completedOrder && (
-            <div className="invoice-container glass-panel animate-scale-up">
+            <div className="invoice-container modern-invoice animate-scale-up">
+              {/* Header section */}
               <div className="invoice-header">
                 <div className="invoice-brand">
-                  <div className="invoice-logo">
-                    <span>TechCycle Invoice</span>
+                  <div className="invoice-logo-wrapper">
+                    <img src="/logo.png" alt="TechCycle" className="invoice-logo-img" onError={(e) => e.target.style.display = 'none'} />
+                    <div className="invoice-brand-text">
+                      <span className="logo-main">TechCycle</span>
+                      <span className="logo-sub">Invoice</span>
+                    </div>
                   </div>
-                  <p>Công nghệ tuần hoàn - Tương lai bền vững</p>
+                  <p className="invoice-tagline">Công nghệ tuần hoàn - Tương lai bền vững</p>
                 </div>
-                <div className="invoice-meta">
-                  <h2>HÓA ĐƠN MUA HÀNG</h2>
-                  <p>Mã hóa đơn: <strong>{completedOrder.invoiceNumber}</strong></p>
-                  <p><Calendar size={14} /> Ngày lập: {new Date(completedOrder.createdAt).toLocaleDateString('vi-VN')}</p>
-                </div>
-              </div>
-
-              <hr className="invoice-divider" />
-
-              <div className="invoice-addresses">
-                <div className="addr-col">
-                  <h5>ĐƠN VỊ CUNG CẤP:</h5>
-                  <p><strong>TechCycle Việt Nam</strong></p>
-                  <p>123 Đường Ba Tháng Hai, Quận 10, TP. Hồ Chí Minh</p>
-                  <p>Hotline: 0900.112.233</p>
-                </div>
-                <div className="addr-col">
-                  <h5>KHÁCH HÀNG:</h5>
-                  <p><strong>{completedOrder.shippingInfo.fullName}</strong></p>
-                  <p>{completedOrder.shippingInfo.address}</p>
-                  <p>SĐT: {completedOrder.shippingInfo.phone}</p>
+                <div className="invoice-meta-new">
+                  <h2 className="invoice-title-text">HÓA ĐƠN MUA HÀNG</h2>
+                  <div className="invoice-meta-badges">
+                    <div className="meta-badge-item">
+                      <span className="badge-label">Mã hóa đơn:</span>
+                      <span className="badge-value text-green">{completedOrder.invoiceNumber}</span>
+                    </div>
+                    <div className="meta-badge-item">
+                      <span className="badge-label">Ngày lập:</span>
+                      <span className="badge-value"><Calendar size={12} /> {new Date(completedOrder.createdAt).toLocaleDateString('vi-VN')}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <table className="invoice-table">
+              {/* Address Columns */}
+              <div className="invoice-addresses-new">
+                {/* Supplier */}
+                <div className="addr-card-new">
+                  <span className="card-badge supplier-badge">ĐƠN VỊ CUNG CẤP</span>
+                  <div className="card-content-new">
+                    <div className="card-icon-avatar">
+                      <Store size={22} className="avatar-icon" />
+                    </div>
+                    <div className="card-info-new">
+                      <h4>TechCycle Việt Nam</h4>
+                      <p><MapPin size={14} /> 123 Đường Ba Tháng Hai, Quận 10, TP. Hồ Chí Minh</p>
+                      <p><Phone size={14} /> 0900.112.233</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Customer */}
+                <div className="addr-card-new">
+                  <span className="card-badge customer-badge">KHÁCH HÀNG</span>
+                  <div className="card-content-new">
+                    <div className="card-icon-avatar">
+                      <User size={22} className="avatar-icon" />
+                    </div>
+                    <div className="card-info-new">
+                      <h4>{completedOrder.shippingInfo.fullName}</h4>
+                      <p><MapPin size={14} /> {completedOrder.shippingInfo.address}</p>
+                      <p><Phone size={14} /> {completedOrder.shippingInfo.phone}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Items Table */}
+              <table className="invoice-table-new">
                 <thead>
                   <tr>
-                    <th>Sản phẩm</th>
-                    <th className="text-right">Đơn giá</th>
-                    <th className="text-right">Số lượng</th>
-                    <th className="text-right">Thành tiền</th>
+                    <th style={{ width: '80px' }}>STT</th>
+                    <th>SẢN PHẨM</th>
+                    <th className="text-right" style={{ width: '180px' }}>ĐƠN GIÁ</th>
+                    <th className="text-center" style={{ width: '120px' }}>SỐ LƯỢNG</th>
+                    <th className="text-right" style={{ width: '180px' }}>THÀNH TIỀN</th>
                   </tr>
                 </thead>
                 <tbody>
                   {completedOrder.items.map((item, idx) => (
                     <tr key={idx}>
-                      <td>{item.name}</td>
-                      <td className="text-right">{(item.price || 0).toLocaleString('en-US')} <span className="currency">VND</span></td>
-                      <td className="text-right">1</td>
-                      <td className="text-right">{(item.price || 0).toLocaleString('en-US')} <span className="currency">VND</span></td>
+                      <td>{idx + 1}</td>
+                      <td className="item-name-cell">{item.name}</td>
+                      <td className="text-right font-medium">{(item.price || 0).toLocaleString('vi-VN')} <span className="currency-unit">VND</span></td>
+                      <td className="text-center">1</td>
+                      <td className="text-right text-green font-bold">{(item.price || 0).toLocaleString('vi-VN')} <span className="currency-unit">VND</span></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
 
-              <div className="invoice-totals">
-                <div className="totals-row">
-                  <span>Tạm tính:</span>
-                  <span>{completedOrder.totalAmount.toLocaleString('en-US')} <span className="currency">VND</span></span>
+              {/* Notes and Totals Row */}
+              <div className="invoice-middle-row">
+                {/* Notes card */}
+                <div className="notes-card-new">
+                  <div className="notes-header">
+                    <FileText size={16} />
+                    <span>GHI CHÚ</span>
+                  </div>
+                  <div className="notes-body">
+                    {completedOrder.shippingInfo.notes ? completedOrder.shippingInfo.notes : 'Cám ơn quý khách đã tin tưởng và sử dụng dịch vụ của TechCycle.'}
+                  </div>
                 </div>
-                <div className="totals-row">
-                  <span>VAT (0% - Thiết bị cũ tái chế):</span>
-                  <span>0 <span className="currency">VND</span></span>
-                </div>
-                <div className="totals-row">
-                  <span>Vận chuyển:</span>
-                  <span>Miễn phí</span>
-                </div>
-                <hr />
-                <div className="totals-row final-row">
-                  <span>Tổng thanh toán:</span>
-                  <span>{completedOrder.totalAmount.toLocaleString('en-US')} <span className="currency">VND</span></span>
+
+                {/* Totals Summary */}
+                <div className="totals-box-new">
+                  <div className="totals-item-new">
+                    <span className="totals-label-new"><FileText size={14} /> Tạm tính:</span>
+                    <span className="totals-value-new">{(completedOrder.totalAmount || 0).toLocaleString('vi-VN')} <span className="currency-unit">VND</span></span>
+                  </div>
+                  <div className="totals-item-new">
+                    <span className="totals-label-new"><Coins size={14} /> VAT (0% - Thiết bị cũ tái chế):</span>
+                    <span className="totals-value-new">0 <span className="currency-unit">VND</span></span>
+                  </div>
+                  <div className="totals-item-new">
+                    <span className="totals-label-new"><Truck size={14} /> Vận chuyển:</span>
+                    <span className="totals-value-new text-green">Miễn phí</span>
+                  </div>
+                  
+                  <div className="totals-final-row">
+                    <span className="final-label">TỔNG THANH TOÁN:</span>
+                    <span className="final-value">{(completedOrder.totalAmount || 0).toLocaleString('vi-VN')} <span className="currency-unit">VND</span></span>
+                  </div>
                 </div>
               </div>
 
-              <div className="invoice-footer">
-                <div className="payment-status-badge">
-                  <ShieldCheck size={18} />
-                  <span>Trạng thái: CHỜ GIAO HÀNG / {completedOrder.paymentMethod === 'cod' ? 'Thanh toán COD' : completedOrder.paymentMethod === 'vnpay' ? 'Đã thanh toán VNPay' : 'Đã thanh toán CK'}</span>
+              {/* Status and Next Steps */}
+              <div className="invoice-bottom-grid">
+                {/* Order status */}
+                <div className="status-box-card">
+                  <div className="card-header-new">
+                    <CheckCircle2 size={16} />
+                    <span>TRẠNG THÁI HÓA ĐƠN</span>
+                  </div>
+                  <div className="status-badge-wrapper">
+                    <div className="status-check-circle">
+                      <Check size={14} />
+                    </div>
+                    <span className="status-badge-text-green">
+                      {completedOrder.paymentMethod === 'cod' ? 'CHỜ GIAO HÀNG / THANH TOÁN COD' : completedOrder.paymentMethod === 'vnpay' ? 'CHỜ GIAO HÀNG / ĐÃ THANH TOÁN VNPAY' : 'CHỜ GIAO HÀNG / ĐÃ THANH TOÁN CK'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Next steps timeline */}
+                <div className="next-steps-card">
+                  <div className="card-header-new">
+                    <Truck size={16} />
+                    <span>CÁC BƯỚC TIẾP THEO</span>
+                  </div>
+                  <div className="steps-timeline-wrapper">
+                    {/* Step 1 */}
+                    <div className="timeline-step-item active">
+                      <div className="step-circle-icon">
+                        <ClipboardCheck size={16} />
+                      </div>
+                      <span className="step-name-text">Xác nhận đơn hàng</span>
+                    </div>
+                    <ChevronRight size={14} className="step-arrow-separator" />
+
+                    {/* Step 2 */}
+                    <div className="timeline-step-item">
+                      <div className="step-circle-icon">
+                        <Truck size={16} />
+                      </div>
+                      <span className="step-name-text">Chuẩn bị giao hàng</span>
+                    </div>
+                    <ChevronRight size={14} className="step-arrow-separator" />
+
+                    {/* Step 3 */}
+                    <div className="timeline-step-item">
+                      <div className="step-circle-icon">
+                        <CheckCircle2 size={16} />
+                      </div>
+                      <span className="step-name-text">Giao hàng thành công</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Thank you note & Footer contact */}
+              <div className="invoice-footer-new">
+                <div className="footer-links-col">
+                  <div className="thank-you-message">
+                    🌱 Cảm ơn quý khách đã lựa chọn TechCycle! 🌱
+                  </div>
+                  <div className="footer-contact-details">
+                    <span className="contact-item"><Mail size={12} /> support@techcycle.vn</span>
+                    <span className="contact-item"><Globe size={12} /> www.techcycle.vn</span>
+                  </div>
                 </div>
                 
-                <div className="invoice-actions no-print">
-                  <button className="btn btn-outline" onClick={() => window.print()}>
-                    <Printer size={16} />
-                    In hóa đơn
-                  </button>
-                  <button className="btn btn-primary" onClick={() => setActivePage('shop')}>
-                    Tiếp tục mua sắm
-                  </button>
+                {/* QR Code section */}
+                <div className="footer-qr-code-section">
+                  <img src={`https://api.qrserver.com/v1/create-qr-code/?size=72x72&data=https://techcycle.vn/invoice/${completedOrder.id}`} alt="Invoice QR Code" className="footer-qr-img" />
+                  <span className="qr-instruct-text">Quét mã để xem<br />thông tin đơn hàng</span>
                 </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="invoice-actions-row no-print">
+                <button className="btn btn-outline btn-print-invoice" onClick={() => window.print()}>
+                  <Printer size={16} />
+                  In hóa đơn
+                </button>
+                <button className="btn btn-primary" onClick={() => setActivePage('shop')}>
+                  Tiếp tục mua sắm
+                </button>
               </div>
             </div>
           )}
