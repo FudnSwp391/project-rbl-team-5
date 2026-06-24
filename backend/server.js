@@ -54,6 +54,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/payment', paymentRoutes);
+app.use('/api/payments', paymentRoutes);
 app.use('/api', systemRoutes);
 
 // In-memory notifications database (avoids touching SQL)
@@ -312,6 +313,10 @@ app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
   }
 });
+
+// --- START BACKGROUND JOBS ---
+const { startOrderTimeoutCheck } = require('./controllers/orderController');
+startOrderTimeoutCheck();
 
 // --- START SERVER ---
 server.listen(PORT, () => {

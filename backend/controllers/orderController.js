@@ -507,3 +507,198 @@ exports.rescheduleOrder = async (req, res) => {
     res.status(500).json({ message: 'Lỗi server khi cập nhật lịch hẹn.' });
   }
 };
+// POST /api/orders/sepay-webhook - SePay tự động gọi khi nhận được giao dịch chuyển khoản
+exports.sepayWebhook = async (req, res) => {
+  try {
+    // SePay gửi thông tin giao dịch qua body (trên thực tế thuộc tính là 'content' thay vì 'transferContent')
+    const { transferAmount, transferContent, content, accountNumber } = req.body;
+    
+    console.log('[SePay Webhook] Nhận được giao dịch:', JSON.stringify(req.body));
+
+    // Kiểm tra API key từ header để bảo mật
+    const authHeader = req.headers['authorization'] || req.headers['apikey'] || '';
+    // Lấy token thực tế (bỏ tiền tố 'Apikey ' hoặc 'Bearer ' nếu có)
+    const apiKey = authHeader.replace(/^(Apikey|Bearer)\s+/i, '').trim();
+    const expectedKey = (process.env.SEPAY_API_KEY || '').trim();
+    
+    if (expectedKey && apiKey !== expectedKey) {
+      console.warn('[SePay Webhook] API key không hợp lệ:', apiKey);
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    // Tìm mã đơn hàng bằng cách duyệt qua tất cả các giá trị trong body để tìm mẫu TC{orderId} (không phân biệt hoa thường)
+    let orderId = null;
+    let rawContent = '';
+    
+    // Tìm trong các trường phổ biến trước
+    const commonFields = ['content', 'description', 'transferContent', 'transfer_content'];
+    for (const field of commonFields) {
+      if (req.body[field]) {
+        const val = String(req.body[field]).toUpperCase();
+        const match = val.match(/TC(\d+)/);
+        if (match) {
+          orderId = parseInt(match[1]);
+          rawContent = val;
+          break;
+        }
+      }
+    }
+    
+    // Nếu vẫn không tìm thấy, quét toàn bộ req.body dưới dạng string
+    if (!orderId) {
+      const bodyStr = JSON.stringify(req.body).toUpperCase();
+      const match = bodyStr.match(/TC(\d+)/);
+      if (match) {
+        orderId = parseInt(match[1]);
+        rawContent = `JSON_BODY: ${bodyStr}`;
+      }
+    }
+
+    if (!orderId) {
+      console.log('[SePay Webhook] Không tìm thấy mã đơn hàng trong nội dung:', JSON.stringify(req.body));
+      return res.json({ success: false, message: 'Không tìm thấy mã đơn hàng trong nội dung chuyển khoản' });
+    }
+
+    console.log(`[SePay Webhook] Tìm thấy đơn hàng #${orderId}`);
+
+    // Lấy thông tin đơn hàng
+    const order = await db.findOne('orders', { id: orderId });
+    if (!order) {
+      console.log(`[SePay Webhook] Không tìm thấy đơn hàng #${orderId}`);
+      return res.json({ success: false, message: `Không tìm thấy đơn hàng #${orderId}` });
+    }
+
+    // Chỉ xử lý đơn đang chờ thanh toán
+    if (order.status !== 'waiting_payment' && order.status !== 'pending') {
+      console.log(`[SePay Webhook] Đơn #${orderId} không ở trạng thái chờ thanh toán (status: ${order.status})`);
+      return res.json({ success: false, message: `Đơn hàng không ở trạng thái chờ thanh toán` });
+    }
+
+    // Kiểm tra số tiền (cho phép sai lệch nhỏ)
+    const expectedAmount = Number(order.total_amount);
+    const receivedAmount = Number(transferAmount);
+    if (Math.abs(receivedAmount - expectedAmount) > 1000) {
+      console.warn(`[SePay Webhook] Số tiền không khớp: nhận ${receivedAmount}, cần ${expectedAmount}`);
+      // Vẫn xác nhận nếu số tiền >= số cần thanh toán
+      if (receivedAmount < expectedAmount) {
+        return res.json({ success: false, message: `Số tiền chuyển khoản không đủ` });
+      }
+    }
+
+    // Xác nhận thanh toán - cập nhật trạng thái đơn hàng thành 'processing'
+    await db.update('orders', 'id', orderId, {
+      status: 'processing',
+      updated_at: new Date().toISOString()
+    });
+
+    // Cập nhật trạng thái sản phẩm trong đơn sang 'sold_out' (đã bán) để ẩn khỏi chợ đồ cũ ngay lập tức
+    await db.query(`
+      UPDATE products 
+      SET status = 'sold_out' 
+      WHERE id IN (SELECT product_id FROM order_items WHERE order_id = @orderId)
+    `, [{ name: 'orderId', value: orderId }]);
+
+    console.log(`[SePay Webhook] ✅ Đã xác nhận thanh toán cho đơn #${orderId} và đánh dấu các sản phẩm là sold_out`);
+
+    // Gửi email xác nhận thanh toán thành công tới khách hàng
+    try {
+      const customerProfile = await db.findOne('customer_profiles', { id: order.customer_id });
+      let customerEmail = '';
+      if (customerProfile) {
+        const user = await db.findOne('users', { id: customerProfile.user_id });
+        if (user) {
+          customerEmail = user.email;
+        }
+      }
+
+      if (customerEmail) {
+        // Parse invoice number
+        let invoiceNumber = `INV-${order.id}`;
+        if (order.notes) {
+          const parts = order.notes.split('|');
+          parts.forEach(part => {
+            if (part.startsWith('invoice:')) {
+              invoiceNumber = part.replace('invoice:', '');
+            }
+          });
+        }
+
+        // Parse shipping info
+        let shippingInfo = {};
+        if (order.shipping_address) {
+          const trimmed = order.shipping_address.trim();
+          if (trimmed.startsWith('{')) {
+            try {
+              shippingInfo = JSON.parse(trimmed);
+            } catch (e) {
+              shippingInfo = { address: order.shipping_address, fullName: 'Khách hàng', phone: '' };
+            }
+          } else {
+            shippingInfo = { address: order.shipping_address, fullName: 'Khách hàng', phone: '' };
+          }
+        }
+
+        // Fetch items
+        const itemsResult = await db.query(
+          'SELECT * FROM order_items WHERE order_id = @orderId',
+          [{ name: 'orderId', value: order.id }]
+        );
+        const items = await Promise.all(itemsResult.recordset.map(async (item) => {
+          const prod = await db.findOne('products', { id: item.product_id });
+          return {
+            productId: item.product_id,
+            name: prod ? (prod.title || prod.name) : 'Thiết bị cũ',
+            price: item.price,
+            quantity: item.quantity
+          };
+        }));
+
+        const { sendOrderConfirmationEmail } = require('../emailService');
+        await sendOrderConfirmationEmail(customerEmail, {
+          invoiceNumber,
+          createdAt: order.created_at,
+          totalAmount: order.total_amount,
+          shippingInfo,
+          items
+        });
+      }
+    } catch (emailErr) {
+      console.error('[SePay Webhook] Lỗi gửi email xác nhận thanh toán:', emailErr);
+    }
+
+    res.json({ success: true, message: `Đã xác nhận thanh toán cho đơn hàng #${orderId}` });
+
+  } catch (err) {
+    console.error('[SePay Webhook] Lỗi:', err);
+    res.status(500).json({ success: false, message: 'Lỗi server', error: err.message });
+  }
+};
+
+// Background job: Tự động hủy các đơn bank_transfer quá 10 phút chưa thanh toán
+exports.startOrderTimeoutCheck = () => {
+  setInterval(async () => {
+    try {
+      const result = await db.query(
+        `SELECT id, created_at FROM orders WHERE status = 'waiting_payment'`
+      );
+      const rows = result.recordset || [];
+      for (const order of rows) {
+        const createdAt = new Date(order.created_at);
+        const minutesElapsed = (Date.now() - createdAt.getTime()) / (1000 * 60);
+        if (minutesElapsed > 10) {
+          await db.update('orders', 'id', order.id, { 
+            status: 'cancelled',
+            updated_at: new Date().toISOString()
+          });
+          await db.query(
+            `UPDATE products SET status = 'active' WHERE id IN (SELECT product_id FROM order_items WHERE order_id = @orderId)`,
+            [{ name: 'orderId', value: order.id }]
+          );
+          console.log(`[TimeoutCheck] Tự động hủy đơn #${order.id} do quá 10 phút không thanh toán.`);
+        }
+      }
+    } catch (e) {
+      // Ignore errors in background job
+    }
+  }, 60 * 1000); // Kiểm tra mỗi 1 phút
+};

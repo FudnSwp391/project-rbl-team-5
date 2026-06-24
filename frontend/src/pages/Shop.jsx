@@ -64,10 +64,28 @@ const Shop = ({ selectedProduct, setSelectedProduct, showFilters, setShowFilters
 
     // 3. Condition Filter (ai_condition field)
     result = result.filter(p => {
-      const cond = (p.ai_condition || p.condition || '').toLowerCase();
-      if (cond.includes('excellent') && !conditions.excellent) return false;
-      if (cond.includes('good') && !conditions.good) return false;
-      if (cond.includes('fair') && !conditions.fair) return false;
+      const cond = (p.ai_condition || p.condition || '').toLowerCase().trim();
+
+      // Map DB values → filter keys
+      const isExcellent =
+        cond.includes('excellent') ||
+        cond === '99%' ||
+        cond.startsWith('99');
+
+      const isGood =
+        cond.includes('good') ||
+        cond === '>90%' ||
+        cond.startsWith('>90') ||
+        (cond.startsWith('9') && !isExcellent); // 90%, 92%...
+
+      const isFair =
+        cond === '>80%' ||
+        cond.startsWith('>80') ||
+        cond.startsWith('8'); // 80%, 85%...
+
+      if (isExcellent && !conditions.excellent) return false;
+      if (isGood && !conditions.good) return false;
+      if (isFair && !conditions.fair) return false;
       return true;
     });
 
