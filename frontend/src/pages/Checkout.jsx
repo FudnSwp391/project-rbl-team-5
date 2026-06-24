@@ -15,7 +15,7 @@ const Checkout = ({ setActivePage }) => {
   // Form states
   const [fullName, setFullName] = useState(user ? user.username : '');
   const [phone, setPhone] = useState(user ? user.phone : '');
-  const [address, setAddress] = useState('');
+  const [address, setAddress] = useState('123 Đường Ba Tháng Hai, Quận 10, TP. Hồ Chí Minh');
   const [notes, setNotes] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('cod'); // cod, bank_transfer
 
@@ -249,7 +249,7 @@ const Checkout = ({ setActivePage }) => {
         <div className="checkout-steps-indicator">
           <div className={`step-item ${step === 'shipping' ? 'active' : ''} ${step !== 'shipping' ? 'completed' : ''}`}>
             <span className="step-num">{step !== 'shipping' ? '✓' : '1'}</span>
-            <span className="step-label">Vận chuyển</span>
+            <span className="step-label">Thông tin nhận máy</span>
           </div>
           <div className="step-line"></div>
           <div className={`step-item ${step === 'payment' ? 'active' : ''} ${step === 'confirm' ? 'completed' : ''}`}>
@@ -273,8 +273,8 @@ const Checkout = ({ setActivePage }) => {
           {/* STEP 1: SHIPPING FORM */}
           {step === 'shipping' && (
             <form onSubmit={handleShippingSubmit} className="checkout-form glass-panel">
-              <h3>Thông tin vận chuyển</h3>
-              <p className="form-desc">Nhập địa chỉ giao hàng chính xác để chúng tôi gửi máy đến bạn.</p>
+              <h3>Thông tin nhận máy</h3>
+              <p className="form-desc">Xác nhận thông tin người nhận và địa điểm đến nhận máy trực tiếp tại công ty.</p>
               
               <div className="form-group">
                 <label className="form-label">Họ và tên người nhận</label>
@@ -301,23 +301,23 @@ const Checkout = ({ setActivePage }) => {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Địa chỉ nhận hàng</label>
+                <label className="form-label">Địa điểm nhận máy (Đến nhận tại công ty)</label>
                 <input 
                   type="text" 
                   className="form-control" 
-                  placeholder="Số nhà, Tên đường, Phường/Xã, Quận/Huyện, Tỉnh/Thành phố" 
                   value={address}
-                  onChange={e => setAddress(e.target.value)}
+                  readOnly
+                  style={{ cursor: 'not-allowed', backgroundColor: 'rgba(255, 255, 255, 0.05)', color: 'var(--neutral-medium)', border: '1px solid var(--border-color)' }}
                   required
                 />
               </div>
 
               <div className="form-group">
-                <label className="form-label">Ghi chú giao hàng (Không bắt buộc)</label>
+                <label className="form-label">Ghi chú (Không bắt buộc)</label>
                 <textarea 
                   className="form-control" 
                   rows="3" 
-                  placeholder="Ví dụ: Giao giờ hành chính, gọi trước khi giao..."
+                  placeholder="Ví dụ: Hẹn thời gian ghé qua, yêu cầu đặc biệt..."
                   value={notes}
                   onChange={e => setNotes(e.target.value)}
                 ></textarea>
@@ -415,7 +415,7 @@ const Checkout = ({ setActivePage }) => {
 
               <div className="confirmation-blocks">
                 <div className="confirm-block">
-                  <h4><MapPin size={16} /> Địa chỉ giao nhận:</h4>
+                  <h4><MapPin size={16} /> Địa điểm nhận máy:</h4>
                   <p><strong>{fullName}</strong> - {phone}</p>
                   <p>{address}</p>
                   {notes && <p className="confirm-notes">Ghi chú: {notes}</p>}
@@ -488,10 +488,10 @@ const Checkout = ({ setActivePage }) => {
                   <p>Hotline: 0900.112.233</p>
                 </div>
                 <div className="addr-col">
-                  <h5>KHÁCH HÀNG:</h5>
-                  <p><strong>{completedOrder.shippingInfo.fullName}</strong></p>
-                  <p>{completedOrder.shippingInfo.address}</p>
+                  <h5>KHÁCH HÀNG & ĐỊA ĐIỂM NHẬN:</h5>
+                  <p>Họ tên: <strong>{completedOrder.shippingInfo.fullName}</strong></p>
                   <p>SĐT: {completedOrder.shippingInfo.phone}</p>
+                  <p>Nơi nhận: {completedOrder.shippingInfo.address}</p>
                 </div>
               </div>
 

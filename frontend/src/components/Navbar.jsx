@@ -48,6 +48,55 @@ const Navbar = ({ activePage, setActivePage, theme, setTheme, setDashboardSubTab
     }
   };
 
+  const handleNotificationClick = (n) => {
+    setShowNotifDropdown(false);
+    if (!user) return;
+    
+    const role = String(user.role).toLowerCase();
+    
+    // Always navigate to the dashboard page first
+    setActivePage('dashboard');
+    
+    // Determine target subTab based on role and notification content
+    if (role === 'seller') {
+      if (n.title?.includes('Lịch hẹn') || n.title?.includes('Đơn hàng') || n.title?.includes('xem máy')) {
+        setDashboardSubTab('bookings');
+      } else if (n.title?.includes('Chat') || n.title?.includes('nhắn') || n.title?.includes('Q&A')) {
+        setDashboardSubTab('chat');
+      } else if (n.title?.includes('Sản phẩm')) {
+        setDashboardSubTab('products');
+      } else {
+        setDashboardSubTab('bookings');
+      }
+    } else if (role === 'admin') {
+      if (n.title?.includes('Lịch hẹn') || n.title?.includes('Đơn hàng') || n.title?.includes('xem máy') || n.title?.includes('sửa chữa')) {
+        setDashboardSubTab('bookings');
+      } else if (n.title?.includes('complaint') || n.title?.includes('khiếu nại')) {
+        setDashboardSubTab('complaints');
+      } else {
+        setDashboardSubTab('stats');
+      }
+    } else if (role === 'technician') {
+      if (n.title?.includes('sửa chữa') || n.title?.includes('phân công') || n.title?.includes('Hẹn')) {
+        setDashboardSubTab('bookings');
+      } else if (n.title?.includes('Chat') || n.title?.includes('nhắn')) {
+        setDashboardSubTab('chat');
+      } else {
+        setDashboardSubTab('bookings');
+      }
+    } else if (role === 'customer') {
+      if (n.title?.includes('sửa chữa') || n.title?.includes('phân công') || n.title?.includes('lịch hẹn')) {
+        setDashboardSubTab('bookings');
+      } else if (n.title?.includes('Đơn hàng') || n.title?.includes('mua hàng') || n.title?.includes('xem máy') || n.title?.includes('thanh toán')) {
+        setDashboardSubTab('orders');
+      } else if (n.title?.includes('Chat') || n.title?.includes('nhắn')) {
+        setDashboardSubTab('chat');
+      } else {
+        setDashboardSubTab('overview');
+      }
+    }
+  };
+
   const handleLogout = () => {
     logout();
     setShowDropdown(false);
@@ -137,7 +186,12 @@ const Navbar = ({ activePage, setActivePage, theme, setTheme, setDashboardSubTab
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     {notifications.map((n) => (
-                      <div key={n.id} style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', background: 'var(--neutral-bg)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                      <div 
+                        key={n.id} 
+                        onClick={() => handleNotificationClick(n)}
+                        className="notification-item-card"
+                        style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', background: 'var(--neutral-bg)', borderRadius: '8px', border: '1px solid var(--border-color)', cursor: 'pointer' }}
+                      >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px' }}>
                           <span style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--primary-dark)' }}>{n.title}</span>
                           <span style={{ fontSize: '0.7rem', color: 'var(--neutral-medium)', flexShrink: 0 }}>{new Date(n.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
