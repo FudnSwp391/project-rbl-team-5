@@ -178,7 +178,9 @@ const useBookingChat = (user, token) => {
       senderId: Number(user.id),
       receiverId: Number(receiverId),
       bookingId: Number(booking.id),
-      text: newMessage.trim()
+      text: newMessage.trim(),
+      senderName: user.username,
+      senderAvatar: user.avatar || ''
     };
 
     // Optimistic update — hiện tin nhắn ngay trước khi server xác nhận
@@ -236,7 +238,9 @@ const useBookingChat = (user, token) => {
               senderId: Number(user.id),
               receiverId: Number(receiverId),
               bookingId: Number(booking.id),
-              text: `[IMG]${imageUrl}`
+              text: `[IMG]${imageUrl}`,
+              senderName: user.username,
+              senderAvatar: user.avatar || ''
             });
           }
         } else {
