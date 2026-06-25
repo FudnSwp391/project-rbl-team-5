@@ -176,13 +176,19 @@ function MainApp() {
   );
 }
 
+function CartWrapper() {
+  const { user } = useAuth();
+  return (
+    <CartProvider key={user?.id || 'guest'}>
+      <MainApp />
+    </CartProvider>
+  );
+}
+
 function App() {
   return (
-
     <AuthProvider>
-      <CartProvider>
-        <MainApp />
-      </CartProvider>
+      <CartWrapper />
     </AuthProvider>
   );
 }
