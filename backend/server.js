@@ -297,7 +297,7 @@ io.on('connection', (socket) => {
     try {
       db.query(
         `INSERT INTO messages (sender_id, receiver_id, booking_id, text_content, timestamp)
-         VALUES (@senderId, @receiverId, @bookingId, @text, GETDATE());
+         VALUES (@senderId, @receiverId, @bookingId, @text, GETUTCDATE());
          SELECT SCOPE_IDENTITY() AS newId;`,
         [
           { name: 'senderId', value: Number(senderId) },
