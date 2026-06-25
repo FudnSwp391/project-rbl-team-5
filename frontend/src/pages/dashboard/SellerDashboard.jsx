@@ -736,7 +736,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
             </div>
             <div className="brand-text-wrapper">
               <h3>TechCycle</h3>
-              <span>Seller Portal</span>
+              <span>Kênh Người Bán</span>
             </div>
           </div>
           
@@ -792,7 +792,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
           </div>
 
           <div className="sidebar-copyright-text">
-            <p>© 2026 TechCycle - performance management & circular economy solution.</p>
+            <p>© 2026 TechCycle - quản lý hiệu suất & giải pháp kinh tế tuần hoàn.</p>
           </div>
         </aside>
 

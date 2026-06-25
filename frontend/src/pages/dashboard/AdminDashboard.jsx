@@ -844,52 +844,52 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
             </div>
             <div className="brand-text-wrapper">
               <h3>TechCycle</h3>
-              <span>#ANALYTICS HUB</span>
+              <span>#TRUNG TÂM PHÂN TÍCH</span>
             </div>
           </div>
           
           <nav className="sidebar-nav-menu">
             <button className={`sidebar-nav-btn ${subTab === 'stats' ? 'active' : ''}`} onClick={() => setSubTab('stats')}>
               <LayoutDashboard size={18} />
-              Dashboard
+              Bảng điều khiển
             </button>
             <button className={`sidebar-nav-btn ${subTab === 'bookings' ? 'active' : ''}`} onClick={() => setSubTab('bookings')}>
               <Calendar size={18} />
-              Analytics
+              Phân tích
             </button>
             <button className={`sidebar-nav-btn ${subTab === 'products' ? 'active' : ''}`} onClick={() => setSubTab('products')}>
               <ShoppingBag size={18} />
-              Assets
+              Tài sản
             </button>
             <button className={`sidebar-nav-btn ${subTab === 'customers' ? 'active' : ''}`} onClick={() => setSubTab('customers')}>
               <Users size={18} />
-              Reports
+              Báo cáo
             </button>
             <button className={`sidebar-nav-btn ${subTab === 'users' ? 'active' : ''}`} onClick={() => setSubTab('users')}>
               <Users size={18} />
-              Team
+              Nhóm
             </button>
             <button className={`sidebar-nav-btn ${subTab === 'marketing' ? 'active' : ''}`} onClick={() => setSubTab('marketing')}>
               <Tag size={18} />
-              Marketing
+              Tiếp thị
             </button>
           </nav>
 
 
 
           <div className="sidebar-bottom-nav">
-            <button className="sidebar-nav-btn bottom-btn" onClick={() => alert("Contact TechCycle support at support@techcycle.vn")}>
+            <button className="sidebar-nav-btn bottom-btn" onClick={() => alert("Liên hệ hỗ trợ TechCycle tại support@techcycle.vn")}>
               <HelpCircle size={18} />
-              Help
+              Hỗ trợ
             </button>
             <button className="sidebar-nav-btn bottom-btn logout" onClick={handleLogout}>
               <LogOut size={18} />
-              Logout
+              Đăng xuất
             </button>
           </div>
 
           <div className="sidebar-copyright-text">
-            <p>© 2026 TechCycle - performance management & circular economy solution.</p>
+            <p>© 2026 TechCycle - quản lý hiệu suất & giải pháp kinh tế tuần hoàn.</p>
           </div>
         </aside>
 

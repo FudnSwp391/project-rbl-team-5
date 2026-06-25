@@ -221,26 +221,26 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
             </div>
             <div className="brand-text-wrapper">
               <h3>TechCycle</h3>
-              <span>#ANALYTICS HUB</span>
+              <span>#TRUNG TÂM PHÂN TÍCH</span>
             </div>
           </div>
           
           <nav className="sidebar-nav-menu">
             <button className={`sidebar-nav-btn ${subTab === 'overview' ? 'active' : ''}`} onClick={() => setSubTab('overview')}>
               <LayoutDashboard size={18} />
-              Overview
+              Tổng quan
             </button>
             <button className={`sidebar-nav-btn ${subTab === 'bookings' ? 'active' : ''}`} onClick={() => setSubTab('bookings')}>
               <Calendar size={18} />
-              Repair Status
+              Trạng thái sửa chữa
             </button>
             <button className={`sidebar-nav-btn ${subTab === 'orders' ? 'active' : ''}`} onClick={() => setSubTab('orders')}>
               <ShoppingBag size={18} />
-              Order History
+              Lịch sử đơn hàng
             </button>
             <button className={`sidebar-nav-btn ${subTab === 'chat' ? 'active' : ''}`} onClick={() => setSubTab('chat')} style={{ position: 'relative' }}>
               <MessageSquare size={18} />
-              Technical Support
+              Hỗ trợ kỹ thuật
               {unreadCount > 0 && (
                 <span style={{
                   position: 'absolute', top: '6px', right: '10px',
@@ -256,20 +256,20 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
           <div className="sidebar-bottom-nav">
             <button className={`sidebar-nav-btn bottom-btn ${subTab === 'settings' ? 'active' : ''}`} onClick={() => setSubTab('settings')}>
               <Settings size={18} />
-              Settings
+              Cài đặt
             </button>
             <button className={`sidebar-nav-btn bottom-btn ${subTab === 'help' ? 'active' : ''}`} onClick={() => setSubTab('help')}>
               <HelpCircle size={18} />
-              Help
+              Hỗ trợ
             </button>
             <button className="sidebar-nav-btn bottom-btn logout" onClick={handleLogout}>
               <LogOut size={18} />
-              Logout
+              Đăng xuất
             </button>
           </div>
 
           <div className="sidebar-copyright-text">
-            <p>© 2026 TechCycle - performance management & circular economy solution.</p>
+            <p>© 2026 TechCycle - quản lý hiệu suất & giải pháp kinh tế tuần hoàn.</p>
           </div>
         </aside>
 
@@ -289,7 +289,7 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
               <div className="topbar-profile-widget">
                 <div className="profile-info">
                   <h4>{user.username}</h4>
-                  <span>Customer</span>
+                  <span>Khách hàng</span>
                 </div>
                  <img src={getAvatarUrl(user.avatar, user.username)} alt={user.username} className="profile-avatar-circle" />
               </div>

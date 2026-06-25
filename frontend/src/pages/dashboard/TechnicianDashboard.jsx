@@ -166,30 +166,30 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
             </div>
             <div className="brand-text-wrapper">
               <h3>TechCycle</h3>
-              <span>#ANALYTICS HUB</span>
+              <span>#TRUNG TÂM PHÂN TÍCH</span>
             </div>
           </div>
           
           <nav className="sidebar-nav-menu">
             <button className="sidebar-nav-btn" onClick={() => setActivePage('shop')}>
               <ShoppingBag size={18} />
-              Marketplace
+              Chợ thiết bị
             </button>
             <button className={`sidebar-nav-btn ${subTab === 'repairs' ? 'active' : ''}`} onClick={() => setSubTab('repairs')}>
               <Wrench size={18} />
-              Repairs
+              Sửa chữa
             </button>
             <button className={`sidebar-nav-btn ${subTab === 'overview' || subTab === '' ? 'active' : ''}`} onClick={() => setSubTab('overview')}>
               <LayoutDashboard size={18} />
-              Dashboard
+              Bảng điều khiển
             </button>
             <button className={`sidebar-nav-btn ${subTab === 'inventory' ? 'active' : ''}`} onClick={() => setSubTab('inventory')}>
               <Package size={18} />
-              Inventory
+              Kho linh kiện
             </button>
             <button className={`sidebar-nav-btn ${subTab === 'chat' ? 'active' : ''}`} onClick={() => setSubTab('chat')} style={{ position: 'relative' }}>
               <MessageSquare size={18} />
-              Messages
+              Tin nhắn
               {unreadCount > 0 && (
                 <span style={{
                   position: 'absolute', top: '6px', right: '10px',
@@ -203,26 +203,26 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
           </nav>
 
           <button className="new-report-btn tech-book-btn" onClick={() => setActivePage('booking')}>
-            <Plus size={16} /> Book Repair
+            <Plus size={16} /> Đặt lịch sửa chữa
           </button>
 
           <div className="sidebar-bottom-nav">
             <button className={`sidebar-nav-btn bottom-btn ${subTab === 'settings' ? 'active' : ''}`} onClick={() => setSubTab('settings')}>
               <Settings size={18} />
-              Settings
+              Cài đặt
             </button>
-            <button className="sidebar-nav-btn bottom-btn" onClick={() => alert("Contact TechCycle support at support@techcycle.vn")}>
+            <button className="sidebar-nav-btn bottom-btn" onClick={() => alert("Liên hệ hỗ trợ TechCycle tại support@techcycle.vn")}>
               <HelpCircle size={18} />
-              Help
+              Hỗ trợ
             </button>
             <button className="sidebar-nav-btn bottom-btn logout" onClick={handleLogout}>
               <LogOut size={18} />
-              Logout
+              Đăng xuất
             </button>
           </div>
 
           <div className="sidebar-copyright-text">
-            <p>© 2026 TechCycle - performance management & circular economy solution.</p>
+            <p>© 2026 TechCycle - quản lý hiệu suất & giải pháp kinh tế tuần hoàn.</p>
           </div>
         </aside>
 
