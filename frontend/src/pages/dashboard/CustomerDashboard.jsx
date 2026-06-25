@@ -76,6 +76,18 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
     fetchData();
   }, [user, token, subTab]);
 
+  // Check pending chat selection
+  useEffect(() => {
+    const pendingBookingId = localStorage.getItem('pending_chat_booking_id');
+    if (pendingBookingId && bookingsList.length > 0 && subTab === 'chat') {
+      const targetBooking = bookingsList.find(b => String(b.id) === String(pendingBookingId));
+      if (targetBooking) {
+        handleSelectConversation(targetBooking);
+        localStorage.removeItem('pending_chat_booking_id');
+      }
+    }
+  }, [bookingsList, subTab, handleSelectConversation]);
+
   // Đánh dấu tab chat active/inactive để cập nhật unread badge
   useEffect(() => {
     markChatViewActive(subTab === 'chat');

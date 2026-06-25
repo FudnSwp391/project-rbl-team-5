@@ -66,6 +66,18 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
     fetchData();
   }, [user, token, subTab]);
 
+  // Check pending chat selection
+  useEffect(() => {
+    const pendingBookingId = localStorage.getItem('pending_chat_booking_id');
+    if (pendingBookingId && bookingsList.length > 0 && subTab === 'chat') {
+      const targetBooking = bookingsList.find(b => String(b.id) === String(pendingBookingId));
+      if (targetBooking) {
+        handleSelectConversation(targetBooking);
+        localStorage.removeItem('pending_chat_booking_id');
+      }
+    }
+  }, [bookingsList, subTab, handleSelectConversation]);
+
   // Đánh dấu tab chat active/inactive để cập nhật unread badge
   useEffect(() => {
     markChatViewActive(subTab === 'chat');
@@ -599,6 +611,20 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
                 onSendMessage={handleSendMessage}
                 onTyping={handleTyping}
                 onImageUpload={handleImageUpload}
+                onUpdateStatus={async (bookingId, status) => {
+                  await handleUpdateBookingStatus(bookingId, status);
+                  // Cập nhật selectedBooking local để UI phản ánh ngay
+                  if (setSelectedBooking) {
+                    setSelectedBooking(prev => prev ? { ...prev, status } : prev);
+                  }
+                }}
+                onUpdateCostNotes={async (bookingId, cost, notes) => {
+                  await handleUpdateBookingCostNotes(bookingId, cost, notes);
+                  // Cập nhật selectedBooking local
+                  if (setSelectedBooking) {
+                    setSelectedBooking(prev => prev ? { ...prev, cost, notes } : prev);
+                  }
+                }}
               />
             </div>
           )}

@@ -1,5 +1,5 @@
-import { useRef, useEffect } from 'react';
-import { Send, Paperclip, MessageSquare } from 'lucide-react';
+import { useRef, useEffect, useState } from 'react';
+import { Send, Paperclip, MessageSquare, Save, Edit3, CheckCircle, ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import './ChatPanel.css';
 
@@ -36,14 +36,61 @@ const ChatPanel = ({
   onSendMessage,
   onTyping,
   onImageUpload,
+  onUpdateStatus,
+  onUpdateCostNotes,
 }) => {
   const { user, getAvatarUrl } = useAuth();
   const chatEndRef = useRef(null);
+  const messagesAreaRef = useRef(null);
   const fileInputRef = useRef(null);
 
+  // --- Trạng thái chỉnh sửa chi tiết phiếu (chỉ cho technician) ---
+  const [isEditingCost, setIsEditingCost] = useState(false);
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
+  const [editCost, setEditCost] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+  const [isSavingStatus, setIsSavingStatus] = useState(false);
+  const [isSavingDetails, setIsSavingDetails] = useState(false);
+
+  // Sync local state khi selectedBooking thay đổi
   useEffect(() => {
-    if (chatEndRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (selectedBooking) {
+      setEditCost(selectedBooking.cost > 0 ? String(selectedBooking.cost) : '');
+      setEditNotes(selectedBooking.notes || '');
+      setIsEditingCost(false);
+      setIsEditingNotes(false);
+    }
+  }, [selectedBooking?.id]);
+
+  const handleStatusChange = async (newStatus) => {
+    if (!onUpdateStatus || !selectedBooking) return;
+    setIsSavingStatus(true);
+    try {
+      await onUpdateStatus(selectedBooking.id, newStatus);
+    } finally {
+      setIsSavingStatus(false);
+    }
+  };
+
+  const handleSaveCostNotes = async () => {
+    if (!onUpdateCostNotes || !selectedBooking) return;
+    setIsSavingDetails(true);
+    try {
+      await onUpdateCostNotes(
+        selectedBooking.id,
+        editCost ? Number(editCost) : 0,
+        editNotes
+      );
+      setIsEditingCost(false);
+      setIsEditingNotes(false);
+    } finally {
+      setIsSavingDetails(false);
+    }
+  };
+
+  useEffect(() => {
+    if (messagesAreaRef.current) {
+      messagesAreaRef.current.scrollTop = messagesAreaRef.current.scrollHeight;
     }
   }, [chatMessages, typingUsers]);
 
@@ -188,7 +235,7 @@ const ChatPanel = ({
             </div>
 
             {/* Messages */}
-            <div className="cp-messages-area">
+            <div className="cp-messages-area" ref={messagesAreaRef}>
               {isLoading ? (
                 <div className="cp-loading-messages">
                   <div className="cp-loading-spinner" />
@@ -361,22 +408,46 @@ const ChatPanel = ({
 
           <hr className="cp-details-divider" />
 
+          {/* === TRẠNG THÁI - Technician có thể thay đổi === */}
+          {userRole === 'technician' && onUpdateStatus ? (
+            <div className="cp-details-section">
+              <span className="cp-details-lbl">Cập nhật trạng thái</span>
+              <div className="cp-status-select-wrap">
+                <select
+                  className="cp-status-select"
+                  value={selectedBooking.status}
+                  onChange={(e) => handleStatusChange(e.target.value)}
+                  disabled={isSavingStatus}
+                >
+                  <option value="assigned">Đã phân công</option>
+                  <option value="inspecting">Đang kiểm tra</option>
+                  <option value="repairing">Đang sửa chữa</option>
+                  <option value="completed">Hoàn thành</option>
+                </select>
+                <ChevronDown size={14} className="cp-select-icon" />
+              </div>
+            </div>
+          ) : null}
+
           {/* Progress Stepper */}
           <div className="cp-stepper">
             {[
-              { key: 'assigned', label: 'Đã phân công' },
-              { key: 'inspecting', label: 'Kiểm tra' },
-              { key: 'repairing', label: 'Đang sửa' },
-              { key: 'completed', label: 'Hoàn thành' },
+              { key: 'assigned', label: 'Đã phân công', icon: '📋' },
+              { key: 'inspecting', label: 'Kiểm tra', icon: '🔍' },
+              { key: 'repairing', label: 'Đang sửa', icon: '🔧' },
+              { key: 'completed', label: 'Hoàn thành', icon: '✅' },
             ].map((step, i) => {
               const stages = ['assigned', 'inspecting', 'repairing', 'completed'];
               const currentIdx = stages.indexOf(selectedBooking.status);
               const stepIdx = stages.indexOf(step.key);
               const isActive = stepIdx <= currentIdx;
+              const isCurrent = stepIdx === currentIdx;
               return (
-                <div key={step.key} className={`cp-step ${isActive ? 'active' : ''}`}>
+                <div key={step.key} className={`cp-step ${isActive ? 'active' : ''} ${isCurrent ? 'current' : ''}`}>
                   <div className="cp-step-line-wrap">
-                    <div className="cp-step-dot">{i + 1}</div>
+                    <div className="cp-step-dot">
+                      {isActive ? <CheckCircle size={12} /> : i + 1}
+                    </div>
                     {i < 3 && <div className={`cp-step-line ${isActive && stepIdx < currentIdx ? 'active' : ''}`} />}
                   </div>
                   <span className="cp-step-label">{step.label}</span>
@@ -387,6 +458,7 @@ const ChatPanel = ({
 
           <hr className="cp-details-divider" />
 
+          {/* === THÔNG TIN PHIẾU === */}
           <div className="cp-details-info-list">
             <div className="cp-details-info-row">
               <span className="cp-details-lbl">Thiết bị</span>
@@ -396,16 +468,46 @@ const ChatPanel = ({
               <span className="cp-details-lbl">Ngày hẹn</span>
               <span className="cp-details-val">{selectedBooking.preferredDate || '—'}</span>
             </div>
-            {selectedBooking.cost > 0 && (
-              <div className="cp-details-info-row">
-                <span className="cp-details-lbl">Chi phí dự kiến</span>
+
+            {/* === CHI PHÍ - Technician có thể sửa === */}
+            <div className="cp-details-info-row">
+              <span className="cp-details-lbl">Chi phí dự kiến</span>
+              {userRole === 'technician' && onUpdateCostNotes ? (
+                isEditingCost ? (
+                  <div className="cp-inline-edit">
+                    <input
+                      type="number"
+                      className="cp-edit-input"
+                      value={editCost}
+                      onChange={(e) => setEditCost(e.target.value)}
+                      placeholder="0"
+                      min="0"
+                    />
+                    <span className="cp-edit-unit">VND</span>
+                  </div>
+                ) : (
+                  <span
+                    className="cp-details-val cp-cost-highlight cp-editable"
+                    onClick={() => setIsEditingCost(true)}
+                    title="Nhấn để chỉnh sửa"
+                  >
+                    {selectedBooking.cost > 0
+                      ? `${selectedBooking.cost.toLocaleString('en-US')} VND`
+                      : 'Chưa báo giá'}
+                    <Edit3 size={12} className="cp-edit-icon" />
+                  </span>
+                )
+              ) : (
                 <span className="cp-details-val cp-cost-highlight">
-                  {selectedBooking.cost.toLocaleString('en-US')} VND
+                  {selectedBooking.cost > 0
+                    ? `${selectedBooking.cost.toLocaleString('en-US')} VND`
+                    : '—'}
                 </span>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
+          {/* === MÔ TẢ SỰ CỐ === */}
           {selectedBooking.issueDescription && (
             <div className="cp-details-section">
               <span className="cp-details-lbl">Mô tả sự cố</span>
@@ -413,10 +515,57 @@ const ChatPanel = ({
             </div>
           )}
 
-          {selectedBooking.notes && (
-            <div className="cp-details-section">
+          {/* === GHI CHÚ KỸ THUẬT VIÊN - Technician có thể sửa === */}
+          <div className="cp-details-section">
+            <div className="cp-details-section-header">
               <span className="cp-details-lbl">Ghi chú kỹ thuật viên</span>
-              <p className="cp-details-desc">{selectedBooking.notes}</p>
+              {userRole === 'technician' && onUpdateCostNotes && !isEditingNotes && (
+                <button
+                  className="cp-edit-btn"
+                  onClick={() => setIsEditingNotes(true)}
+                  title="Chỉnh sửa ghi chú"
+                >
+                  <Edit3 size={12} />
+                </button>
+              )}
+            </div>
+            {userRole === 'technician' && onUpdateCostNotes && isEditingNotes ? (
+              <textarea
+                className="cp-edit-textarea"
+                value={editNotes}
+                onChange={(e) => setEditNotes(e.target.value)}
+                placeholder="Nhập ghi chú cho khách hàng..."
+                rows={3}
+              />
+            ) : (
+              <p className="cp-details-desc">
+                {selectedBooking.notes || (userRole === 'technician' ? 'Chưa có ghi chú. Nhấn ✏️ để thêm.' : 'Chưa có ghi chú.')}
+              </p>
+            )}
+          </div>
+
+          {/* === NÚT LƯU (Technician) === */}
+          {userRole === 'technician' && onUpdateCostNotes && (isEditingCost || isEditingNotes) && (
+            <div className="cp-details-actions">
+              <button
+                className="cp-save-btn"
+                onClick={handleSaveCostNotes}
+                disabled={isSavingDetails}
+              >
+                <Save size={14} />
+                {isSavingDetails ? 'Đang lưu...' : 'Lưu thay đổi'}
+              </button>
+              <button
+                className="cp-cancel-btn"
+                onClick={() => {
+                  setIsEditingCost(false);
+                  setIsEditingNotes(false);
+                  setEditCost(selectedBooking.cost > 0 ? String(selectedBooking.cost) : '');
+                  setEditNotes(selectedBooking.notes || '');
+                }}
+              >
+                Hủy
+              </button>
             </div>
           )}
         </aside>

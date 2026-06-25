@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { Recycle, ShoppingCart, User, LogOut, LayoutDashboard, ShoppingBag, Calendar, Menu, X, Sun, Moon, Bell, SlidersHorizontal } from 'lucide-react';
+import { io } from 'socket.io-client';
 import './Navbar.css';
 
 const Navbar = ({ activePage, setActivePage, theme, setTheme, setDashboardSubTab, dashboardSubTab, showFilters, setShowFilters }) => {
@@ -19,7 +20,8 @@ const Navbar = ({ activePage, setActivePage, theme, setTheme, setDashboardSubTab
 
   const fetchNotifications = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/notifications');
+      const url = user ? `http://localhost:5000/api/notifications?userId=${user.id}` : 'http://localhost:5000/api/notifications';
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         setNotifications(data);
@@ -37,8 +39,34 @@ const Navbar = ({ activePage, setActivePage, theme, setTheme, setDashboardSubTab
   useEffect(() => {
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 15000);
-    return () => clearInterval(interval);
-  }, []);
+    
+    // Khởi tạo socket lắng nghe real-time notification
+    const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000' : '';
+    const socket = io(API_BASE);
+
+    if (user) {
+      socket.emit('registerUser', String(user.id));
+    }
+
+    const handleNewNotif = (notif) => {
+      setNotifications(prev => [notif, ...prev]);
+      
+      // Không tăng chấm đỏ nếu đang mở chat của đúng booking đó
+      const isViewingThisChat = notif.type === 'chat' && window.isChatViewActive && Number(window.currentActiveChatBookingId) === Number(notif.bookingId);
+      
+      if (!showNotifDropdown && !isViewingThisChat) {
+        setUnreadCount(prev => prev + 1);
+      }
+    };
+
+    socket.on('newBellNotification', handleNewNotif);
+    socket.on('newMarketingNotification', handleNewNotif);
+
+    return () => {
+      clearInterval(interval);
+      socket.disconnect();
+    };
+  }, [user, showNotifDropdown]);
 
   const handleToggleDropdown = () => {
     setShowNotifDropdown(!showNotifDropdown);
@@ -56,6 +84,11 @@ const Navbar = ({ activePage, setActivePage, theme, setTheme, setDashboardSubTab
     
     // Always navigate to the dashboard page first
     setActivePage('dashboard');
+    
+    // Nếu là thông báo chat có bookingId, lưu vào localStorage để dashboard chọn đúng hội thoại
+    if (n.type === 'chat' || n.bookingId) {
+      localStorage.setItem('pending_chat_booking_id', n.bookingId);
+    }
     
     // Determine target subTab based on role and notification content
     if (role === 'seller') {
