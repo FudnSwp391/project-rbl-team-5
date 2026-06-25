@@ -30,16 +30,20 @@ const useBookingChat = (user, token) => {
 
   // --- Khởi tạo socket DUY NHẤT khi user login ---
   useEffect(() => {
-    if (!user) return;
+    if (!user || !user.id) return;
+    
+    // Chỉ tạo socket mới nếu chưa có
+    if (!socketRef.current) {
+      const socket = io(API_BASE, {
+        autoConnect: true,
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+      });
+      socketRef.current = socket;
+    }
 
-    const socket = io(API_BASE, {
-      autoConnect: true,
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-    });
-    socketRef.current = socket;
-
+    const socket = socketRef.current;
     socket.emit('registerUser', String(user.id));
 
     // Lắng nghe tin nhắn đến (khi đang trong booking room)
@@ -279,7 +283,21 @@ const useBookingChat = (user, token) => {
   // --- Đánh dấu đã xem tab chat ---
   const markChatViewActive = useCallback((active) => {
     chatViewActiveRef.current = active;
+    window.isChatViewActive = active;
     if (active) setUnreadCount(0);
+  }, []);
+
+  // Sync to window object
+  useEffect(() => {
+    window.currentActiveChatBookingId = selectedBooking ? selectedBooking.id : null;
+  }, [selectedBooking]);
+
+  // Clear window state on unmount
+  useEffect(() => {
+    return () => {
+      window.isChatViewActive = false;
+      window.currentActiveChatBookingId = null;
+    };
   }, []);
 
   return {

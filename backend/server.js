@@ -140,7 +140,14 @@ app.post('/api/upload-images', authenticateToken, async (req, res) => {
 // GET /api/notifications
 app.get('/api/notifications', async (req, res) => {
   try {
-    res.json([...notifications].reverse());
+    const { userId } = req.query;
+    let filtered = notifications;
+    if (userId) {
+      filtered = notifications.filter(n => !n.targetUserId || String(n.targetUserId) === String(userId));
+    } else {
+      filtered = notifications.filter(n => !n.targetUserId);
+    }
+    res.json([...filtered].reverse());
   } catch (err) {
     res.status(500).json({ message: 'Lỗi lấy thông báo.', error: err.message });
   }
@@ -292,6 +299,27 @@ io.on('connection', (socket) => {
 
       // Notify người nhận (cho badge thông báo)
       io.to(String(receiverId)).emit('newMessageNotification', enrichedMsg);
+
+      // Thêm thông báo vào Bell notification dropdown
+      const isImage = text && text.startsWith('[IMG]');
+      const notifMessage = isImage
+        ? `${enrichedMsg.senderName} đã gửi một hình ảnh trong phiếu sửa chữa #${bookingId}.`
+        : `${enrichedMsg.senderName}: ${text.length > 80 ? text.substring(0, 80) + '...' : text}`;
+
+      const chatNotif = {
+        id: String(Date.now() + Math.random()),
+        title: `💬 Tin nhắn mới từ ${enrichedMsg.senderName}`,
+        message: notifMessage,
+        sender: enrichedMsg.senderName,
+        createdAt: now.toISOString(),
+        bookingId: bookingId,
+        type: 'chat',
+        targetUserId: receiverId
+      };
+      notifications.push(chatNotif);
+
+      // Emit socket event để Navbar cập nhật realtime
+      io.to(String(receiverId)).emit('newBellNotification', chatNotif);
 
     } catch (err) {
       console.error('[MSG ERROR] Lỗi xử lý tin nhắn socket:', err.message);
