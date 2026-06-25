@@ -21,6 +21,18 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
   const [viewingUser, setViewingUser] = useState(null);
   const fileInputRef = useRef(null);
 
+  // --- DATA STATES ---
+  const [stats, setStats] = useState(null);
+  const [productsList, setProductsList] = useState([]);
+  const [bookingsList, setBookingsList] = useState([]);
+  const [ordersList, setOrdersList] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifDropdown, setShowNotifDropdown] = useState(false);
+  const [newOrderCount, setNewOrderCount] = useState(0);
+  const [newBookingCount, setNewBookingCount] = useState(0);
+  const [techsList, setTechsList] = useState([]);
+  const [loading, setLoading] = useState(true);
+
   // --- CHAT SYSTEM STATES ---
   const {
     selectedBooking,
@@ -40,17 +52,16 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
   const chatConversations = bookingsList.filter(b => b.status !== 'pending');
   const socketRef = useRef(null);
 
-  // --- DATA STATES ---
-  const [stats, setStats] = useState(null);
-  const [productsList, setProductsList] = useState([]);
-  const [bookingsList, setBookingsList] = useState([]);
-  const [ordersList, setOrdersList] = useState([]);
-  const [notifications, setNotifications] = useState([]);
-  const [showNotifDropdown, setShowNotifDropdown] = useState(false);
-  const [newOrderCount, setNewOrderCount] = useState(0);
-  const [newBookingCount, setNewBookingCount] = useState(0);
-  const [techsList, setTechsList] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const handleStartCustomerChat = (customerId) => {
+    const customerBookings = chatConversations.filter(b => b.customerId === customerId);
+    if (customerBookings.length > 0) {
+      const latestBooking = [...customerBookings].sort((a, b) => b.id - a.id)[0];
+      handleSelectConversation(latestBooking);
+    } else {
+      alert("Khách hàng này chưa có lịch hẹn hoạt động để bắt đầu cuộc trò chuyện.");
+    }
+    setSubTab('chat');
+  };
 
   // --- PAGINATION STATES ---
   const [ordersPage, setOrdersPage] = useState(1);
@@ -1824,7 +1835,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                       </div>
                       <hr className="widget-divider" />
                       <div className="profile-card-actions">
-                        <button className="btn btn-outline btn-sm btn-send-message" onClick={() => { setSubTab('chat'); alert("Redirecting to Customer Q&A chat..."); }}>
+                        <button className="btn btn-outline btn-sm btn-send-message" onClick={() => handleStartCustomerChat(viewingUser.id)}>
                           <MessageSquare size={14} /> Send Message
                         </button>
                       </div>
