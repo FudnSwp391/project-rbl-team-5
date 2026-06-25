@@ -334,18 +334,33 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
                     <button className="btn btn-text" onClick={() => setSubTab('bookings')}>Xem tất cả</button>
                   </div>
                   <div className="panel-body-list">
-                    {bookingsList.slice(0, 3).map(bk => (
-                      <div key={bk.id} className="mini-item">
-                        <div className="mini-info">
-                          <h4>{bk.device_type || bk.deviceType || 'Thiết bị'}</h4>
-                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                            <span className={`badge badge-${bk.status}`}>{getStatusLabel(bk.status)}</span>
-                            <span style={{ fontSize: '0.8rem', color: 'var(--neutral-medium)' }}>🛠 {bk.technicianName || 'Chưa phân công'}</span>
+                    {bookingsList.slice(0, 3).map(bk => {
+                      let displayDeviceType = bk.device_type || bk.deviceType || 'Thiết bị';
+                      let displayIssue = bk.issue_description || bk.issueDescription || '';
+                      if (displayIssue.startsWith('[')) {
+                        const closeIdx = displayIssue.indexOf(']');
+                        if (closeIdx > 0) {
+                          displayDeviceType = displayIssue.substring(1, closeIdx);
+                        }
+                      }
+                      
+                      const displayDate = bk.preferred_date 
+                        ? new Date(bk.preferred_date).toLocaleDateString('vi-VN') 
+                        : (bk.preferredDate || '');
+
+                      return (
+                        <div key={bk.id} className="mini-item">
+                          <div className="mini-info">
+                            <h4>{displayDeviceType}</h4>
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                              <span className={`badge badge-${bk.status}`}>{getStatusLabel(bk.status)}</span>
+                              <span style={{ fontSize: '0.8rem', color: 'var(--neutral-medium)' }}>🛠 {bk.technicianName || 'Chưa phân công'}</span>
+                            </div>
                           </div>
+                          <p>{displayDate}</p>
                         </div>
-                        <p>{bk.preferred_date || bk.preferredDate || ''}</p>
-                      </div>
-                    ))}
+                      );
+                    })}
                     {bookingsList.length === 0 && <p className="empty-text">Chưa có yêu cầu sửa chữa nào.</p>}
                   </div>
                 </div>
@@ -382,61 +397,86 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
                 {bookingsList.length === 0 ? (
                   <div className="glass-panel text-center py-4">No repair schedules registered yet.</div>
                 ) : (
-                  bookingsList.map(bk => (
-                    <div key={bk.id} className="repair-card glass-panel">
-                      <div className="card-top-row">
-                        <span className={`badge badge-${bk.status}`}>
-                          {getStatusLabel(bk.status)}
-                        </span>
-                        <span className="booking-id-tag">#{bk.id}</span>
-                      </div>
-                      
-                      <hr />
+                  bookingsList.map(bk => {
+                    let displayDeviceType = bk.device_type || bk.deviceType || 'Thiết bị';
+                    let displayIssue = bk.issue_description || bk.issueDescription || '';
+                    if (displayIssue.startsWith('[')) {
+                      const closeIdx = displayIssue.indexOf(']');
+                      if (closeIdx > 0) {
+                        displayDeviceType = displayIssue.substring(1, closeIdx);
+                        displayIssue = displayIssue.substring(closeIdx + 1).trim();
+                      }
+                    }
 
-                      <div className="card-body">
-                        <h4>{bk.deviceType}</h4>
-                        <p className="card-issue"><strong>Reported Fault:</strong> {bk.issueDescription}</p>
+                    const displayDate = bk.preferred_date 
+                      ? new Date(bk.preferred_date).toLocaleDateString('vi-VN') 
+                      : (bk.preferredDate || 'Chưa cập nhật');
+
+                    let displayTime = bk.preferredTime || '';
+                    if (!displayTime && bk.notes && bk.notes.includes('Khung giờ:')) {
+                      const matchTime = bk.notes.match(/Khung giờ:\s*([^\r\n]+)/);
+                      if (matchTime) {
+                        displayTime = matchTime[1].trim();
+                      }
+                    }
+                    const timeSuffix = displayTime ? ` (${displayTime})` : '';
+
+                    return (
+                      <div key={bk.id} className="repair-card glass-panel">
+                        <div className="card-top-row">
+                          <span className={`badge badge-${bk.status}`}>
+                            {getStatusLabel(bk.status)}
+                          </span>
+                          <span className="booking-id-tag">#{bk.id}</span>
+                        </div>
                         
-                        <div className="card-details-row">
-                          <div>
-                            <span className="card-meta-lbl">Assigned Tech:</span>
-                            <p><strong>{bk.technicianName}</strong></p>
+                        <hr />
+
+                        <div className="card-body">
+                          <h4>{displayDeviceType}</h4>
+                          <p className="card-issue"><strong>Reported Fault:</strong> {displayIssue}</p>
+                          
+                          <div className="card-details-row">
+                            <div>
+                              <span className="card-meta-lbl">Assigned Tech:</span>
+                              <p><strong>{bk.technicianName}</strong></p>
+                            </div>
+                            <div>
+                              <span className="card-meta-lbl">Scheduled Date:</span>
+                              <p>{displayDate}{timeSuffix}</p>
+                            </div>
                           </div>
-                          <div>
-                            <span className="card-meta-lbl">Scheduled Date:</span>
-                            <p>{bk.preferredDate} ({bk.preferredTime})</p>
-                          </div>
+
+                          {bk.cost > 0 && (
+                            <div className="card-cost-banner">
+                              Estimated Cost: <strong>{bk.cost.toLocaleString('en-US')} VND</strong>
+                            </div>
+                          )}
+
+                          {bk.notes && !bk.notes.startsWith('Khung giờ:') && (
+                            <div className="card-notes-banner">
+                              <strong>Technician Message:</strong> {bk.notes}
+                            </div>
+                          )}
                         </div>
 
-                        {bk.cost > 0 && (
-                          <div className="card-cost-banner">
-                            Estimated Cost: <strong>{bk.cost.toLocaleString('en-US')} VND</strong>
-                          </div>
-                        )}
-
-                        {bk.notes && (
-                          <div className="card-notes-banner">
-                            <strong>Technician Message:</strong> {bk.notes}
+                        {bk.technicianId && (
+                          <div className="card-actions">
+                            <button 
+                              className="btn btn-primary btn-sm"
+                              onClick={() => {
+                                setSubTab('chat');
+                                handleSelectConversation(bk);
+                              }}
+                            >
+                              <MessageSquare size={16} />
+                              Chat with Technician
+                            </button>
                           </div>
                         )}
                       </div>
-
-                      {bk.technicianId && (
-                        <div className="card-actions">
-                          <button 
-                            className="btn btn-primary btn-sm"
-                            onClick={() => {
-                              setSubTab('chat');
-                              handleSelectConversation(bk);
-                            }}
-                          >
-                            <MessageSquare size={16} />
-                            Chat with Technician
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>

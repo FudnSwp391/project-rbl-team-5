@@ -240,44 +240,68 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
                 {bookingsList.length === 0 ? (
                   <div className="glass-panel text-center py-4">No repair jobs assigned to you currently.</div>
                 ) : (
-                  bookingsList.map(bk => (
-                    <div key={bk.id} className="repair-card glass-panel">
-                      <div className="card-top-row">
-                        <span className={`badge badge-${bk.status}`}>
-                          {getStatusLabel(bk.status)}
-                        </span>
-                        <span className="booking-id-tag">#{bk.id}</span>
-                      </div>
-                      
-                      <hr />
+                  bookingsList.map(bk => {
+                    let displayDeviceType = bk.device_type || bk.deviceType || 'Thiết bị';
+                    let displayIssue = bk.issue_description || bk.issueDescription || '';
+                    if (displayIssue.startsWith('[')) {
+                      const closeIdx = displayIssue.indexOf(']');
+                      if (closeIdx > 0) {
+                        displayDeviceType = displayIssue.substring(1, closeIdx);
+                        displayIssue = displayIssue.substring(closeIdx + 1).trim();
+                      }
+                    }
 
-                      <div className="card-body">
-                        <h4>{bk.deviceType}</h4>
-                        <p className="card-issue"><strong>Malfunction reported:</strong> {bk.issueDescription}</p>
-                        
-                        <div className="card-details-row">
-                          <div>
-                            <span className="card-meta-lbl">Customer:</span>
-                            <p><strong>{bk.customerName}</strong> ({bk.customerPhone})</p>
-                          </div>
-                          <div>
-                            <span className="card-meta-lbl">Preferred Date:</span>
-                            <p>{bk.preferredDate} ({bk.preferredTime})</p>
-                          </div>
+                    const displayDate = bk.preferred_date 
+                      ? new Date(bk.preferred_date).toLocaleDateString('vi-VN') 
+                      : (bk.preferredDate || 'Chưa cập nhật');
+
+                    let displayTime = bk.preferredTime || '';
+                    if (!displayTime && bk.notes && bk.notes.includes('Khung giờ:')) {
+                      const matchTime = bk.notes.match(/Khung giờ:\s*([^\r\n]+)/);
+                      if (matchTime) {
+                        displayTime = matchTime[1].trim();
+                      }
+                    }
+                    const timeSuffix = displayTime ? ` (${displayTime})` : '';
+
+                    return (
+                      <div key={bk.id} className="repair-card glass-panel">
+                        <div className="card-top-row">
+                          <span className={`badge badge-${bk.status}`}>
+                            {getStatusLabel(bk.status)}
+                          </span>
+                          <span className="booking-id-tag">#{bk.id}</span>
                         </div>
+                        
+                        <hr />
 
-                        {bk.cost > 0 && (
-                          <div className="card-cost-banner">
-                            Estimated Cost: <strong>{bk.cost.toLocaleString('en-US')} VND</strong>
+                        <div className="card-body">
+                          <h4>{displayDeviceType}</h4>
+                          <p className="card-issue"><strong>Malfunction reported:</strong> {displayIssue}</p>
+                          
+                          <div className="card-details-row">
+                            <div>
+                              <span className="card-meta-lbl">Customer:</span>
+                              <p><strong>{bk.customerName}</strong> ({bk.customerPhone})</p>
+                            </div>
+                            <div>
+                              <span className="card-meta-lbl">Preferred Date:</span>
+                              <p>{displayDate}{timeSuffix}</p>
+                            </div>
                           </div>
-                        )}
 
-                        {bk.notes && (
-                          <div className="card-notes-banner">
-                            <strong>Technician Notes:</strong> {bk.notes}
-                          </div>
-                        )}
-                      </div>
+                          {bk.cost > 0 && (
+                            <div className="card-cost-banner">
+                              Estimated Cost: <strong>{bk.cost.toLocaleString('en-US')} VND</strong>
+                            </div>
+                          )}
+
+                          {bk.notes && !bk.notes.startsWith('Khung giờ:') && (
+                            <div className="card-notes-banner">
+                              <strong>Technician Notes:</strong> {bk.notes}
+                            </div>
+                          )}
+                        </div>
 
                       <div className="card-actions">
                         <div className="status-selector-wrap">
@@ -306,7 +330,8 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
                         </button>
                       </div>
                     </div>
-                  ))
+                  );
+                })
                 )}
               </div>
             </div>

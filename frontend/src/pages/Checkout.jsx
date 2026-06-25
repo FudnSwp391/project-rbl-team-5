@@ -424,7 +424,7 @@ const Checkout = ({ setActivePage }) => {
 
       {error && <div className="checkout-error-alert">{error}</div>}
 
-      <div className="checkout-content-grid">
+      <div className={`checkout-content-grid${step === 'invoice' ? ' invoice-mode' : ''}`}>
         {/* Main form area */}
         <div className="checkout-main-panel">
           
@@ -678,211 +678,213 @@ const Checkout = ({ setActivePage }) => {
 
           {/* STEP 4: INVOICE PRINT VIEW */}
           {step === 'invoice' && completedOrder && (
-            <div className="invoice-container modern-invoice animate-scale-up">
-              {/* Header section */}
-              <div className="invoice-header">
-                <div className="invoice-brand">
-                  <div className="invoice-logo-wrapper">
-                    <div className="logo-icon-wrapper-invoice">
-                      <Recycle size={28} className="logo-icon-invoice" />
-                    </div>
-                    <div className="invoice-brand-text">
-                      <span className="logo-main">TechCycle</span>
-                      <span className="logo-sub">Invoice</span>
+            <div className="invoice-container inv-wrap animate-scale-up">
+
+              {/* ─── HEADER ─── */}
+              <div className="inv-header">
+                <div className="inv-brand">
+                  <div className="inv-logo-icon">
+                    <Recycle size={22} />
+                  </div>
+                  <div>
+                    <div className="inv-brand-name">TechCycle</div>
+                    <div className="inv-brand-sub">Invoice</div>
+                  </div>
+                </div>
+
+                <div className="inv-title-block">
+                  <h1 className="inv-main-title">HÓA ĐƠN MUA HÀNG</h1>
+                </div>
+
+                <div className="inv-meta">
+                  <div className="inv-meta-badge">
+                    <span className="inv-meta-label">Mã hóa đơn</span>
+                    <span className="inv-meta-value">{completedOrder.invoiceNumber}</span>
+                  </div>
+                  <div className="inv-meta-badge">
+                    <span className="inv-meta-label"><Calendar size={11} /> Ngày lập</span>
+                    <span className="inv-meta-value">{new Date(completedOrder.createdAt).toLocaleDateString('vi-VN')}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* ─── PARTIES ─── */}
+              <div className="inv-parties">
+                <div className="inv-party-card">
+                  <span className="inv-party-label">ĐƠN VỊ CUNG CẤP</span>
+                  <div className="inv-party-body">
+                    <div className="inv-party-avatar"><Store size={20} /></div>
+                    <div className="inv-party-info">
+                      <div className="inv-party-name">TechCycle Việt Nam</div>
+                      <div className="inv-party-detail"><MapPin size={12} />123 Đường Ba Tháng Hai, Quận 10, TP. Hồ Chí Minh</div>
+                      <div className="inv-party-detail"><Phone size={12} />0900.112.233</div>
                     </div>
                   </div>
-                  <p className="invoice-tagline">Công nghệ tuần hoàn - Tương lai bền vững</p>
                 </div>
-                <div className="invoice-meta-new">
-                  <h2 className="invoice-title-text">HÓA ĐƠN MUA HÀNG</h2>
-                  <div className="invoice-meta-badges">
-                    <div className="meta-badge-item">
-                      <span className="badge-label">Mã hóa đơn:</span>
-                      <span className="badge-value text-green">{completedOrder.invoiceNumber}</span>
-                    </div>
-                    <div className="meta-badge-item">
-                      <span className="badge-label">Ngày lập:</span>
-                      <span className="badge-value"><Calendar size={12} /> {new Date(completedOrder.createdAt).toLocaleDateString('vi-VN')}</span>
+
+                <div className="inv-party-card">
+                  <span className="inv-party-label">KHÁCH HÀNG</span>
+                  <div className="inv-party-body">
+                    <div className="inv-party-avatar"><User size={20} /></div>
+                    <div className="inv-party-info">
+                      <div className="inv-party-name">{completedOrder.shippingInfo.fullName}</div>
+                      <div className="inv-party-detail"><MapPin size={12} />{completedOrder.shippingInfo.address}</div>
+                      <div className="inv-party-detail"><Phone size={12} />{completedOrder.shippingInfo.phone}</div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Address Columns */}
-              <div className="invoice-addresses-new">
-                {/* Supplier */}
-                <div className="addr-card-new">
-                  <span className="card-badge supplier-badge">ĐƠN VỊ CUNG CẤP</span>
-                  <div className="card-content-new">
-                    <div className="card-icon-avatar">
-                      <Store size={22} className="avatar-icon" />
-                    </div>
-                    <div className="card-info-new">
-                      <h4>TechCycle Việt Nam</h4>
-                      <p><MapPin size={14} /> 123 Đường Ba Tháng Hai, Quận 10, TP. Hồ Chí Minh</p>
-                      <p><Phone size={14} /> 0900.112.233</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Customer */}
-                <div className="addr-card-new">
-                  <span className="card-badge customer-badge">KHÁCH HÀNG</span>
-                  <div className="card-content-new">
-                    <div className="card-icon-avatar">
-                      <User size={22} className="avatar-icon" />
-                    </div>
-                    <div className="card-info-new">
-                      <h4>{completedOrder.shippingInfo.fullName}</h4>
-                      <p><MapPin size={14} /> {completedOrder.shippingInfo.address}</p>
-                      <p><Phone size={14} /> {completedOrder.shippingInfo.phone}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Items Table */}
-              <table className="invoice-table-new">
-                <thead>
-                  <tr>
-                    <th style={{ width: '80px' }}>STT</th>
-                    <th>SẢN PHẨM</th>
-                    <th className="text-right" style={{ width: '180px' }}>ĐƠN GIÁ</th>
-                    <th className="text-center" style={{ width: '120px' }}>SỐ LƯỢNG</th>
-                    <th className="text-right" style={{ width: '180px' }}>THÀNH TIỀN</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {completedOrder.items.map((item, idx) => (
-                    <tr key={idx}>
-                      <td>{idx + 1}</td>
-                      <td className="item-name-cell">{item.name}</td>
-                      <td className="text-right font-medium">{(item.price || 0).toLocaleString('vi-VN')} <span className="currency-unit">VND</span></td>
-                      <td className="text-center">1</td>
-                      <td className="text-right text-green font-bold">{(item.price || 0).toLocaleString('vi-VN')} <span className="currency-unit">VND</span></td>
+              {/* ─── PRODUCT TABLE ─── */}
+              <div className="inv-table-wrap">
+                <table className="inv-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '60px' }}>STT</th>
+                      <th>TÊN SẢN PHẨM</th>
+                      <th style={{ width: '140px', textAlign: 'right' }}>ĐƠN GIÁ</th>
+                      <th style={{ width: '100px', textAlign: 'center' }}>SỐ LƯỢNG</th>
+                      <th style={{ width: '160px', textAlign: 'right' }}>THÀNH TIỀN</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {completedOrder.items.map((item, idx) => (
+                      <tr key={idx}>
+                        <td>{idx + 1}</td>
+                        <td className="inv-product-name">{item.name}</td>
+                        <td style={{ textAlign: 'right' }}>{(item.price || 0).toLocaleString('vi-VN')} <span className="inv-currency">₫</span></td>
+                        <td style={{ textAlign: 'center' }}>1</td>
+                        <td style={{ textAlign: 'right' }} className="inv-amount">{(item.price || 0).toLocaleString('vi-VN')} <span className="inv-currency">₫</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
-              {/* Notes and Totals Row */}
-              <div className="invoice-middle-row">
-                {/* Notes card */}
-                <div className="notes-card-new">
-                  <div className="notes-header">
-                    <FileText size={16} />
-                    <span>GHI CHÚ</span>
+              {/* ─── NOTES + TOTALS ─── */}
+              {/* ─── BOTTOM TWO-COLUMN LAYOUT ─── */}
+              <div className="inv-bottom-section">
+                {/* Left Column: Notes + Tracking Progress */}
+                <div className="inv-bottom-left">
+                  {/* Notes Card */}
+                  <div className="inv-notes-card">
+                    <div className="inv-card-title"><FileText size={14} />GHI CHÚ</div>
+                    <p className="inv-notes-text">
+                      {completedOrder.shippingInfo.notes || 'Cảm ơn quý khách đã tin tưởng và sử dụng dịch vụ của TechCycle.'}
+                    </p>
                   </div>
-                  <div className="notes-body">
-                    {completedOrder.shippingInfo.notes ? completedOrder.shippingInfo.notes : 'Cám ơn quý khách đã tin tưởng và sử dụng dịch vụ của TechCycle.'}
+
+                  {/* Combined Tracking (Status & Timeline) Card */}
+                  <div className="inv-tracking-card">
+                    <div className="inv-tracking-header">
+                      <div className="inv-card-title-inline">
+                        <ClipboardCheck size={14} />TIẾN TRÌNH ĐƠN HÀNG
+                      </div>
+                      <div className="inv-status-badge-inline">
+                        <CheckCircle2 size={13} />
+                        {completedOrder.paymentMethod === 'cod'
+                          ? 'CHỜ GIAO HÀNG (COD)'
+                          : completedOrder.paymentMethod === 'vnpay'
+                          ? 'ĐÃ THANH TOÁN (VNPAY)'
+                          : 'ĐÃ THANH TOÁN (CK)'}
+                      </div>
+                    </div>
+
+                    <div className="inv-timeline">
+                      <div className="inv-tl-step inv-tl-active">
+                        <div className="inv-tl-dot"><ClipboardCheck size={13} /></div>
+                        <span>Xác nhận</span>
+                      </div>
+                      <div className="inv-tl-line" />
+                      <div className="inv-tl-step">
+                        <div className="inv-tl-dot"><Package size={13} /></div>
+                        <span>Chuẩn bị</span>
+                      </div>
+                      <div className="inv-tl-line" />
+                      <div className="inv-tl-step">
+                        <div className="inv-tl-dot"><Truck size={13} /></div>
+                        <span>Đang giao</span>
+                      </div>
+                      <div className="inv-tl-line" />
+                      <div className="inv-tl-step">
+                        <div className="inv-tl-dot"><CheckCircle2 size={13} /></div>
+                        <span>Hoàn thành</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Totals Summary */}
-                <div className="totals-box-new">
-                  <div className="totals-item-new">
-                    <span className="totals-label-new"><FileText size={14} /> Tạm tính:</span>
-                    <span className="totals-value-new">{(completedOrder.totalAmount || 0).toLocaleString('vi-VN')} <span className="currency-unit">VND</span></span>
-                  </div>
-                  <div className="totals-item-new">
-                    <span className="totals-label-new"><Coins size={14} /> VAT (0% - Thiết bị cũ tái chế):</span>
-                    <span className="totals-value-new">0 <span className="currency-unit">VND</span></span>
-                  </div>
-                  <div className="totals-item-new">
-                    <span className="totals-label-new"><Truck size={14} /> Vận chuyển:</span>
-                    <span className="totals-value-new text-green">Miễn phí</span>
-                  </div>
-                  
-                  <div className="totals-final-row">
-                    <span className="final-label">TỔNG THANH TOÁN:</span>
-                    <span className="final-value">{(completedOrder.totalAmount || 0).toLocaleString('vi-VN')} <span className="currency-unit">VND</span></span>
+                {/* Right Column: Totals Card */}
+                <div className="inv-bottom-right">
+                  <div className="inv-totals-card">
+                    <div className="inv-card-title"><Coins size={14} />THANH TOÁN</div>
+                    <div className="inv-totals-rows">
+                      <div className="inv-totals-row">
+                        <span className="inv-totals-label"><FileText size={13} />Tạm tính</span>
+                        <span className="inv-totals-val">{(completedOrder.totalAmount || 0).toLocaleString('vi-VN')} ₫</span>
+                      </div>
+                      <div className="inv-totals-row">
+                        <span className="inv-totals-label"><Coins size={13} />VAT (0% – Thiết bị cũ tái chế)</span>
+                        <span className="inv-totals-val">0 ₫</span>
+                      </div>
+                      <div className="inv-totals-row">
+                        <span className="inv-totals-label"><Truck size={13} />Vận chuyển</span>
+                        <span className="inv-totals-val inv-free">Miễn phí</span>
+                      </div>
+                    </div>
+                    <div className="inv-grand-total">
+                      <span className="inv-grand-label">TỔNG THANH TOÁN</span>
+                      <span className="inv-grand-value">{(completedOrder.totalAmount || 0).toLocaleString('vi-VN')} ₫</span>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Status and Next Steps */}
-              <div className="invoice-bottom-grid">
-                {/* Order status */}
-                <div className="status-box-card">
-                  <div className="card-header-new">
-                    <span>TRẠNG THÁI HÓA ĐƠN</span>
+              {/* ─── FOOTER ─── */}
+              <div className="inv-footer">
+                {/* Column 1: Brand Logo & Contacts */}
+                <div className="inv-footer-brand">
+                  <div className="inv-footer-logo">
+                    <Recycle size={16} />
+                    <span>TechCycle</span>
                   </div>
-                  <div className="status-badge-wrapper">
-                    <div className="status-check-circle">
-                      <Check size={14} />
-                    </div>
-                    <span className="status-badge-text-green">
-                      {completedOrder.paymentMethod === 'cod' ? 'CHỜ GIAO HÀNG / THANH TOÁN COD' : completedOrder.paymentMethod === 'vnpay' ? 'CHỜ GIAO HÀNG / ĐÃ THANH TOÁN VNPAY' : 'CHỜ GIAO HÀNG / ĐÃ THANH TOÁN CK'}
-                    </span>
+                  <div className="inv-footer-contacts">
+                    <span><Mail size={12} />support@techcycle.vn</span>
+                    <span><Globe size={12} />www.techcycle.vn</span>
                   </div>
                 </div>
 
-                {/* Next steps timeline */}
-                <div className="next-steps-card">
-                  <div className="card-header-new">
-                    <span>CÁC BƯỚC TIẾP THEO</span>
-                  </div>
-                  <div className="steps-timeline-wrapper">
-                    {/* Step 1 */}
-                    <div className="timeline-step-item active">
-                      <div className="step-circle-icon">
-                        <ClipboardCheck size={16} />
-                      </div>
-                      <span className="step-name-text">Xác nhận đơn hàng</span>
-                    </div>
-                    <ChevronRight size={14} className="step-arrow-separator" />
+                {/* Column 2: Thanks message */}
+                <div className="inv-footer-thanks-wrap">
+                  <p className="inv-footer-thanks">🌱 Cảm ơn quý khách đã lựa chọn TechCycle! 🌱</p>
+                </div>
 
-                    {/* Step 2 */}
-                    <div className="timeline-step-item">
-                      <div className="step-circle-icon">
-                        <Truck size={16} />
-                      </div>
-                      <span className="step-name-text">Chuẩn bị giao hàng</span>
-                    </div>
-                    <ChevronRight size={14} className="step-arrow-separator" />
-
-                    {/* Step 3 */}
-                    <div className="timeline-step-item">
-                      <div className="step-circle-icon">
-                        <CheckCircle2 size={16} />
-                      </div>
-                      <span className="step-name-text">Giao hàng thành công</span>
-                    </div>
-                  </div>
+                {/* Column 3: QR Code online lookup */}
+                <div className="inv-footer-qr">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=72x72&data=https://techcycle.vn/invoice/${completedOrder.id}`}
+                    alt="Invoice QR"
+                    className="inv-qr-img"
+                  />
+                  <span className="inv-qr-label">Quét mã để xem<br />thông tin đơn hàng</span>
                 </div>
               </div>
 
-              {/* Thank you note & Footer contact */}
-              <div className="invoice-footer-new">
-                <div className="footer-links-col">
-                  <div className="thank-you-message">
-                    🌱 Cảm ơn quý khách đã lựa chọn TechCycle! 🌱
-                  </div>
-                  <div className="footer-contact-details">
-                    <span className="contact-item"><Mail size={12} /> support@techcycle.vn</span>
-                    <span className="contact-item"><Globe size={12} /> www.techcycle.vn</span>
-                  </div>
-                </div>
-                
-                {/* QR Code section */}
-                <div className="footer-qr-code-section">
-                  <img src={`https://api.qrserver.com/v1/create-qr-code/?size=72x72&data=https://techcycle.vn/invoice/${completedOrder.id}`} alt="Invoice QR Code" className="footer-qr-img" />
-                  <span className="qr-instruct-text">Quét mã để xem<br />thông tin đơn hàng</span>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="invoice-actions-row no-print">
-                <button className="btn btn-outline btn-print-invoice" onClick={() => window.print()}>
-                  <Printer size={16} />
-                  In hóa đơn
+              {/* ─── ACTIONS ─── */}
+              <div className="inv-actions no-print">
+                <button className="inv-btn inv-btn-outline" onClick={() => window.print()}>
+                  <Printer size={16} />In hóa đơn
                 </button>
-                <button className="btn btn-primary" onClick={() => setActivePage('shop')}>
-                  Tiếp tục mua sắm
+                <button className="inv-btn inv-btn-primary" onClick={() => setActivePage('shop')}>
+                  Tiếp tục mua sắm<ArrowRight size={16} />
                 </button>
               </div>
+
             </div>
           )}
+
+
+
 
         </div>
 
