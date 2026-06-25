@@ -519,7 +519,7 @@ exports.sepayWebhook = async (req, res) => {
     const authHeader = req.headers['authorization'] || req.headers['apikey'] || '';
     // Lấy token thực tế (bỏ tiền tố 'Apikey ' hoặc 'Bearer ' nếu có)
     const apiKey = authHeader.replace(/^(Apikey|Bearer)\s+/i, '').trim();
-    const expectedKey = (process.env.SEPAY_API_KEY || '').trim();
+    const expectedKey = (process.env.SEPAY_API_KEY || 'huynh_le_kim_huy').trim();
     
     if (expectedKey && apiKey !== expectedKey) {
       console.warn('[SePay Webhook] API key không hợp lệ:', apiKey);

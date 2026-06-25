@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import io from 'socket.io-client';
 
-const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-  ? 'http://localhost:5000'
+const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || /^(\d{1,3}\.){3}\d{1,3}$/.test(window.location.hostname))
+  ? `${window.location.protocol}//${window.location.hostname}:5000`
   : '';
 
 /**
@@ -178,7 +178,9 @@ const useBookingChat = (user, token) => {
       senderId: Number(user.id),
       receiverId: Number(receiverId),
       bookingId: Number(booking.id),
-      text: newMessage.trim()
+      text: newMessage.trim(),
+      senderName: user.username,
+      senderAvatar: user.avatar || ''
     };
 
     // Optimistic update — hiện tin nhắn ngay trước khi server xác nhận
@@ -236,7 +238,9 @@ const useBookingChat = (user, token) => {
               senderId: Number(user.id),
               receiverId: Number(receiverId),
               bookingId: Number(booking.id),
-              text: `[IMG]${imageUrl}`
+              text: `[IMG]${imageUrl}`,
+              senderName: user.username,
+              senderAvatar: user.avatar || ''
             });
           }
         } else {

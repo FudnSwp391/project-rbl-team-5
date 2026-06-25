@@ -33,14 +33,14 @@ exports.createPaymentUrl = async (req, res) => {
 };
 
 exports.generateVnpayUrl = (orderId, amount, ipAddr, orderInfo) => {
-  const tmnCode = process.env.VNP_TMNCODE;
-  const secretKey = process.env.VNP_HASHSECRET;
-  const vnpUrl = process.env.VNP_URL;
-  const returnUrl = process.env.VNP_RETURNURL;
+  const tmnCode = process.env.VNP_TMNCODE || 'CGXZLS0Z';
+  const secretKey = process.env.VNP_HASHSECRET || 'XNBCJFAKAZQSGTARRLGCHVZCWCEFWSKC';
+  const vnpUrl = process.env.VNP_URL || 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html';
+  const returnUrl = process.env.VNP_RETURNURL || 'http://localhost:5173';
 
-  // Validate required environment variables
+  // Validate required variables
   if (!tmnCode || !secretKey || !vnpUrl || !returnUrl) {
-    throw new Error('Missing required VNPay environment variables: VNP_TMNCODE, VNP_HASHSECRET, VNP_URL, VNP_RETURNURL');
+    throw new Error('Missing required VNPay configurations');
   }
 
   // Hàm tạo ngày giờ đúng chuẩn múi giờ Việt Nam (GMT+7)
@@ -105,7 +105,7 @@ exports.vnpayReturn = async (req, res) => {
 
   let sortedParams = sortObject(vnp_Params);
 
-  const secretKey = process.env.VNP_HASHSECRET;
+  const secretKey = process.env.VNP_HASHSECRET || 'XNBCJFAKAZQSGTARRLGCHVZCWCEFWSKC';
   if (!secretKey) {
     return res.status(500).json({ code: '99', message: 'VNP_HASHSECRET not configured' });
   }

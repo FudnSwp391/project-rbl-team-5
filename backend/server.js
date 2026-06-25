@@ -252,34 +252,52 @@ io.on('connection', (socket) => {
 
   // Send messaging event
   socket.on('sendMessage', async (messageData) => {
-    const { senderId, receiverId, bookingId, text } = messageData;
+    const { senderId, receiverId, bookingId, text, senderName, senderAvatar } = messageData;
     const now = new Date();
 
-    // Chuẩn bị message object để emit ngay (trước khi save DB)
-    const tempMsg = {
-      id: null,
+    // 1. Prepare message to emit immediately
+    const enrichedMsg = {
+      id: `temp_${Date.now()}`,
       senderId: senderId,
       receiverId: receiverId,
       bookingId: bookingId,
       text: text,
       createdAt: now.toISOString(),
       timestamp: now.toISOString(),
-      senderName: 'Loading...'
+      senderName: senderName || 'Thành viên',
+      senderAvatar: senderAvatar || ''
     };
 
-    try {
-      // Lấy thông tin sender để enrich message
-      const sender = await db.findOne('users', { id: Number(senderId) });
-      const enrichedMsg = {
-        ...tempMsg,
-        senderName: sender ? (sender.username || sender.full_name || 'Thành viên') : 'Thành viên',
-        senderAvatar: sender ? (sender.avatar || '') : ''
-      };
+    // 2. Emit to booking room immediately (both sides)
+    io.to(`booking_${bookingId}`).emit('receiveMessage', enrichedMsg);
 
-      // Save vào DB bằng raw SQL query để tránh vấn đề với db.insert
-      const saveResult = await db.query(
+    // 3. Notify receiver for unread badge immediately
+    io.to(String(receiverId)).emit('newMessageNotification', enrichedMsg);
+
+    // 4. Send bell notification immediately
+    const isImage = text && text.startsWith('[IMG]');
+    const notifMessage = isImage
+      ? `${enrichedMsg.senderName} đã gửi một hình ảnh trong phiếu sửa chữa #${bookingId}.`
+      : `${enrichedMsg.senderName}: ${text.length > 80 ? text.substring(0, 80) + '...' : text}`;
+
+    const chatNotif = {
+      id: String(Date.now() + Math.random()),
+      title: `💬 Tin nhắn mới từ ${enrichedMsg.senderName}`,
+      message: notifMessage,
+      sender: enrichedMsg.senderName,
+      createdAt: now.toISOString(),
+      bookingId: bookingId,
+      type: 'chat',
+      targetUserId: receiverId
+    };
+    notifications.push(chatNotif);
+    io.to(String(receiverId)).emit('newBellNotification', chatNotif);
+
+    // 5. Save to database asynchronously in the background
+    try {
+      db.query(
         `INSERT INTO messages (sender_id, receiver_id, booking_id, text_content, timestamp)
-         VALUES (@senderId, @receiverId, @bookingId, @text, GETDATE());
+         VALUES (@senderId, @receiverId, @bookingId, @text, GETUTCDATE());
          SELECT SCOPE_IDENTITY() AS newId;`,
         [
           { name: 'senderId', value: Number(senderId) },
@@ -287,44 +305,33 @@ io.on('connection', (socket) => {
           { name: 'bookingId', value: Number(bookingId) },
           { name: 'text', value: text }
         ]
-      );
+      ).then(async (saveResult) => {
+        const newId = saveResult.recordset[0]?.newId || null;
+        console.log(`[MSG] Async Saved message id=${newId} booking=${bookingId} from=${senderId} to=${receiverId}`);
+        
+        let dbSenderName = senderName;
+        let dbSenderAvatar = senderAvatar;
 
-      const newId = saveResult.recordset[0]?.newId || null;
-      enrichedMsg.id = newId;
+        if (!senderName) {
+          const sender = await db.findOne('users', { id: Number(senderId) });
+          if (sender) {
+            dbSenderName = sender.username || sender.full_name || 'Thành viên';
+            dbSenderAvatar = sender.avatar || '';
+          }
+        }
 
-      console.log(`[MSG] Saved message id=${newId} booking=${bookingId} from=${senderId} to=${receiverId}`);
-
-      // Emit to booking room (cả 2 phía)
-      io.to(`booking_${bookingId}`).emit('receiveMessage', enrichedMsg);
-
-      // Notify người nhận (cho badge thông báo)
-      io.to(String(receiverId)).emit('newMessageNotification', enrichedMsg);
-
-      // Thêm thông báo vào Bell notification dropdown
-      const isImage = text && text.startsWith('[IMG]');
-      const notifMessage = isImage
-        ? `${enrichedMsg.senderName} đã gửi một hình ảnh trong phiếu sửa chữa #${bookingId}.`
-        : `${enrichedMsg.senderName}: ${text.length > 80 ? text.substring(0, 80) + '...' : text}`;
-
-      const chatNotif = {
-        id: String(Date.now() + Math.random()),
-        title: `💬 Tin nhắn mới từ ${enrichedMsg.senderName}`,
-        message: notifMessage,
-        sender: enrichedMsg.senderName,
-        createdAt: now.toISOString(),
-        bookingId: bookingId,
-        type: 'chat',
-        targetUserId: receiverId
-      };
-      notifications.push(chatNotif);
-
-      // Emit socket event để Navbar cập nhật realtime
-      io.to(String(receiverId)).emit('newBellNotification', chatNotif);
-
+        const finalMsg = {
+          ...enrichedMsg,
+          id: newId,
+          senderName: dbSenderName || 'Thành viên',
+          senderAvatar: dbSenderAvatar || ''
+        };
+        io.to(`booking_${bookingId}`).emit('receiveMessage', finalMsg);
+      }).catch(err => {
+        console.error('[MSG ERROR] Lỗi lưu DB async:', err.message);
+      });
     } catch (err) {
-      console.error('[MSG ERROR] Lỗi xử lý tin nhắn socket:', err.message);
-      // Vẫn emit để real-time không bị mất, dù DB fail
-      io.to(`booking_${bookingId}`).emit('receiveMessage', tempMsg);
+      console.error('[MSG ERROR] Lỗi chuẩn bị query lưu tin nhắn:', err.message);
     }
   });
 

@@ -41,7 +41,7 @@ const Navbar = ({ activePage, setActivePage, theme, setTheme, setDashboardSubTab
     const interval = setInterval(fetchNotifications, 15000);
     
     // Khởi tạo socket lắng nghe real-time notification
-    const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000' : '';
+    const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || /^(\d{1,3}\.){3}\d{1,3}$/.test(window.location.hostname)) ? `${window.location.protocol}//${window.location.hostname}:5000` : '';
     const socket = io(API_BASE);
 
     if (user) {

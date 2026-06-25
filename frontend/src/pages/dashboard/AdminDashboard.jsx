@@ -9,8 +9,10 @@ import {
   Users, Sun, Moon, Eye, Search, Bell, Settings, HelpCircle, LogOut,
   MapPin, CreditCard, Pencil, Shield, ArrowLeft, MessageSquare, Tag, Send, Image, Paperclip
 } from 'lucide-react';
+import ChatPanel from '../../components/ChatPanel';
+import useBookingChat from '../../hooks/useBookingChat';
 
-const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000' : '';
+const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || /^(\d{1,3}\.){3}\d{1,3}$/.test(window.location.hostname)) ? `${window.location.protocol}//${window.location.hostname}:5000` : '';
 
 const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInitialSubTab }) => {
   const { user, token, updateAvatar, getAvatarUrl, logout } = useAuth();
@@ -88,15 +90,23 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
   const [featureSectionImage, setFeatureSectionImage] = useState('https://images.unsplash.com/photo-1604754742629-3e5728249d73?w=700');
 
   // --- CHAT SYSTEM STATES ---
-  const [chatConversations, setChatConversations] = useState([]);
-  const [selectedBooking, setSelectedBooking] = useState(null);
-  const [chatMessages, setChatMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const {
+    selectedBooking,
+    chatMessages,
+    newMessage,
+    isUploadingImage,
+    isLoading: chatLoading,
+    unreadCount,
+    typingUsers,
+    handleSelectConversation,
+    handleSendMessage,
+    handleImageUpload,
+    handleTyping,
+    markChatViewActive,
+  } = useBookingChat(user, token);
+
+  const chatConversations = bookingsList.filter(b => b.status !== 'pending');
   const socketRef = useRef(null);
-  const chatEndRef = useRef(null);
-  const fetchConversationsListRef = useRef(null);
-  const fileInputRef = useRef(null);
 
   const fetchData = async () => {
     if (!user || !token) return;
@@ -317,13 +327,6 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
     socketRef.current = io(`${API_BASE}`);
     socketRef.current.emit('registerUser', user.id);
 
-    socketRef.current.on('receiveMessage', (message) => {
-      if (selectedBooking && message.bookingId === selectedBooking.id) {
-        setChatMessages(prev => Array.isArray(prev) ? [...prev, message] : [message]);
-      }
-      if (fetchConversationsListRef.current) fetchConversationsListRef.current();
-    });
-
     socketRef.current.on('newOrderForSeller', (data) => {
       alert(`🔔 [HẸN XEM MÁY MỚI] ${data.message}`);
       fetchData(); // Reload dashboard and notifications
@@ -337,108 +340,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
     return () => {
       if (socketRef.current) socketRef.current.disconnect();
     };
-  }, [user, selectedBooking]);
-
-  useEffect(() => {
-    if (chatEndRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [chatMessages]);
-
-  const fetchConversationsList = useCallback(() => {
-    if (bookingsList.length === 0) return;
-    const chats = bookingsList.filter(b => b.status !== 'pending');
-    setChatConversations(chats);
-  }, [bookingsList]);
-
-  useEffect(() => {
-    fetchConversationsListRef.current = fetchConversationsList;
-  }, [fetchConversationsList]);
-
-  useEffect(() => {
-    fetchConversationsList();
-  }, [fetchConversationsList]);
-
-  const handleSelectConversation = (booking) => {
-    setSelectedBooking(booking);
-    setChatMessages([]);
-    if (socketRef.current) {
-      socketRef.current.emit('joinBookingRoom', booking.id);
-    }
-    fetch(`${API_BASE}/api/messages/${booking.id}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          setChatMessages(data);
-        } else {
-          setChatMessages([]);
-          console.error('Expected array of messages, got:', data);
-        }
-      })
-      .catch(err => {
-        console.error('Lỗi tải lịch sử chat:', err);
-        setChatMessages([]);
-      });
-  };
-
-  const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file || !selectedBooking) return;
-
-    setIsUploadingImage(true);
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/upload-images`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ images: [reader.result] })
-        });
-        const data = await res.json();
-        if (res.ok && data.urls && data.urls.length > 0) {
-          const imageUrl = data.urls[0];
-          const receiverId = selectedBooking.customerId;
-          if (socketRef.current) {
-            socketRef.current.emit('sendMessage', {
-              senderId: user.id,
-              receiverId,
-              bookingId: selectedBooking.id,
-              text: `[IMG]${imageUrl}`
-            });
-          }
-        } else {
-          alert('Lỗi tải ảnh lên');
-        }
-      } catch (err) {
-        console.error('Lỗi tải ảnh:', err);
-      } finally {
-        setIsUploadingImage(false);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleSendMessage = (e) => {
-    e.preventDefault();
-    if (!newMessage.trim() || !selectedBooking) return;
-    const receiverId = selectedBooking.customerId;
-    const messagePayload = {
-      senderId: user.id,
-      receiverId,
-      bookingId: selectedBooking.id,
-      text: newMessage
-    };
-    if (socketRef.current) {
-      socketRef.current.emit('sendMessage', messagePayload);
-      setNewMessage('');
-    }
-  };
+  }, [user]);
 
 
 
@@ -942,52 +844,52 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
             </div>
             <div className="brand-text-wrapper">
               <h3>TechCycle</h3>
-              <span>#ANALYTICS HUB</span>
+              <span>#TRUNG TÂM PHÂN TÍCH</span>
             </div>
           </div>
           
           <nav className="sidebar-nav-menu">
             <button className={`sidebar-nav-btn ${subTab === 'stats' ? 'active' : ''}`} onClick={() => setSubTab('stats')}>
               <LayoutDashboard size={18} />
-              Dashboard
+              Bảng điều khiển
             </button>
             <button className={`sidebar-nav-btn ${subTab === 'bookings' ? 'active' : ''}`} onClick={() => setSubTab('bookings')}>
               <Calendar size={18} />
-              Analytics
+              Phân tích
             </button>
             <button className={`sidebar-nav-btn ${subTab === 'products' ? 'active' : ''}`} onClick={() => setSubTab('products')}>
               <ShoppingBag size={18} />
-              Assets
+              Tài sản
             </button>
             <button className={`sidebar-nav-btn ${subTab === 'customers' ? 'active' : ''}`} onClick={() => setSubTab('customers')}>
               <Users size={18} />
-              Reports
+              Báo cáo
             </button>
             <button className={`sidebar-nav-btn ${subTab === 'users' ? 'active' : ''}`} onClick={() => setSubTab('users')}>
               <Users size={18} />
-              Team
+              Nhóm
             </button>
             <button className={`sidebar-nav-btn ${subTab === 'marketing' ? 'active' : ''}`} onClick={() => setSubTab('marketing')}>
               <Tag size={18} />
-              Marketing
+              Tiếp thị
             </button>
           </nav>
 
 
 
           <div className="sidebar-bottom-nav">
-            <button className="sidebar-nav-btn bottom-btn" onClick={() => alert("Contact TechCycle support at support@techcycle.vn")}>
+            <button className="sidebar-nav-btn bottom-btn" onClick={() => alert("Liên hệ hỗ trợ TechCycle tại support@techcycle.vn")}>
               <HelpCircle size={18} />
-              Help
+              Hỗ trợ
             </button>
             <button className="sidebar-nav-btn bottom-btn logout" onClick={handleLogout}>
               <LogOut size={18} />
-              Logout
+              Đăng xuất
             </button>
           </div>
 
           <div className="sidebar-copyright-text">
-            <p>© 2026 TechCycle - performance management & circular economy solution.</p>
+            <p>© 2026 TechCycle - quản lý hiệu suất & giải pháp kinh tế tuần hoàn.</p>
           </div>
         </aside>
 
@@ -1929,7 +1831,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
               <div className="customer-detail-view animate-fade">
                 <div className="detail-header-row">
                   <button className="back-to-list-btn" onClick={() => setViewingUser(null)}>
-                    <ArrowLeft size={16} /> Back to List
+                    <ArrowLeft size={16} /> Quay lại danh sách
                   </button>
                   <h2>Chi tiết Khách hàng</h2>
                 </div>
@@ -1944,18 +1846,18 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                             alt={viewingUser.username} 
                             className="detail-avatar" 
                           />
-                          <span className="member-badge">🌟 GOLD MEMBER</span>
+                          <span className="member-badge">🌟 THÀNH VIÊN VÀNG</span>
                         </div>
                         <div className="profile-meta-info">
                           <h3>{viewingUser.username}</h3>
-                          <span className="role-pill">Customer</span>
-                          <span className="status-text">Male • ID: #{viewingUser.id}</span>
+                          <span className="role-pill">Khách hàng</span>
+                          <span className="status-text">{viewingUser.gender === 'female' ? 'Nữ' : 'Nam'} • ID: #{viewingUser.id}</span>
                         </div>
                       </div>
                       <hr className="widget-divider" />
                       <div className="profile-card-actions">
-                        <button className="btn btn-primary btn-sm btn-edit-profile" onClick={() => alert("Profile editing feature is managed by general user control panel.")}>
-                          <Pencil size={14} /> Edit Profile
+                        <button className="btn btn-primary btn-sm btn-edit-profile" onClick={() => alert("Tính năng chỉnh sửa hồ sơ được quản lý bởi bảng điều khiển người dùng chung.")}>
+                          <Pencil size={14} /> Chỉnh sửa hồ sơ
                         </button>
                       </div>
                     </div>
@@ -1965,25 +1867,25 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                     <div className="personal-info-card-widget glass-panel h-100">
                       <div className="card-header d-flex align-items-center gap-2 mb-3">
                         <Users size={16} className="header-icon" />
-                        <h3 className="m-0">PERSONAL INFO</h3>
+                        <h3 className="m-0">THÔNG TIN CÁ NHÂN</h3>
                       </div>
                       <div className="info-list">
                         <div className="info-row">
-                          <span className="info-label">USER ID</span>
+                          <span className="info-label">MÃ TÀI KHOẢN</span>
                           <span className="info-value value-id">{viewingUser.id}</span>
                         </div>
                         <div className="info-row">
-                          <span className="info-label">EMAIL ADDRESS</span>
+                          <span className="info-label">ĐỊA CHỈ EMAIL</span>
                           <span className="info-value">{viewingUser.email}</span>
                         </div>
                         <div className="info-row">
-                          <span className="info-label">PHONE NUMBER</span>
-                          <span className="info-value">{viewingUser.phone || 'N/A'}</span>
+                          <span className="info-label">SỐ ĐIỆN THOẠI</span>
+                          <span className="info-value">{viewingUser.phone || 'Chưa cung cấp'}</span>
                         </div>
                         <div className="info-row">
-                          <span className="info-label">REGISTRATION DATE</span>
+                          <span className="info-label">NGÀY ĐĂNG KÝ</span>
                           <span className="info-value">
-                            {new Date(viewingUser.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                            {new Date(viewingUser.createdAt).toLocaleDateString('vi-VN', { year: 'numeric', month: 'long', day: 'numeric' })}
                           </span>
                         </div>
                       </div>
@@ -1997,9 +1899,9 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                       <div className="address-card-header d-flex justify-content-between align-items-center mb-3">
                         <div className="header-title-wrap d-flex align-items-center gap-2">
                           <MapPin size={16} className="green-text" />
-                          <h3 className="m-0">Shipping Address</h3>
+                          <h3 className="m-0">Địa chỉ giao hàng</h3>
                         </div>
-                        <span className="badge badge-default-address">DEFAULT</span>
+                        <span className="badge badge-default-address">MẶC ĐỊNH</span>
                       </div>
                       <p className="address-text">
                         {ordersList.filter(o => o.customerId === viewingUser.id)[0]?.shippingInfo?.address || '103 Eco Tower, District 1, Ho Chi Minh City, 70000, Vietnam'}
@@ -2012,7 +1914,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                       <div className="address-card-header d-flex justify-content-between align-items-center mb-3">
                         <div className="header-title-wrap d-flex align-items-center gap-2">
                           <CreditCard size={16} className="orange-text" />
-                          <h3 className="m-0">Billing Address</h3>
+                          <h3 className="m-0">Địa chỉ thanh toán</h3>
                         </div>
                       </div>
                       <p className="address-text">
@@ -2024,18 +1926,18 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
 
                 <div className="recent-orders-card-widget glass-panel mb-4">
                   <div className="recent-orders-header d-flex justify-content-between align-items-center mb-3">
-                    <h3 className="m-0">Recent Order History</h3>
-                    <span className="view-all-link" onClick={() => alert("Redirecting to all orders...")}>View All</span>
+                    <h3 className="m-0">Lịch sử đơn hàng gần đây</h3>
+                    <span className="view-all-link" onClick={() => alert("Chuyển hướng đến tất cả đơn hàng...")}>Xem tất cả</span>
                   </div>
                   <div className="table-responsive">
                     <table className="dashboard-table table">
                       <thead>
                         <tr>
-                          <th>ORDER ID</th>
-                          <th>PRODUCT NAME</th>
-                          <th>DATE</th>
-                          <th>AMOUNT</th>
-                          <th>STATUS</th>
+                          <th>MÃ ĐƠN HÀNG</th>
+                          <th>TÊN SẢN PHẨM</th>
+                          <th>NGÀY</th>
+                          <th>SỐ TIỀN</th>
+                          <th>TRẠNG THÁI</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2044,10 +1946,10 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                             <tr key={o.id}>
                               <td className="green-text font-bold">#{o.id.toUpperCase()}</td>
                               <td>{o.items.map(it => it.name).join(', ')}</td>
-                              <td>{new Date(o.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
+                              <td>{new Date(o.createdAt).toLocaleDateString('vi-VN', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
                               <td>
                                 <span className="price-vnd-formatted">
-                                  {o.totalAmount.toLocaleString('en-US')}
+                                  {o.totalAmount.toLocaleString('vi-VN')}
                                   <span className="price-vnd-label"> VND</span>
                                 </span>
                               </td>
@@ -2063,9 +1965,9 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                             <tr>
                               <td className="green-text font-bold">#ORD-5521</td>
                               <td>Solar-Powered Power Bank X1</td>
-                              <td>12 May, 2024</td>
+                              <td>12 Tháng 5, 2024</td>
                               <td>5,450,000 VND</td>
-                              <td><span className="status-delivery-tag completed">DELIVERED</span></td>
+                              <td><span className="status-delivery-tag completed">ĐÃ GIAO THÀNH CÔNG</span></td>
                             </tr>
                           </>
                         )}
@@ -2633,148 +2535,21 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
           )}
 
           {!loading && subTab === 'chat' && (
-            <div className="chat-view-layout glass-panel animate-fade">
-              <div className="chat-conversations-sidebar">
-                <h3>Vé Bảo Hành</h3>
-                <p className="chat-sub-lbl">Chọn một vé để bắt đầu tư vấn</p>
-                <div className="chat-conversations-list">
-                  {chatConversations.map(conv => (
-                    <div 
-                      key={conv.id} 
-                      className={`conv-item-card ${selectedBooking?.id === conv.id ? 'active' : ''}`}
-                      onClick={() => handleSelectConversation(conv)}
-                    >
-                      <div className="conv-item-info">
-                        <h4>{conv.deviceType}</h4>
-                        <p className="conv-user-name">
-                          Client: {conv.customerName}
-                        </p>
-                      </div>
-                      <span className="conv-id">#{conv.id}</span>
-                    </div>
-                  ))}
-                  {chatConversations.length === 0 && (
-                    <p className="empty-text">Không có bảo hành nào được gán để bắt đầu nhắn tin.</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="chat-thread-panel">
-                {selectedBooking ? (
-                  <>
-                    <div className="thread-header">
-                      <div>
-                        <h4>{selectedBooking.deviceType}</h4>
-                        <p>#{selectedBooking.id} • Customer: {selectedBooking.customerName}</p>
-                      </div>
-                    </div>
-
-                    <div className="chat-messages-thread">
-                      {Array.isArray(chatMessages) && chatMessages.map(msg => {
-                        const isMe = msg.senderId === user.id;
-                        return (
-                          <div key={msg.id} className={`chat-message-bubble ${isMe ? 'mine' : 'theirs'}`}>
-                             {!isMe && <img src={getAvatarUrl(msg.senderAvatar, msg.senderName)} alt={msg.senderName} className="msg-avatar" />}
-                            <div className="msg-bubble-content">
-                              {!isMe && <span className="sender-name">{msg.senderName}</span>}
-                              {msg.text && msg.text.startsWith('[IMG]') ? (
-                                <img src={msg.text.replace('[IMG]', '')} alt="attachment" className="chat-image-attachment" onClick={() => window.open(msg.text.replace('[IMG]', ''), '_blank')} />
-                              ) : (
-                                <p className="msg-text">{msg.text}</p>
-                              )}
-                              <span className="msg-time">{new Date(msg.createdAt || msg.timestamp || new Date()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                      <div ref={chatEndRef} />
-                    </div>
-
-                    <form className="chat-input-form" onSubmit={handleSendMessage}>
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        ref={fileInputRef} 
-                        style={{ display: 'none' }} 
-                        onChange={handleImageUpload}
-                      />
-                      <button 
-                        type="button" 
-                        className="chat-attach-btn" 
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={isUploadingImage}
-                      >
-                        <Paperclip size={18} />
-                      </button>
-                      <input 
-                        type="text" 
-                        placeholder={isUploadingImage ? "Đang tải ảnh lên..." : "Nhập tin nhắn của bạn..."}
-                        value={newMessage}
-                        onChange={e => setNewMessage(e.target.value)}
-                        disabled={isUploadingImage}
-                      />
-                      <button type="submit" className="chat-send-btn" disabled={isUploadingImage}>
-                        <Send size={18} />
-                      </button>
-                    </form>
-                  </>
-                ) : (
-                  <div className="no-chat-selected">
-                    <p>Chọn một cuộc trò chuyện từ thanh bên để xem nhật ký trò chuyện.</p>
-                  </div>
-                )}
-              </div>
-
-              {selectedBooking && (
-                <div className="chat-case-details-panel">
-                  <h3>Vé Bảo Hành</h3>
-                  <hr className="details-divider" />
-                  <div className="details-content">
-                    <div className="details-device-header">
-                      <h4>{selectedBooking.deviceType}</h4>
-                      <span className="details-id">#{selectedBooking.id}</span>
-                    </div>
-                    
-                    <div className="details-progress-stepper">
-                      <div className={`stepper-step ${['assigned', 'inspecting', 'repairing', 'completed'].includes(selectedBooking.status) ? 'active' : ''}`}>
-                        <div className="step-bullet">1</div>
-                        <div className="step-info"><span className="step-name">Được Gán</span></div>
-                      </div>
-                      <div className={`stepper-step ${['inspecting', 'repairing', 'completed'].includes(selectedBooking.status) ? 'active' : ''}`}>
-                        <div className="step-bullet">2</div>
-                        <div className="step-info"><span className="step-name">Kiểm Tra</span></div>
-                      </div>
-                      <div className={`stepper-step ${['repairing', 'completed'].includes(selectedBooking.status) ? 'active' : ''}`}>
-                        <div className="step-bullet">3</div>
-                        <div className="step-info"><span className="step-name">Đang Sửa</span></div>
-                      </div>
-                      <div className={`stepper-step ${selectedBooking.status === 'completed' ? 'active' : ''}`}>
-                        <div className="step-bullet">4</div>
-                        <div className="step-info"><span className="step-name">Hoàn Thành</span></div>
-                      </div>
-                    </div>
-
-                    <hr className="details-divider" />
-
-                    <div className="details-row">
-                      <span>Chi Phí Ước Tính:</span>
-                      <span className="details-cost-val">
-                        {selectedBooking.cost > 0 ? `${selectedBooking.cost.toLocaleString('en-US')} VND` : 'Inspect pending'}
-                      </span>
-                    </div>
-
-                    <div className="details-row-vertical">
-                      <span>Báo Cáo Lỗi Từ Khách Hàng:</span>
-                      <p className="details-issue-text">{selectedBooking.issueDescription}</p>
-                    </div>
-
-                    <div className="details-row-vertical">
-                      <span>Ghi Chú Kỹ Thuật:</span>
-                      <p className="details-notes-text">{selectedBooking.notes || 'Chưa có ghi chú.'}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
+            <div className="animate-fade" style={{ height: 'calc(100vh - 160px)', minHeight: '520px' }}>
+              <ChatPanel
+                conversations={chatConversations}
+                selectedBooking={selectedBooking}
+                chatMessages={chatMessages}
+                newMessage={newMessage}
+                isLoading={chatLoading}
+                isUploadingImage={isUploadingImage}
+                typingUsers={typingUsers}
+                userRole="admin"
+                onSelectConversation={handleSelectConversation}
+                onSendMessage={handleSendMessage}
+                onTyping={handleTyping}
+                onImageUpload={handleImageUpload}
+              />
             </div>
           )}
         </main>
