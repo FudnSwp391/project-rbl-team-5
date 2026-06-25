@@ -1810,7 +1810,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
               <div className="customer-detail-view animate-fade">
                 <div className="detail-header-row">
                   <button className="back-to-list-btn" onClick={() => setViewingUser(null)}>
-                    <ArrowLeft size={16} /> Back to List
+                    <ArrowLeft size={16} /> Quay lại danh sách
                   </button>
                   <h2>Chi tiết Khách hàng</h2>
                 </div>
@@ -1825,18 +1825,18 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                             alt={viewingUser.username} 
                             className="detail-avatar" 
                           />
-                          <span className="member-badge">🌟 GOLD MEMBER</span>
+                          <span className="member-badge">🌟 THÀNH VIÊN VÀNG</span>
                         </div>
                         <div className="profile-meta-info">
                           <h3>{viewingUser.username}</h3>
-                          <span className="role-pill">Customer</span>
-                          <span className="status-text">Male • ID: #{viewingUser.id}</span>
+                          <span className="role-pill">Khách hàng</span>
+                          <span className="status-text">{viewingUser.gender === 'female' ? 'Nữ' : 'Nam'} • ID: #{viewingUser.id}</span>
                         </div>
                       </div>
                       <hr className="widget-divider" />
                       <div className="profile-card-actions">
                         <button className="btn btn-outline btn-sm btn-send-message" onClick={() => handleStartCustomerChat(viewingUser.id)}>
-                          <MessageSquare size={14} /> Send Message
+                          <MessageSquare size={14} /> Gửi tin nhắn
                         </button>
                       </div>
                     </div>
@@ -1846,25 +1846,25 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                     <div className="personal-info-card-widget glass-panel h-100">
                       <div className="card-header d-flex align-items-center gap-2 mb-3">
                         <Users size={16} className="header-icon" />
-                        <h3 className="m-0">PERSONAL INFO</h3>
+                        <h3 className="m-0">THÔNG TIN CÁ NHÂN</h3>
                       </div>
                       <div className="info-list">
                         <div className="info-row">
-                          <span className="info-label">USER ID</span>
+                          <span className="info-label">MÃ TÀI KHOẢN</span>
                           <span className="info-value value-id">{viewingUser.id}</span>
                         </div>
                         <div className="info-row">
-                          <span className="info-label">EMAIL ADDRESS</span>
+                          <span className="info-label">ĐỊA CHỈ EMAIL</span>
                           <span className="info-value">{viewingUser.email}</span>
                         </div>
                         <div className="info-row">
-                          <span className="info-label">PHONE NUMBER</span>
-                          <span className="info-value">{viewingUser.phone || 'N/A'}</span>
+                          <span className="info-label">SỐ ĐIỆN THOẠI</span>
+                          <span className="info-value">{viewingUser.phone || 'Chưa cung cấp'}</span>
                         </div>
                         <div className="info-row">
-                          <span className="info-label">REGISTRATION DATE</span>
+                          <span className="info-label">NGÀY ĐĂNG KÝ</span>
                           <span className="info-value">
-                            {new Date(viewingUser.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                            {new Date(viewingUser.createdAt).toLocaleDateString('vi-VN', { year: 'numeric', month: 'long', day: 'numeric' })}
                           </span>
                         </div>
                       </div>
@@ -1878,9 +1878,9 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                       <div className="address-card-header d-flex justify-content-between align-items-center mb-3">
                         <div className="header-title-wrap d-flex align-items-center gap-2">
                           <MapPin size={16} className="green-text" />
-                          <h3 className="m-0">Shipping Address</h3>
+                          <h3 className="m-0">Địa chỉ giao hàng</h3>
                         </div>
-                        <span className="badge badge-default-address">DEFAULT</span>
+                        <span className="badge badge-default-address">MẶC ĐỊNH</span>
                       </div>
                       <p className="address-text">
                         {ordersList.filter(o => o.customerId === viewingUser.id)[0]?.shippingInfo?.address || '103 Eco Tower, District 1, Ho Chi Minh City, 70000, Vietnam'}
@@ -1893,7 +1893,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                       <div className="address-card-header d-flex justify-content-between align-items-center mb-3">
                         <div className="header-title-wrap d-flex align-items-center gap-2">
                           <CreditCard size={16} className="orange-text" />
-                          <h3 className="m-0">Billing Address</h3>
+                          <h3 className="m-0">Địa chỉ thanh toán</h3>
                         </div>
                       </div>
                       <p className="address-text">
@@ -1905,18 +1905,18 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
 
                 <div className="recent-orders-card-widget glass-panel mb-4">
                   <div className="recent-orders-header d-flex justify-content-between align-items-center mb-3">
-                    <h3 className="m-0">Recent Order History</h3>
-                    <span className="view-all-link" onClick={() => alert("Redirecting to all orders...")}>View All</span>
+                    <h3 className="m-0">Lịch sử đơn hàng gần đây</h3>
+                    <span className="view-all-link" onClick={() => alert("Chuyển hướng đến tất cả đơn hàng...")}>Xem tất cả</span>
                   </div>
                   <div className="table-responsive">
                     <table className="dashboard-table table">
                       <thead>
                         <tr>
-                          <th>ORDER ID</th>
-                          <th>PRODUCT NAME</th>
-                          <th>DATE</th>
-                          <th>AMOUNT</th>
-                          <th>STATUS</th>
+                          <th>MÃ ĐƠN HÀNG</th>
+                          <th>TÊN SẢN PHẨM</th>
+                          <th>NGÀY</th>
+                          <th>SỐ TIỀN</th>
+                          <th>TRẠNG THÁI</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1925,10 +1925,10 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                             <tr key={o.id}>
                               <td className="green-text font-bold">#{o.id.toUpperCase()}</td>
                               <td>{o.items.map(it => it.name).join(', ')}</td>
-                              <td>{new Date(o.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
+                              <td>{new Date(o.createdAt).toLocaleDateString('vi-VN', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
                               <td>
                                 <span className="price-vnd-formatted">
-                                  {o.totalAmount.toLocaleString('en-US')}
+                                  {o.totalAmount.toLocaleString('vi-VN')}
                                   <span className="price-vnd-label"> VND</span>
                                 </span>
                               </td>
@@ -1944,9 +1944,9 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                             <tr>
                               <td className="green-text font-bold">#ORD-5521</td>
                               <td>Solar-Powered Power Bank X1</td>
-                              <td>12 May, 2024</td>
+                              <td>12 Tháng 5, 2024</td>
                               <td>5,450,000 VND</td>
-                              <td><span className="status-delivery-tag completed">DELIVERED</span></td>
+                              <td><span className="status-delivery-tag completed">ĐÃ GIAO THÀNH CÔNG</span></td>
                             </tr>
                           </>
                         )}
