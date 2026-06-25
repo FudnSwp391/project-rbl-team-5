@@ -12,7 +12,7 @@ import { getProductImage } from '../../components/ProductCard';
 import ChatPanel from '../../components/ChatPanel';
 import useBookingChat from '../../hooks/useBookingChat';
 
-const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000' : '';
+const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || /^(\d{1,3}\.){3}\d{1,3}$/.test(window.location.hostname)) ? `${window.location.protocol}//${window.location.hostname}:5000` : '';
 
 const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInitialSubTab }) => {
   const { user, token, getAvatarUrl, logout } = useAuth();
