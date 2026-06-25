@@ -44,6 +44,38 @@ const ChatPanel = ({
   const messagesAreaRef = useRef(null);
   const fileInputRef = useRef(null);
 
+  // --- Trích xuất thông tin thiết bị và mô tả từ bracket [DeviceType] của backend ---
+  let displayDeviceType = selectedBooking?.deviceType || selectedBooking?.device_type || 'Thiết bị';
+  let displayIssue = selectedBooking?.issueDescription || selectedBooking?.issue_description || '';
+  if (displayIssue.startsWith('[')) {
+    const closeIdx = displayIssue.indexOf(']');
+    if (closeIdx > 0) {
+      displayDeviceType = displayIssue.substring(1, closeIdx);
+      displayIssue = displayIssue.substring(closeIdx + 1).trim();
+    }
+  }
+
+  // Định dạng ngày hẹn dự kiến
+  let displayDate = '—';
+  if (selectedBooking) {
+    const rawDate = selectedBooking.preferred_date || selectedBooking.preferredDate;
+    if (rawDate) {
+      displayDate = new Date(rawDate).toLocaleDateString('vi-VN');
+    }
+    
+    // Trích xuất khung giờ hẹn từ notes của booking
+    let displayTime = selectedBooking.preferredTime || '';
+    if (!displayTime && selectedBooking.notes && selectedBooking.notes.includes('Khung giờ:')) {
+      const matchTime = selectedBooking.notes.match(/Khung giờ:\s*([^\r\n]+)/);
+      if (matchTime) {
+        displayTime = matchTime[1].trim();
+      }
+    }
+    if (displayTime) {
+      displayDate += ` (${displayTime})`;
+    }
+  }
+
   // --- Trạng thái chỉnh sửa chi tiết phiếu (chỉ cho technician) ---
   const [isEditingCost, setIsEditingCost] = useState(false);
   const [isEditingNotes, setIsEditingNotes] = useState(false);
@@ -158,6 +190,16 @@ const ChatPanel = ({
             conversations.map(conv => {
               const statusInfo = getStatusBadge(conv.status);
               const isActive = selectedBooking?.id === conv.id;
+              
+              let convDeviceType = conv.deviceType || conv.device_type || 'Thiết bị';
+              const convIssue = conv.issueDescription || conv.issue_description || '';
+              if (convIssue.startsWith('[')) {
+                const closeIdx = convIssue.indexOf(']');
+                if (closeIdx > 0) {
+                  convDeviceType = convIssue.substring(1, closeIdx);
+                }
+              }
+
               return (
                 <div
                   key={conv.id}
@@ -190,7 +232,7 @@ const ChatPanel = ({
                       </span>
                     </div>
                     <p className="cp-conv-device">
-                      🔧 {conv.deviceType || conv.device_type || 'Thiết bị'}
+                      🔧 {convDeviceType}
                     </p>
                     <p className="cp-conv-id">#{conv.id}</p>
                   </div>
@@ -223,7 +265,7 @@ const ChatPanel = ({
                       : (selectedBooking.customerName || 'Khách hàng')}
                   </h4>
                   <p>
-                    #{selectedBooking.id} • {selectedBooking.deviceType || selectedBooking.device_type}
+                    #{selectedBooking.id} • {displayDeviceType}
                   </p>
                 </div>
               </div>
@@ -462,11 +504,11 @@ const ChatPanel = ({
           <div className="cp-details-info-list">
             <div className="cp-details-info-row">
               <span className="cp-details-lbl">Thiết bị</span>
-              <span className="cp-details-val">{selectedBooking.deviceType || selectedBooking.device_type}</span>
+              <span className="cp-details-val">{displayDeviceType}</span>
             </div>
             <div className="cp-details-info-row">
               <span className="cp-details-lbl">Ngày hẹn</span>
-              <span className="cp-details-val">{selectedBooking.preferredDate || '—'}</span>
+              <span className="cp-details-val">{displayDate}</span>
             </div>
 
             {/* === CHI PHÍ - Technician có thể sửa === */}
@@ -508,10 +550,10 @@ const ChatPanel = ({
           </div>
 
           {/* === MÔ TẢ SỰ CỐ === */}
-          {selectedBooking.issueDescription && (
+          {displayIssue && (
             <div className="cp-details-section">
               <span className="cp-details-lbl">Mô tả sự cố</span>
-              <p className="cp-details-desc">{selectedBooking.issueDescription}</p>
+              <p className="cp-details-desc">{displayIssue}</p>
             </div>
           )}
 
