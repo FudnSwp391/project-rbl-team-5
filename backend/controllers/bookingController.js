@@ -189,7 +189,9 @@ exports.updateBooking = async (req, res) => {
 
     // Add support for new columns
     const finalPickupDate = pickup_date || pickupDate;
-    if (finalPickupDate !== undefined) updates.pickup_date = finalPickupDate;
+    if (finalPickupDate !== undefined) {
+      updates.pickup_date = finalPickupDate === "" ? null : finalPickupDate;
+    }
 
     const finalReplacedParts = replaced_parts || replacedParts;
     if (finalReplacedParts !== undefined) updates.replaced_parts = finalReplacedParts;

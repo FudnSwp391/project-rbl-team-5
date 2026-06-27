@@ -23,8 +23,28 @@ const poolPromise = new sql.ConnectionPool(config)
   .connect()
   .then(pool => {
     console.log('Connected to MS SQL Server');
-    // Automigration to add description column to Users table
+    // Automigrations
     pool.request().query(`
+      IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[conversations]') AND type in (N'U'))
+      BEGIN
+        CREATE TABLE [dbo].[conversations](
+          [id] [int] IDENTITY(1,1) NOT NULL PRIMARY KEY,
+          [customer_id] [int] NOT NULL,
+          [seller_id] [int] NULL,
+          [product_id] [int] NULL,
+          [status] [nvarchar](50) NOT NULL DEFAULT 'pending',
+          [created_at] [datetime] NOT NULL DEFAULT GETUTCDATE(),
+          [updated_at] [datetime] NOT NULL DEFAULT GETUTCDATE()
+        );
+      END
+
+      IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[messages]') AND name = 'conversation_id')
+      BEGIN
+        ALTER TABLE [dbo].[messages] ADD conversation_id INT NULL;
+        -- Also make booking_id nullable if it was not null
+        ALTER TABLE [dbo].[messages] ALTER COLUMN booking_id INT NULL;
+      END
+
       IF NOT EXISTS (
         SELECT * FROM sys.columns 
         WHERE object_id = OBJECT_ID('dbo.Users') AND name = 'description'
@@ -35,7 +55,7 @@ const poolPromise = new sql.ConnectionPool(config)
     `).then(() => {
       console.log('Database schema checked/updated successfully.');
     }).catch(err => {
-      console.error('Error running description column migration:', err);
+      console.error('Error running database migrations:', err);
     });
     return pool;
   })

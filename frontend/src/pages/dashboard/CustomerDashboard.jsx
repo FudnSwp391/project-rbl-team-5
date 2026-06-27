@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import useBookingChat from '../../hooks/useBookingChat';
+import useConsultationChat from '../../hooks/useConsultationChat';
 import ChatPanel from '../../components/ChatPanel';
 import { 
   LayoutDashboard, ShoppingBag, Calendar, MessageSquare,
@@ -27,9 +27,11 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
   const [newDate, setNewDate] = useState('');
   const [newTime, setNewTime] = useState('09:00 AM');
 
+  const [chatConversations, setChatConversations] = useState([]);
+
   // --- CHAT HOOK ---
   const {
-    selectedBooking,
+    selectedConversation,
     chatMessages,
     newMessage,
     isUploadingImage,
@@ -41,14 +43,36 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
     handleImageUpload,
     handleTyping,
     markChatViewActive,
-  } = useBookingChat(user, token);
+  } = useConsultationChat(user, token);
 
-  // Danh sách conversations: booking đã có technician được phân công
-  const chatConversations = bookingsList.filter(b => b.technicianId && b.status !== 'pending' && b.status !== 'canceled' && b.status !== 'cancelled');
+  const handleRequestConsultation = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/conversations`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert('Tạo yêu cầu tư vấn thành công! Vui lòng chờ nhân viên hỗ trợ.');
+        fetchData(false);
+        setSubTab('chat');
+        handleSelectConversation(data.conversation);
+      } else {
+        alert(data.message || 'Lỗi tạo yêu cầu.');
+        if (data.conversation) {
+          setSubTab('chat');
+          handleSelectConversation(data.conversation);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi kết nối');
+    }
+  };
 
-  const fetchData = async () => {
+  const fetchData = async (isInitial = false) => {
     if (!user || !token) return;
-    setLoading(true);
+    if (isInitial) setLoading(true);
     try {
       const resBookings = await fetch(`${API_BASE}/api/bookings`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -63,18 +87,25 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
       const dataOrders = await resOrders.json();
       if (Array.isArray(dataOrders)) setOrdersList(dataOrders);
       else setOrdersList([]);
+
+      const resConversations = await fetch(`${API_BASE}/api/conversations/my`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const dataConversations = await resConversations.json();
+      if (Array.isArray(dataConversations)) setChatConversations(dataConversations);
+      else setChatConversations([]);
     } catch (err) {
       console.error('Lỗi tải dữ liệu bảng điều khiển:', err);
     } finally {
-      setLoading(false);
+      if (isInitial) setLoading(false);
     }
   };
 
 
 
   useEffect(() => {
-    fetchData();
-  }, [user, token, subTab]);
+    fetchData(true);
+  }, [user, token]);
 
   // Check pending chat selection
   useEffect(() => {
@@ -107,8 +138,8 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
         body: JSON.stringify({ status: 'canceled' })
       });
       if (res.ok) {
-        alert('Hủy lịch hẹn thành công');
-        fetchData();
+        alert('Hủy đơn hàng thành công!');
+        fetchData(false);
       } else {
         const data = await res.json();
         alert(data.message || 'Lỗi hủy lịch hẹn');
@@ -240,7 +271,7 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
             </button>
             <button className={`sidebar-nav-btn ${subTab === 'chat' ? 'active' : ''}`} onClick={() => setSubTab('chat')} style={{ position: 'relative' }}>
               <MessageSquare size={18} />
-              Hỗ trợ kỹ thuật
+              Hỗ trợ & Tư vấn
               {unreadCount > 0 && (
                 <span style={{
                   position: 'absolute', top: '6px', right: '10px',
@@ -387,12 +418,12 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
 
           {!loading && subTab === 'bookings' && (
             <div className="customer-bookings animate-fade">
-              <h2>Track Appliance Repair Status</h2>
-              <p className="view-desc">Monitor hardware inspections and consult directly with your assigned technician.</p>
+              <h2>Theo Dõi Trạng Thái Sửa Chữa</h2>
+              <p className="view-desc">Theo dõi quá trình kiểm tra thiết bị và cập nhật trạng thái từ thợ sửa chữa.</p>
 
               <div className="bookings-cards-grid">
                 {bookingsList.length === 0 ? (
-                  <div className="glass-panel text-center py-4">No repair schedules registered yet.</div>
+                  <div className="glass-panel text-center py-4">Bạn chưa có lịch hẹn sửa chữa nào.</div>
                 ) : (
                   bookingsList.map(bk => (
                     <div key={bk.id} className="repair-card glass-panel">
@@ -407,46 +438,31 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
 
                       <div className="card-body">
                         <h4>{bk.deviceType}</h4>
-                        <p className="card-issue"><strong>Reported Fault:</strong> {bk.issueDescription}</p>
+                        <p className="card-issue"><strong>Lỗi báo cáo:</strong> {bk.issueDescription}</p>
                         
                         <div className="card-details-row">
                           <div>
-                            <span className="card-meta-lbl">Assigned Tech:</span>
+                            <span className="card-meta-lbl">Thợ phụ trách:</span>
                             <p><strong>{bk.technicianName}</strong></p>
                           </div>
                           <div>
-                            <span className="card-meta-lbl">Scheduled Date:</span>
+                            <span className="card-meta-lbl">Lịch hẹn:</span>
                             <p>{bk.preferredDate} ({bk.preferredTime})</p>
                           </div>
                         </div>
 
                         {bk.cost > 0 && (
                           <div className="card-cost-banner">
-                            Estimated Cost: <strong>{bk.cost.toLocaleString('en-US')} VND</strong>
+                            Chi phí dự kiến: <strong>{bk.cost.toLocaleString('en-US')} VND</strong>
                           </div>
                         )}
 
                         {bk.notes && (
                           <div className="card-notes-banner">
-                            <strong>Technician Message:</strong> {bk.notes}
+                            <strong>Ghi chú từ thợ:</strong> {bk.notes}
                           </div>
                         )}
                       </div>
-
-                      {bk.technicianId && (
-                        <div className="card-actions">
-                          <button 
-                            className="btn btn-primary btn-sm"
-                            onClick={() => {
-                              setSubTab('chat');
-                              handleSelectConversation(bk);
-                            }}
-                          >
-                            <MessageSquare size={16} />
-                            Chat with Technician
-                          </button>
-                        </div>
-                      )}
                     </div>
                   ))
                 )}
@@ -566,9 +582,15 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
 
           {!loading && subTab === 'chat' && (
             <div className="animate-fade" style={{ height: 'calc(100vh - 160px)', minHeight: '520px' }}>
+              <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h2 style={{ margin: 0 }}>Tư vấn Khách hàng</h2>
+                <button className="btn btn-primary" onClick={handleRequestConsultation}>
+                  + Yêu cầu tư vấn mới
+                </button>
+              </div>
               <ChatPanel
                 conversations={chatConversations}
-                selectedBooking={selectedBooking}
+                selectedConversation={selectedConversation}
                 chatMessages={chatMessages}
                 newMessage={newMessage}
                 isLoading={chatLoading}

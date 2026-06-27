@@ -18,6 +18,7 @@ const messageRoutes = require('./routes/messageRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const systemRoutes = require('./routes/systemRoutes');
+const conversationRoutes = require('./routes/conversationRoutes');
 
 const app = express();
 const server = http.createServer(app);
@@ -55,6 +56,7 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/conversations', conversationRoutes);
 app.use('/api', systemRoutes);
 
 // In-memory notifications database (avoids touching SQL)
@@ -230,29 +232,29 @@ io.on('connection', (socket) => {
     console.log(`User ${userId} registered socket to room`);
   });
 
-  // Join a booking specific room
-  socket.on('joinBookingRoom', (bookingId) => {
-    socket.join(`booking_${bookingId}`);
-    console.log(`Socket joined booking room: booking_${bookingId}`);
+  // Join a conversation specific room
+  socket.on('joinConversationRoom', (conversationId) => {
+    socket.join(`conversation_${conversationId}`);
+    console.log(`Socket joined conversation room: conversation_${conversationId}`);
   });
 
-  // Leave a booking room
-  socket.on('leaveBookingRoom', (roomName) => {
+  // Leave a conversation room
+  socket.on('leaveConversationRoom', (roomName) => {
     socket.leave(roomName);
   });
 
   // Typing indicators
-  socket.on('typing', ({ bookingId, userId, username }) => {
-    socket.to(`booking_${bookingId}`).emit('userTyping', { bookingId, userId, username });
+  socket.on('typing', ({ conversationId, userId, username }) => {
+    socket.to(`conversation_${conversationId}`).emit('userTyping', { conversationId, userId, username });
   });
 
-  socket.on('stopTyping', ({ bookingId, userId, username }) => {
-    socket.to(`booking_${bookingId}`).emit('userStopTyping', { bookingId, userId, username });
+  socket.on('stopTyping', ({ conversationId, userId, username }) => {
+    socket.to(`conversation_${conversationId}`).emit('userStopTyping', { conversationId, userId, username });
   });
 
   // Send messaging event
   socket.on('sendMessage', async (messageData) => {
-    const { senderId, receiverId, bookingId, text, senderName, senderAvatar } = messageData;
+    const { senderId, receiverId, conversationId, text, senderName, senderAvatar } = messageData;
     const now = new Date();
 
     // 1. Prepare message to emit immediately
@@ -260,7 +262,7 @@ io.on('connection', (socket) => {
       id: `temp_${Date.now()}`,
       senderId: senderId,
       receiverId: receiverId,
-      bookingId: bookingId,
+      conversationId: conversationId,
       text: text,
       createdAt: now.toISOString(),
       timestamp: now.toISOString(),
@@ -268,46 +270,48 @@ io.on('connection', (socket) => {
       senderAvatar: senderAvatar || ''
     };
 
-    // 2. Emit to booking room immediately (both sides)
-    io.to(`booking_${bookingId}`).emit('receiveMessage', enrichedMsg);
+    // 2. Emit to conversation room immediately (both sides)
+    io.to(`conversation_${conversationId}`).emit('receiveMessage', enrichedMsg);
 
     // 3. Notify receiver for unread badge immediately
-    io.to(String(receiverId)).emit('newMessageNotification', enrichedMsg);
+    if (receiverId) {
+      io.to(String(receiverId)).emit('newMessageNotification', enrichedMsg);
+      
+      // 4. Send bell notification immediately
+      const isImage = text && text.startsWith('[IMG]');
+      const notifMessage = isImage
+        ? `${enrichedMsg.senderName} đã gửi một hình ảnh trong cuộc trò chuyện.`
+        : `${enrichedMsg.senderName}: ${text.length > 80 ? text.substring(0, 80) + '...' : text}`;
 
-    // 4. Send bell notification immediately
-    const isImage = text && text.startsWith('[IMG]');
-    const notifMessage = isImage
-      ? `${enrichedMsg.senderName} đã gửi một hình ảnh trong phiếu sửa chữa #${bookingId}.`
-      : `${enrichedMsg.senderName}: ${text.length > 80 ? text.substring(0, 80) + '...' : text}`;
-
-    const chatNotif = {
-      id: String(Date.now() + Math.random()),
-      title: `💬 Tin nhắn mới từ ${enrichedMsg.senderName}`,
-      message: notifMessage,
-      sender: enrichedMsg.senderName,
-      createdAt: now.toISOString(),
-      bookingId: bookingId,
-      type: 'chat',
-      targetUserId: receiverId
-    };
-    notifications.push(chatNotif);
-    io.to(String(receiverId)).emit('newBellNotification', chatNotif);
+      const chatNotif = {
+        id: String(Date.now() + Math.random()),
+        title: `💬 Tin nhắn mới từ ${enrichedMsg.senderName}`,
+        message: notifMessage,
+        sender: enrichedMsg.senderName,
+        createdAt: now.toISOString(),
+        conversationId: conversationId,
+        type: 'chat',
+        targetUserId: receiverId
+      };
+      notifications.push(chatNotif);
+      io.to(String(receiverId)).emit('newBellNotification', chatNotif);
+    }
 
     // 5. Save to database asynchronously in the background
     try {
       db.query(
-        `INSERT INTO messages (sender_id, receiver_id, booking_id, text_content, timestamp)
-         VALUES (@senderId, @receiverId, @bookingId, @text, GETUTCDATE());
+        `INSERT INTO messages (sender_id, receiver_id, conversation_id, text_content, timestamp)
+         VALUES (@senderId, @receiverId, @conversationId, @text, GETUTCDATE());
          SELECT SCOPE_IDENTITY() AS newId;`,
         [
           { name: 'senderId', value: Number(senderId) },
-          { name: 'receiverId', value: Number(receiverId) },
-          { name: 'bookingId', value: Number(bookingId) },
+          { name: 'receiverId', value: receiverId ? Number(receiverId) : null },
+          { name: 'conversationId', value: Number(conversationId) },
           { name: 'text', value: text }
         ]
       ).then(async (saveResult) => {
         const newId = saveResult.recordset[0]?.newId || null;
-        console.log(`[MSG] Async Saved message id=${newId} booking=${bookingId} from=${senderId} to=${receiverId}`);
+        console.log(`[MSG] Async Saved message id=${newId} conversation=${conversationId} from=${senderId} to=${receiverId}`);
         
         let dbSenderName = senderName;
         let dbSenderAvatar = senderAvatar;
@@ -326,7 +330,7 @@ io.on('connection', (socket) => {
           senderName: dbSenderName || 'Thành viên',
           senderAvatar: dbSenderAvatar || ''
         };
-        io.to(`booking_${bookingId}`).emit('receiveMessage', finalMsg);
+        io.to(`conversation_${conversationId}`).emit('receiveMessage', finalMsg);
       }).catch(err => {
         console.error('[MSG ERROR] Lỗi lưu DB async:', err.message);
       });
