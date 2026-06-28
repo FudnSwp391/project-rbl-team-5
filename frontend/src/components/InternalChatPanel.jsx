@@ -8,24 +8,21 @@ const API_BASE = (window.location.hostname === 'localhost' || window.location.ho
   : '';
 
 /**
- * ChatPanel - Component nhắn tin cho Customer và Seller (Tư vấn).
+ * InternalChatPanel - Component nhắn tin nội bộ cho Admin.
  */
-const ChatPanel = ({
-  conversations = [],
+const InternalChatPanel = ({
+  staffList = [],
   selectedConversation,
   chatMessages = [],
   newMessage,
   isLoading,
   isUploadingImage,
   typingUsers = [],
-  userRole,
-  onSelectConversation,
+  onSelectStaff,
   onSendMessage,
   onTyping,
   onImageUpload,
-  onAcceptConsultation,
-  unreadConversations = [],
-  title,
+  unreadSenders = [],
 }) => {
   const { user, getAvatarUrl } = useAuth();
   const chatEndRef = useRef(null);
@@ -63,44 +60,39 @@ const ChatPanel = ({
     return groups;
   }, {});
 
-  const isSeller = userRole === 'seller' || userRole === 'admin';
-
   return (
     <div className="cp-layout">
-      {/* SIDEBAR DANH SÁCH YÊU CẦU */}
+      {/* SIDEBAR DANH SÁCH NHÂN VIÊN */}
       <aside className="cp-sidebar">
         <div className="cp-sidebar-header">
           <div className="cp-sidebar-title">
             <MessageSquare size={18} />
-            <span>{title || (isSeller ? 'Hỗ trợ Tư vấn' : 'Tin nhắn')}</span>
+            <span>Tin nhắn nội bộ</span>
           </div>
-          <span className="cp-conv-count">{conversations.length}</span>
+          <span className="cp-conv-count">{staffList.length}</span>
         </div>
 
         <div className="cp-conv-list">
-          {conversations.length === 0 ? (
+          {staffList.length === 0 ? (
             <div className="cp-empty-state">
               <MessageSquare size={32} className="cp-empty-icon" />
-              <p>Chưa có cuộc trò chuyện nào.</p>
+              <p>Chưa có nhân viên nào.</p>
             </div>
           ) : (
-            conversations.map(conv => {
-              const isActive = selectedConversation?.id === conv.id;
+            staffList.map(staff => {
+              const isActive = selectedConversation && 
+                (Number(selectedConversation.seller_id) === Number(staff.id) || 
+                 Number(selectedConversation.customer_id) === Number(staff.id));
               
-              // Xác định thông tin người kia dựa trên role
-              const partnerName = isSeller 
-                ? (conv.customerName || 'Khách hàng') 
-                : (conv.sellerName || 'Đang đợi Seller');
-              
-              const partnerAvatar = isSeller 
-                ? conv.customerAvatar 
-                : conv.sellerAvatar;
+              const partnerName = staff.username || staff.full_name;
+              const partnerAvatar = staff.avatar;
+              const roleText = staff.role === 'seller' ? 'Seller' : 'Thợ sửa chữa';
 
               return (
                 <div
-                  key={conv.id}
+                  key={staff.id}
                   className={`cp-conv-item ${isActive ? 'active' : ''}`}
-                  onClick={() => onSelectConversation(conv)}
+                  onClick={() => onSelectStaff(staff)}
                   role="button"
                   tabIndex={0}
                 >
@@ -110,23 +102,20 @@ const ChatPanel = ({
                       alt="avatar"
                       className="cp-conv-avatar"
                     />
-                    <span className={`cp-online-dot ${conv.status === 'active' ? 'online' : ''}`} />
+                    <span className={`cp-online-dot ${staff.status === 'active' ? 'online' : ''}`} />
                   </div>
                   <div className="cp-conv-info">
                     <div className="cp-conv-top-row">
                       <span className="cp-conv-name">{partnerName}</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        {unreadConversations.includes(conv.id) && (
+                        {unreadSenders.includes(staff.id) && (
                           <div style={{ width: '8px', height: '8px', backgroundColor: 'var(--accent-red)', borderRadius: '50%' }} title="Có tin nhắn mới" />
                         )}
-                        <span className={`cp-status-mini cp-status-${conv.status}`}>
-                          {conv.status === 'pending' ? 'Chờ nhận' : (conv.status === 'internal' ? 'Nội bộ' : 'Đang tư vấn')}
+                        <span className="cp-status-mini cp-status-active">
+                          {roleText}
                         </span>
                       </div>
                     </div>
-                    <p className="cp-conv-device">
-                      {conv.productName ? `📦 ${conv.productName}` : (conv.status === 'internal' ? '💬 Phòng nội bộ' : '💬 Tư vấn chung')}
-                    </p>
                   </div>
                 </div>
               );
@@ -143,37 +132,14 @@ const ChatPanel = ({
             <div className="cp-thread-header">
               <div className="cp-thread-header-left">
                 <img
-                  src={getAvatarUrl(
-                    isSeller ? selectedConversation.customerAvatar : selectedConversation.sellerAvatar,
-                    isSeller ? selectedConversation.customerName : selectedConversation.sellerName
-                  )}
+                  src={getAvatarUrl(selectedConversation.targetAvatar, selectedConversation.targetName)}
                   alt="avatar"
                   className="cp-header-avatar"
                 />
                 <div>
-                  <h4>
-                    {isSeller
-                      ? (selectedConversation.customerName || 'Khách hàng')
-                      : (selectedConversation.sellerName || 'Nhân viên Tư vấn')}
-                  </h4>
-                  <p>
-                    #{selectedConversation.id} • {selectedConversation.productName || (selectedConversation.status === 'internal' ? 'Phòng nội bộ' : 'Tư vấn chung')}
-                  </p>
+                  <h4>{selectedConversation.targetName || 'Nhân viên'}</h4>
+                  <p>Phòng nội bộ</p>
                 </div>
-              </div>
-              <div className="cp-thread-header-actions">
-                {isSeller && selectedConversation.status === 'pending' && onAcceptConsultation ? (
-                  <button 
-                    className="btn btn-primary btn-sm"
-                    onClick={() => onAcceptConsultation(selectedConversation.id)}
-                  >
-                    <CheckCircle size={16} style={{marginRight: '6px'}}/> Nhận tư vấn
-                  </button>
-                ) : (
-                  <span className={`cp-status-badge cp-status-${selectedConversation.status}`}>
-                    {selectedConversation.status === 'pending' ? 'Đang chờ nhận...' : (selectedConversation.status === 'internal' ? 'Tin nhắn nội bộ' : 'Đang tư vấn')}
-                  </span>
-                )}
               </div>
             </div>
 
@@ -189,11 +155,7 @@ const ChatPanel = ({
                   {chatMessages.length === 0 && (
                     <div className="cp-no-messages">
                       <MessageSquare size={40} />
-                      <p>
-                        {selectedConversation.status === 'pending' && !isSeller 
-                          ? 'Vui lòng chờ nhân viên vào hỗ trợ bạn...' 
-                          : 'Chưa có tin nhắn nào. Hãy gửi lời chào! 👋'}
-                      </p>
+                      <p>Chưa có tin nhắn nội bộ nào. Hãy gửi lời chào! 👋</p>
                     </div>
                   )}
 
@@ -278,7 +240,7 @@ const ChatPanel = ({
                 type="button"
                 className="cp-attach-btn"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={isUploadingImage || (selectedConversation.status === 'pending' && isSeller)}
+                disabled={isUploadingImage}
                 title="Đính kèm ảnh"
               >
                 <Paperclip size={18} />
@@ -289,19 +251,17 @@ const ChatPanel = ({
                 placeholder={
                   isUploadingImage
                     ? 'Đang tải ảnh lên...'
-                    : (selectedConversation.status === 'pending' && isSeller)
-                      ? 'Vui lòng nhấn Nhận Tư Vấn trước khi nhắn tin'
-                      : 'Nhập tin nhắn của bạn...'
+                    : 'Nhập tin nhắn nội bộ của bạn...'
                 }
                 value={newMessage}
                 onChange={(e) => onTyping(e.target.value)}
-                disabled={isUploadingImage || (selectedConversation.status === 'pending' && isSeller)}
+                disabled={isUploadingImage}
                 autoComplete="off"
               />
               <button
                 type="submit"
                 className="cp-send-btn"
-                disabled={isUploadingImage || !newMessage.trim() || (selectedConversation.status === 'pending' && isSeller)}
+                disabled={isUploadingImage || !newMessage.trim()}
               >
                 <Send size={18} />
               </button>
@@ -313,8 +273,8 @@ const ChatPanel = ({
               <div className="cp-no-selection-icon">
                 <MessageSquare size={48} />
               </div>
-              <h3>Chọn một cuộc hội thoại</h3>
-              <p>Chọn ở danh sách bên trái để bắt đầu nhắn tin.</p>
+              <h3>Chọn một nhân viên</h3>
+              <p>Chọn ở danh sách bên trái để bắt đầu nhắn tin nội bộ.</p>
             </div>
           </div>
         )}
@@ -323,4 +283,4 @@ const ChatPanel = ({
   );
 };
 
-export default ChatPanel;
+export default InternalChatPanel;

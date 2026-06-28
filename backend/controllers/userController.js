@@ -17,9 +17,9 @@ exports.getTechnicians = async (req, res) => {
   }
 };
 
-// GET /api/users - Admin xem tất cả user
+// GET /api/users - Admin, Seller, Technician xem tất cả user
 exports.getUsersList = async (req, res) => {
-  if (req.user.role !== 'Admin' && req.user.role !== 'admin' && req.user.role !== 'seller') {
+  if (req.user.role !== 'Admin' && req.user.role !== 'admin' && req.user.role !== 'seller' && req.user.role !== 'technician') {
     return res.status(403).json({ message: 'Không có quyền truy cập.' });
   }
   try {

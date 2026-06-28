@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import useBookingChat from '../../hooks/useBookingChat';
-import ChatPanel from '../../components/ChatPanel';
+import useInternalChat from '../../hooks/useInternalChat';
+import useNotifications from '../../hooks/useNotifications';
+import InternalChatPanel from '../../components/InternalChatPanel';
+import NotificationBell from '../../components/NotificationBell';
 import ProfileSettings from '../../components/ProfileSettings';
 import { 
   LayoutDashboard, ShoppingBag, MessageSquare, Plus,
@@ -23,31 +25,45 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
   const [bookingsList, setBookingsList] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // --- CHAT HOOK ---
+  const [usersList, setUsersList] = useState([]);
+
+  // --- EDITING STATES FOR BOOKINGS ---
+  const [editingBookingId, setEditingBookingId] = useState(null);
+  const [editCost, setEditCost] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+  const [isSavingCostNotes, setIsSavingCostNotes] = useState(false);
+
+  // --- INTERNAL CHAT HOOK ---
   const {
-    selectedBooking,
-    setSelectedBooking,
-    chatMessages,
-    newMessage,
-    isUploadingImage,
-    isLoading: chatLoading,
-    unreadCount,
-    typingUsers,
-    handleSelectConversation,
-    handleSendMessage,
-    handleImageUpload,
-    handleTyping,
-    markChatViewActive,
-  } = useBookingChat(user, token);
+    selectedConversation: internalConversation,
+    setSelectedConversation: setInternalConversation,
+    chatMessages: internalMessages,
+    newMessage: internalNewMessage,
+    isUploadingImage: isInternalUploading,
+    isLoading: isInternalLoading,
+    unreadCount: internalUnreadCount,
+    unreadSenders: internalUnreadSenders,
+    typingUsers: internalTypingUsers,
+    handleSelectStaff: handleSelectInternalStaff,
+    handleSendMessage: handleSendInternalMessage,
+    handleImageUpload: handleInternalImageUpload,
+    handleTyping: handleInternalTyping,
+    markChatViewActive: markInternalChatActive,
+  } = useInternalChat(user, token);
 
-  // Danh sách conversations: chỉ booking có technician được phân công (không phải pending)
-  const chatConversations = bookingsList.filter(
-    b => b.technicianId && b.status !== 'pending' && b.status !== 'canceled' && b.status !== 'cancelled'
-  );
+  const handleGlobalEvent = useCallback((eventName, data) => {
+    if (eventName === 'newOrder' || eventName === 'newBooking' || eventName === 'newOrderForSeller' || eventName === 'newBookingForSeller') {
+      fetchData();
+    }
+  }, []);
 
-  const fetchData = async () => {
+  const { notifications, clearAllNotifications } = useNotifications(user, token, handleGlobalEvent);
+
+  const internalStaffList = usersList.filter(u => u.role === 'admin' || u.role === 'seller');
+
+  const fetchData = async (isInitial = false) => {
     if (!user || !token) return;
-    setLoading(true);
+    if (isInitial) setLoading(true);
     try {
       const resBookings = await fetch(`${API_BASE}/api/bookings`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -55,33 +71,35 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
       const dataBookings = await resBookings.json();
       if (Array.isArray(dataBookings)) setBookingsList(dataBookings);
       else setBookingsList([]);
+
+      const resUsers = await fetch(`${API_BASE}/api/users/list`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (resUsers.ok) {
+        const usersData = await resUsers.json();
+        setUsersList(usersData);
+      }
     } catch (err) {
       console.error('Lỗi tải dữ liệu bảng điều khiển:', err);
     } finally {
-      setLoading(false);
+      if (isInitial) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
-  }, [user, token, subTab]);
+    fetchData(true);
+  }, [user, token]);
 
-  // Check pending chat selection
+
   useEffect(() => {
-    const pendingBookingId = localStorage.getItem('pending_chat_booking_id');
-    if (pendingBookingId && bookingsList.length > 0 && subTab === 'chat') {
-      const targetBooking = bookingsList.find(b => String(b.id) === String(pendingBookingId));
-      if (targetBooking) {
-        handleSelectConversation(targetBooking);
-        localStorage.removeItem('pending_chat_booking_id');
-      }
+    if (setInternalConversation) {
+      setInternalConversation(null);
     }
-  }, [bookingsList, subTab, handleSelectConversation]);
+  }, [subTab, setInternalConversation]);
 
-  // Đánh dấu tab chat active/inactive để cập nhật unread badge
   useEffect(() => {
-    markChatViewActive(subTab === 'chat');
-  }, [subTab, markChatViewActive]);
+    markInternalChatActive(subTab === 'internal-chat');
+  }, [subTab, markInternalChatActive]);
 
   const handleLogout = () => {
     logout();
@@ -108,6 +126,7 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
   };
 
   const handleUpdateBookingCostNotes = async (bookingId, cost, notes) => {
+    setIsSavingCostNotes(true);
     try {
       const res = await fetch(`${API_BASE}/api/bookings/${bookingId}`, {
         method: 'PUT',
@@ -115,14 +134,19 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ cost, notes })
+        body: JSON.stringify({ cost: cost ? Number(cost) : 0, notes })
       });
       if (res.ok) {
-        alert('Cập nhật chi phí sửa chữa thành công.');
+        alert('Cập nhật chi phí & ghi chú thành công.');
+        setEditingBookingId(null);
         fetchData();
+      } else {
+        alert('Lỗi cập nhật.');
       }
     } catch {
       alert('Không thể cập nhật.');
+    } finally {
+      setIsSavingCostNotes(false);
     }
   };
   const getStatusLabel = (st) => {
@@ -187,17 +211,17 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
               <Package size={18} />
               Kho linh kiện
             </button>
-            <button className={`sidebar-nav-btn ${subTab === 'chat' ? 'active' : ''}`} onClick={() => setSubTab('chat')} style={{ position: 'relative' }}>
+            <button className={`sidebar-nav-btn ${subTab === 'internal-chat' ? 'active' : ''}`} onClick={() => setSubTab('internal-chat')} style={{ position: 'relative' }}>
               <MessageSquare size={18} />
               Tin nhắn
-              {unreadCount > 0 && (
+              {internalUnreadCount > 0 && (
                 <span style={{
                   position: 'absolute', top: '6px', right: '10px',
                   background: '#ef4444', color: '#fff',
                   fontSize: '0.65rem', fontWeight: 800,
                   padding: '1px 5px', borderRadius: '10px', minWidth: '18px',
                   textAlign: 'center', lineHeight: '16px'
-                }}>{unreadCount > 9 ? '9+' : unreadCount}</span>
+                }}>{internalUnreadCount > 9 ? '9+' : internalUnreadCount}</span>
               )}
             </button>
           </nav>
@@ -228,6 +252,48 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
 
         {/* Dashboard Main Content Area */}
         <main className="dashboard-main-content">
+          <header className="dashboard-top-bar glass-panel">
+            <h2 className="topbar-page-title">
+              {subTab === 'repairs' ? 'Sửa chữa' : 
+               subTab === 'inventory' ? 'Kho linh kiện' : 
+               subTab === 'internal-chat' ? 'Tin nhắn nội bộ' : 
+               subTab === 'settings' ? 'Cài đặt' : 'Bảng điều khiển'}
+            </h2>
+
+            <div style={{ flex: 1 }}></div>
+
+            <div className="topbar-actions-profile">
+              <button className="topbar-action-btn theme-toggle" onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')} title="Toggle Light/Dark theme">
+                {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+              </button>
+              <div style={{ position: 'relative' }}>
+                <NotificationBell 
+                  notifications={notifications} 
+                  onClearAll={clearAllNotifications} 
+                  onClickNotification={(notif) => {
+                    if (notif.type === 'chat') setSubTab('internal-chat');
+                  }} 
+                />
+              </div>
+              
+              <button className="topbar-action-btn messages" onClick={() => setSubTab('internal-chat')} title="Messages">
+                <MessageSquare size={20} />
+              </button>
+              
+              <div className="topbar-divider"></div>
+
+              <div className="topbar-profile-widget">
+                <div className="profile-info">
+                  <h4>{user?.username || 'Kỹ thuật viên'}</h4>
+                  <span>Thợ sửa chữa</span>
+                </div>
+                <div className="profile-avatar">
+                  <img src={user?.avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=Tech&backgroundColor=e6f6ee"} alt="avatar" />
+                </div>
+              </div>
+            </div>
+          </header>
+
           {loading && (
             <div className="text-center py-5">
               <div className="spinner-border text-primary" role="status">
@@ -302,16 +368,79 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
                             </div>
                           </div>
 
-                          {bk.cost > 0 && (
-                            <div className="card-cost-banner">
-                              Estimated Cost: <strong>{bk.cost.toLocaleString('en-US')} VND</strong>
+                          {editingBookingId === bk.id ? (
+                            <div className="card-edit-details-form" style={{ marginTop: '15px', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                              <div className="form-group" style={{ marginBottom: '10px' }}>
+                                <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--neutral-medium)', marginBottom: '4px' }}>Chi phí dự kiến (VND):</label>
+                                <input 
+                                  type="number"
+                                  className="form-control"
+                                  style={{ width: '100%', padding: '6px', fontSize: '0.85rem', background: 'var(--neutral-bg)', border: '1px solid var(--border-color)', borderRadius: '4px', color: 'var(--text-color)' }}
+                                  value={editCost}
+                                  onChange={e => setEditCost(e.target.value)}
+                                  placeholder="0"
+                                  min="0"
+                                />
+                              </div>
+                              <div className="form-group" style={{ marginBottom: '12px' }}>
+                                <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--neutral-medium)', marginBottom: '4px' }}>Ghi chú từ thợ:</label>
+                                <textarea 
+                                  className="form-control"
+                                  rows={3}
+                                  style={{ width: '100%', padding: '6px', fontSize: '0.85rem', background: 'var(--neutral-bg)', border: '1px solid var(--border-color)', borderRadius: '4px', color: 'var(--text-color)', resize: 'vertical' }}
+                                  value={editNotes}
+                                  onChange={e => setEditNotes(e.target.value)}
+                                  placeholder="Nhập ghi chú cho khách hàng..."
+                                />
+                              </div>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button 
+                                  className="btn btn-primary btn-sm" 
+                                  style={{ flex: 1, padding: '4px 8px', fontSize: '0.8rem' }}
+                                  disabled={isSavingCostNotes}
+                                  onClick={() => handleUpdateBookingCostNotes(bk.id, editCost, editNotes)}
+                                >
+                                  {isSavingCostNotes ? 'Đang lưu...' : 'Lưu'}
+                                </button>
+                                <button 
+                                  className="btn btn-secondary btn-sm" 
+                                  style={{ flex: 1, padding: '4px 8px', fontSize: '0.8rem' }}
+                                  onClick={() => setEditingBookingId(null)}
+                                >
+                                  Hủy
+                                </button>
+                              </div>
                             </div>
-                          )}
+                          ) : (
+                            <>
+                              {bk.cost > 0 ? (
+                                <div className="card-cost-banner">
+                                  Chi phí dự kiến: <strong>{bk.cost.toLocaleString('en-US')} VND</strong>
+                                </div>
+                              ) : (
+                                <div className="card-cost-banner" style={{ opacity: 0.6 }}>
+                                  Chi phí dự kiến: <strong>Chưa báo giá</strong>
+                                </div>
+                              )}
 
-                          {bk.notes && !bk.notes.startsWith('Khung giờ:') && (
-                            <div className="card-notes-banner">
-                              <strong>Technician Notes:</strong> {bk.notes}
-                            </div>
+                              {bk.notes && !bk.notes.startsWith('Khung giờ:') && (
+                                <div className="card-notes-banner">
+                                  <strong>Ghi chú từ thợ:</strong> {bk.notes}
+                                </div>
+                              )}
+
+                              <button 
+                                className="btn btn-outline btn-sm"
+                                style={{ marginTop: '10px', width: '100%', padding: '4px 8px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                                onClick={() => {
+                                  setEditingBookingId(bk.id);
+                                  setEditCost(bk.cost > 0 ? String(bk.cost) : '');
+                                  setEditNotes(bk.notes || '');
+                                }}
+                              >
+                                ✏️ Báo giá & Ghi chú
+                              </button>
+                            </>
                           )}
                         </div>
 
@@ -329,17 +458,6 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
                             <option value="completed">Completed</option>
                           </select>
                         </div>
-
-                        <button 
-                          className="btn btn-outline btn-sm"
-                          onClick={() => {
-                            setSubTab('chat');
-                            handleSelectConversation(bk);
-                          }}
-                        >
-                          <MessageSquare size={16} />
-                          Chat with Customer
-                        </button>
                       </div>
                     </div>
                   );
@@ -621,35 +739,22 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
             </div>
           )}
 
-          {!loading && subTab === 'chat' && (
+          {!loading && subTab === 'internal-chat' && (
             <div className="animate-fade" style={{ height: 'calc(100vh - 200px)', minHeight: '400px' }}>
-              <ChatPanel
-                conversations={chatConversations}
-                selectedBooking={selectedBooking}
-                chatMessages={chatMessages}
-                newMessage={newMessage}
-                isLoading={chatLoading}
-                isUploadingImage={isUploadingImage}
-                typingUsers={typingUsers}
+              <InternalChatPanel
+                staffList={internalStaffList}
+                selectedConversation={internalConversation}
+                chatMessages={internalMessages}
+                newMessage={internalNewMessage}
+                isLoading={isInternalLoading}
+                isUploadingImage={isInternalUploading}
+                typingUsers={internalTypingUsers}
+                unreadSenders={internalUnreadSenders}
+                onSelectStaff={handleSelectInternalStaff}
+                onSendMessage={handleSendInternalMessage}
+                onTyping={handleInternalTyping}
+                onImageUpload={handleInternalImageUpload}
                 userRole="technician"
-                onSelectConversation={handleSelectConversation}
-                onSendMessage={handleSendMessage}
-                onTyping={handleTyping}
-                onImageUpload={handleImageUpload}
-                onUpdateStatus={async (bookingId, status) => {
-                  await handleUpdateBookingStatus(bookingId, status);
-                  // Cập nhật selectedBooking local để UI phản ánh ngay
-                  if (setSelectedBooking) {
-                    setSelectedBooking(prev => prev ? { ...prev, status } : prev);
-                  }
-                }}
-                onUpdateCostNotes={async (bookingId, cost, notes) => {
-                  await handleUpdateBookingCostNotes(bookingId, cost, notes);
-                  // Cập nhật selectedBooking local
-                  if (setSelectedBooking) {
-                    setSelectedBooking(prev => prev ? { ...prev, cost, notes } : prev);
-                  }
-                }}
               />
             </div>
           )}
