@@ -605,7 +605,7 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
           )}
 
           {!loading && subTab === 'chat' && (
-            <div className="animate-fade" style={{ height: 'calc(100vh - 160px)', minHeight: '520px' }}>
+            <div className="animate-fade" style={{ height: 'calc(100vh - 200px)', minHeight: '400px' }}>
               <ChatPanel
                 conversations={chatConversations}
                 selectedBooking={selectedBooking}

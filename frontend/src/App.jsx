@@ -155,7 +155,7 @@ function MainApp() {
     }
   };
 
-  const isConsoleDashboard = activePage === 'dashboard' && user && ['admin', 'seller', 'technician'].includes(user.role?.toLowerCase());
+  const isConsoleDashboard = activePage === 'dashboard' && user && ['admin', 'seller', 'technician', 'customer'].includes(user.role?.toLowerCase());
 
   return (
     <div className="app-container">
