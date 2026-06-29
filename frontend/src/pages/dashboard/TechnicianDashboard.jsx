@@ -297,26 +297,26 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
           {loading && (
             <div className="text-center py-5">
               <div className="spinner-border text-primary" role="status">
-                <span className="visually-hidden">Loading...</span>
+                <span className="visually-hidden">Đang tải...</span>
               </div>
             </div>
           )}
 
           {!loading && subTab === 'settings' && (
             <div className="settings-view animate-fade container py-4">
-              <h2 className="mb-4 text-center" style={{ fontWeight: 800 }}>Account Settings</h2>
+              <h2 className="mb-4 text-center" style={{ fontWeight: 800 }}>Cài Đặt Tài Khoản</h2>
               <ProfileSettings />
             </div>
           )}
 
           {!loading && subTab === 'repairs' && (
             <div className="technician-repairs animate-fade">
-              <h2>Technician Repair Schedule</h2>
-              <p className="view-desc">Inspect designated malfunctioning appliances, diagnose repair costs, and report progress to customers.</p>
+              <h2>Lịch Sửa Chữa Kỹ Thuật Viên</h2>
+              <p className="view-desc">Kiểm tra thiết bị hỏng, chẩn đoán chi phí sửa chữa và báo cáo tiến độ cho khách hàng.</p>
 
               <div className="bookings-cards-grid">
                 {bookingsList.length === 0 ? (
-                  <div className="glass-panel text-center py-4">No repair jobs assigned to you currently.</div>
+                  <div className="glass-panel text-center py-4">Hiện chưa có công việc sửa chữa nào được phân công cho bạn.</div>
                 ) : (
                   bookingsList.map(bk => {
                     let displayDeviceType = bk.device_type || bk.deviceType || 'Thiết bị';
@@ -355,15 +355,15 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
 
                         <div className="card-body">
                           <h4>{displayDeviceType}</h4>
-                          <p className="card-issue"><strong>Malfunction reported:</strong> {displayIssue}</p>
+                          <p className="card-issue"><strong>Lỗi báo cáo:</strong> {displayIssue}</p>
                           
                           <div className="card-details-row">
                             <div>
-                              <span className="card-meta-lbl">Customer:</span>
+                              <span className="card-meta-lbl">Khách hàng:</span>
                               <p><strong>{bk.customerName}</strong> ({bk.customerPhone})</p>
                             </div>
                             <div>
-                              <span className="card-meta-lbl">Preferred Date:</span>
+                              <span className="card-meta-lbl">Ngày hẹn:</span>
                               <p>{displayDate}{timeSuffix}</p>
                             </div>
                           </div>
@@ -415,7 +415,7 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
                             <>
                               {bk.cost > 0 ? (
                                 <div className="card-cost-banner">
-                                  Chi phí dự kiến: <strong>{bk.cost.toLocaleString('en-US')} VND</strong>
+                                  Chi phí dự kiến: <strong>{bk.cost.toLocaleString('vi-VN')} VND</strong>
                                 </div>
                               ) : (
                                 <div className="card-cost-banner" style={{ opacity: 0.6 }}>
@@ -444,24 +444,24 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
                           )}
                         </div>
 
-                      <div className="card-actions">
-                        <div className="status-selector-wrap">
-                          <span>Set status:</span>
-                          <select 
-                            className="form-control inline-select"
-                            value={bk.status}
-                            onChange={(e) => handleUpdateBookingStatus(bk.id, e.target.value)}
-                          >
-                            <option value="assigned">Assigned</option>
-                            <option value="inspecting">Inspecting</option>
-                            <option value="repairing">Repairing</option>
-                            <option value="completed">Completed</option>
-                          </select>
+                        <div className="card-actions">
+                          <div className="status-selector-wrap">
+                            <span>Cập nhật trạng thái:</span>
+                            <select 
+                              className="form-control inline-select"
+                              value={bk.status}
+                              onChange={(e) => handleUpdateBookingStatus(bk.id, e.target.value)}
+                            >
+                              <option value="assigned">Đã phân công</option>
+                              <option value="inspecting">Đang kiểm tra</option>
+                              <option value="repairing">Đang sửa chữa</option>
+                              <option value="completed">Hoàn thành</option>
+                            </select>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })
+                    );
+                  })
                 )}
               </div>
             </div>
@@ -512,18 +512,18 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
                       </div>
                       <div className="tech-profile-details">
                         <div className="tech-name-row">
-                          <h3>{user.full_name || "Alex Rivera"}</h3>
-                          <span className="tech-senior-badge">SENIOR FIELD TECH</span>
+                          <h3>{user.full_name || user.username}</h3>
+                          <span className="tech-senior-badge">KỸ THUẬT VIÊN CAO CẤP</span>
                         </div>
                         <p className="tech-bio-text">
-                          Specializing in Photovoltaic Array Optimization & Carbon Capture Maintenance. Leading regional sustainability targets since 2021.
+                          Chuyên về tối ưu hóa hệ thống quang điện & bảo trì thu giữ carbon. Dẫn đầu mục tiêu phát triển bền vững khu vực từ 2021.
                         </p>
                         <div className="tech-certs-row">
                           <span className="tech-cert-badge check-badge">
-                            <span className="check-icon">✓</span> Solar Certification L3
+                            <span className="check-icon">✓</span> Chứng chỉ năng lượng mặt trời L3
                           </span>
                           <span className="tech-cert-badge link-badge">
-                            <span className="link-icon">🔄</span> Grid Integration Expert
+                            <span className="link-icon">🔄</span> Chuyên gia tích hợp lưới điện
                           </span>
                         </div>
                       </div>
@@ -533,22 +533,22 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
                   {/* Repair Schedule Widget */}
                   <div className="tech-schedule-card glass-panel">
                     <div className="schedule-header-row">
-                      <h3>Repair Schedule</h3>
+                      <h3>Lịch Sửa Chữa</h3>
                       <div className="schedule-month-nav">
                         <button className="month-nav-btn">&lt;</button>
-                        <span>October 2024</span>
+                        <span>Tháng 10, 2024</span>
                         <button className="month-nav-btn">&gt;</button>
                       </div>
                     </div>
 
                     <div className="calendar-grid">
-                      <div className="cal-day-header">MON</div>
-                      <div className="cal-day-header">TUE</div>
-                      <div className="cal-day-header">WED</div>
-                      <div className="cal-day-header">THU</div>
-                      <div className="cal-day-header">FRI</div>
-                      <div className="cal-day-header">SAT</div>
-                      <div className="cal-day-header">SUN</div>
+                      <div className="cal-day-header">T2</div>
+                      <div className="cal-day-header">T3</div>
+                      <div className="cal-day-header">T4</div>
+                      <div className="cal-day-header">T5</div>
+                      <div className="cal-day-header">T6</div>
+                      <div className="cal-day-header">T7</div>
+                      <div className="cal-day-header">CN</div>
 
                       <div className={`calendar-cell ${selectedCalDay === 14 ? 'selected' : ''}`} onClick={() => setSelectedCalDay(14)}>
                         <span className="day-number">14</span>
@@ -579,7 +579,7 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
                     </div>
 
                     <div className="schedule-agenda-section">
-                      <h4>UPCOMING FOR TODAY</h4>
+                      <h4>LỊCH TRÌNH HÔM NAY</h4>
                       <div className="agenda-tasks-list">
                         {calTasks[selectedCalDay] ? (
                           calTasks[selectedCalDay].map(task => (
@@ -595,7 +595,7 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
                           ))
                         ) : (
                           <div className="empty-tasks-placeholder">
-                            <p>No repair tasks scheduled for this day.</p>
+                            <p>Không có công việc sửa chữa nào cho ngày này.</p>
                           </div>
                         )}
                       </div>
@@ -606,14 +606,14 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
                 <div className="tech-overview-col-right">
                   {/* Performance Score Widget */}
                   <div className="tech-performance-card glass-panel">
-                    <span className="card-lbl">Performance Score</span>
+                    <span className="card-lbl">Điểm Hiệu Suất</span>
                     <div className="score-main-value">
                       <h2>98.4%</h2>
                     </div>
-                    <span className="score-quarter-trend">+2.4% from last quarter</span>
+                    <span className="score-quarter-trend">+2.4% so với quý trước</span>
                     <div className="score-progress-section">
                       <div className="score-progress-labels">
-                        <span>Efficiency Target</span>
+                        <span>Mục tiêu hiệu suất</span>
                         <strong>104 / 120 hrs</strong>
                       </div>
                       <div className="score-progress-bar-bg">
@@ -624,12 +624,12 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
 
                   {/* Skill Inventory Widget */}
                   <div className="tech-skills-card glass-panel">
-                    <h3>Skill Inventory</h3>
+                    <h3>Kỹ Năng Chuyên Môn</h3>
                     <div className="skills-levels-list">
                       <div className="skill-level-row">
                         <div className="skill-level-labels">
-                          <span>Hardware Diagnostics</span>
-                          <span className="skill-level-val master">Master</span>
+                          <span>Chẩn đoán phần cứng</span>
+                          <span className="skill-level-val master">Thành thạo</span>
                         </div>
                         <div className="skill-level-progress-bg">
                           <div className="skill-level-progress-fill master-fill" style={{ width: '92%' }}></div>
@@ -637,8 +637,8 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
                       </div>
                       <div className="skill-level-row">
                         <div className="skill-level-labels">
-                          <span>Firmware Patching</span>
-                          <span className="skill-level-val expert">Expert</span>
+                          <span>Vá firmware</span>
+                          <span className="skill-level-val expert">Chuyên gia</span>
                         </div>
                         <div className="skill-level-progress-bg">
                           <div className="skill-level-progress-fill expert-fill" style={{ width: '78%' }}></div>
@@ -646,8 +646,8 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
                       </div>
                       <div className="skill-level-row">
                         <div className="skill-level-labels">
-                          <span>Remote Calibration</span>
-                          <span className="skill-level-val proficient">Proficient</span>
+                          <span>Hiệu chuẩn từ xa</span>
+                          <span className="skill-level-val proficient">Thành thạo</span>
                         </div>
                         <div className="skill-level-progress-bg">
                           <div className="skill-level-progress-fill proficient-fill" style={{ width: '55%' }}></div>
@@ -659,7 +659,7 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
                   {/* Earnings Wallet Widget */}
                   <div className="tech-wallet-card glass-panel">
                     <div className="wallet-card-header">
-                      <h3>Earnings Wallet</h3>
+                      <h3>Ví Thu Nhập</h3>
                       <CreditCard size={18} className="wallet-header-icon" />
                     </div>
                     <div className="wallet-balance-row">
@@ -667,16 +667,16 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
                     </div>
                     <div className="wallet-mini-stats-grid">
                       <div className="wallet-mini-stat-box">
-                        <span>Repairs Done</span>
+                        <span>Đã sửa xong</span>
                         <h3>{repairsDoneCount}</h3>
                       </div>
                       <div className="wallet-mini-stat-box">
-                        <span>Pending Payout</span>
+                        <span>Chờ thanh toán</span>
                         <h3>{pendingPayout > 0 ? `${pendingPayout.toLocaleString('vi-VN')} VND` : '0 VND'}</h3>
                       </div>
                     </div>
-                    <button className="wallet-action-btn" onClick={() => alert("Earnings and payouts details vault is opened.")}>
-                      View Earnings Details
+                    <button className="wallet-action-btn" onClick={() => alert("Chi tiết thu nhập và thanh toán đã được mở.")}>
+                      Xem Chi Tiết Thu Nhập
                     </button>
                   </div>
                 </div>
@@ -686,50 +686,50 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
 
           {!loading && subTab === 'inventory' && (
             <div className="tech-inventory-section animate-fade">
-              <h2>Parts & Tools Inventory</h2>
-              <p className="view-desc">Manage your replacement parts stock levels and tools certifications.</p>
+              <h2>Kho Linh Kiện & Dụng Cụ</h2>
+              <p className="view-desc">Quản lý tồn kho linh kiện thay thế và chứng nhận dụng cụ.</p>
               <div className="bookings-cards-grid">
                 <div className="glass-panel p-4" style={{ width: '100%' }}>
-                  <h3 className="mb-3">Spare Parts Inventory</h3>
+                  <h3 className="mb-3">Kho Linh Kiện Thay Thế</h3>
                   <div className="table-responsive">
                     <table className="dashboard-table">
                       <thead>
                         <tr>
-                          <th>Part ID</th>
-                          <th>Name / Description</th>
-                          <th>Category</th>
-                          <th>Stock Level</th>
-                          <th>Status</th>
+                          <th>Mã linh kiện</th>
+                          <th>Tên / Mô tả</th>
+                          <th>Danh mục</th>
+                          <th>Tồn kho</th>
+                          <th>Trạng thái</th>
                         </tr>
                       </thead>
                       <tbody>
                         <tr>
                           <td><strong>#SP-492</strong></td>
-                          <td>PV Inverter Replacement Capacitor</td>
-                          <td>Electrical</td>
-                          <td>12 units</td>
-                          <td><span className="badge badge-completed">In Stock</span></td>
+                          <td>Tụ điện thay thế biến tần PV</td>
+                          <td>Điện tử</td>
+                          <td>12 cái</td>
+                          <td><span className="badge badge-completed">Còn hàng</span></td>
                         </tr>
                         <tr>
                           <td><strong>#SP-109</strong></td>
-                          <td>Lithium Cell Fuse 12V</td>
-                          <td>Battery Parts</td>
-                          <td>4 units</td>
-                          <td><span className="badge badge-inspecting">Low Stock</span></td>
+                          <td>Cầu chì pin Lithium 12V</td>
+                          <td>Phụ kiện pin</td>
+                          <td>4 cái</td>
+                          <td><span className="badge badge-inspecting">Sắp hết</span></td>
                         </tr>
                         <tr>
                           <td><strong>#SP-038</strong></td>
-                          <td>Temperature Sensor Probe</td>
-                          <td>Sensors</td>
-                          <td>25 units</td>
-                          <td><span className="badge badge-completed">In Stock</span></td>
+                          <td>Đầu dò cảm biến nhiệt</td>
+                          <td>Cảm biến</td>
+                          <td>25 cái</td>
+                          <td><span className="badge badge-completed">Còn hàng</span></td>
                         </tr>
                         <tr>
                           <td><strong>#SP-882</strong></td>
-                          <td>Sync Converter Logic Board</td>
-                          <td>Circuits</td>
-                          <td>0 units</td>
-                          <td><span className="badge badge-canceled">Out of Stock</span></td>
+                          <td>Bo mạch logic bộ chuyển đổi đồng bộ</td>
+                          <td>Mạch điện</td>
+                          <td>0 cái</td>
+                          <td><span className="badge badge-canceled">Hết hàng</span></td>
                         </tr>
                       </tbody>
                     </table>

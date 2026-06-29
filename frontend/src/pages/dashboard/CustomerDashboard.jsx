@@ -4,7 +4,7 @@ import useConsultationChat from '../../hooks/useConsultationChat';
 import ChatPanel from '../../components/ChatPanel';
 import { 
   LayoutDashboard, ShoppingBag, Calendar, MessageSquare,
-  Sun, Moon, Bell, HelpCircle, LogOut, Settings
+  Sun, Moon, Bell, HelpCircle, LogOut, Settings, Gift, Copy, Check
 } from 'lucide-react';
 import ProfileSettings from '../../components/ProfileSettings';
 import { useCart } from '../../context/CartContext';
@@ -70,6 +70,89 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
     }
   };
 
+  // --- COUPON REWARD STATES ---
+  const [claimedCoupon, setClaimedCoupon] = useState(null);
+  const [claimError, setClaimError] = useState('');
+  const [claiming, setClaiming] = useState(false);
+  const [countdown, setCountdown] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  const fetchClaimedCoupon = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/promocodes/my-claimed`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setClaimedCoupon(data);
+      }
+    } catch (err) {
+      console.error("Error fetching claimed coupon", err);
+    }
+  };
+
+  const handleClaimCoupon = async () => {
+    setClaiming(true);
+    setClaimError('');
+    try {
+      const res = await fetch(`${API_BASE}/api/promocodes/claim-random`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setClaimedCoupon(data);
+      } else {
+        setClaimError(data.message || 'Không thể nhận mã giảm giá.');
+      }
+    } catch (err) {
+      setClaimError('Lỗi kết nối tới máy chủ.');
+    } finally {
+      setClaiming(false);
+    }
+  };
+
+  const handleCopyCode = (code) => {
+    navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Handle claimed coupon countdown timer
+  useEffect(() => {
+    if (!claimedCoupon || !claimedCoupon.expiresAt) {
+      setCountdown('');
+      return;
+    }
+
+    const timer = setInterval(() => {
+      const expiry = new Date(claimedCoupon.expiresAt).getTime();
+      const now = new Date().getTime();
+      const diff = expiry - now;
+
+      if (diff <= 0) {
+        clearInterval(timer);
+        setCountdown('');
+        setClaimedCoupon(null);
+      } else {
+        const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+        const minutes = Math.floor((diff / (1000 * 60)) % 60);
+        const seconds = Math.floor((diff / 1000) % 60);
+        
+        const hStr = String(hours).padStart(2, '0');
+        const mStr = String(minutes).padStart(2, '0');
+        const sStr = String(seconds).padStart(2, '0');
+        
+        setCountdown(`${hStr}:${mStr}:${sStr}`);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [claimedCoupon]);
+
   const fetchData = async (isInitial = false) => {
     if (!user || !token) return;
     if (isInitial) setLoading(true);
@@ -105,7 +188,14 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
 
   useEffect(() => {
     fetchData(true);
+    fetchClaimedCoupon();
   }, [user, token]);
+
+  useEffect(() => {
+    if (subTab === 'overview') {
+      fetchClaimedCoupon();
+    }
+  }, [subTab]);
 
   // Check pending chat selection
   useEffect(() => {
@@ -308,10 +398,10 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
         <main className="dashboard-main-content">
           <header className="dashboard-top-bar glass-panel" style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <div className="topbar-actions-profile">
-              <button className="topbar-action-btn theme-toggle" onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')} title="Toggle Light/Dark theme">
+              <button className="topbar-action-btn theme-toggle" onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')} title="Chuyển đổi sáng/tối">
                 {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
               </button>
-              <button className="topbar-action-btn notification" onClick={() => alert("No new notifications.")} title="Notifications">
+              <button className="topbar-action-btn notification" onClick={() => alert("Không có thông báo mới.")} title="Thông báo">
                 <Bell size={20} />
               </button>
               
@@ -330,7 +420,7 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
           {loading && (
             <div className="text-center py-5">
               <div className="spinner-border text-primary" role="status">
-                <span className="visually-hidden">Loading...</span>
+                <span className="visually-hidden">Đang tải...</span>
               </div>
             </div>
           )}
@@ -353,6 +443,136 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
                 <p style={{ marginTop: '6px', opacity: 0.9, fontSize: '0.92rem' }}>Theo dõi yêu cầu sửa chữa và lịch sử mua hàng của bạn tại đây.</p>
               </div>
 
+              {/* Lucky Coupon Claim Frame */}
+              <div className="lucky-coupon-card glass-panel" style={{
+                padding: '20px 24px',
+                borderRadius: '16px',
+                marginBottom: '28px',
+                background: 'var(--glass-bg, rgba(255, 255, 255, 0.05))',
+                border: '1.5px solid rgba(245, 158, 11, 0.3)',
+                boxShadow: 'var(--shadow-md)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '16px',
+                position: 'relative',
+                overflow: 'hidden'
+              }}>
+                {/* Decorative background glow */}
+                <div style={{
+                  position: 'absolute',
+                  top: '-40px',
+                  left: '-40px',
+                  width: '120px',
+                  height: '120px',
+                  background: 'rgba(245, 158, 11, 0.12)',
+                  filter: 'blur(30px)',
+                  borderRadius: '50%',
+                  zIndex: 0
+                }}></div>
+
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'center', zIndex: 1 }}>
+                  <div style={{
+                    width: '44px',
+                    height: '44px',
+                    borderRadius: '10px',
+                    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#F59E0B'
+                  }}>
+                    <Gift size={22} />
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-color)' }}>
+                      🎁 Quà Tặng Mỗi Ngày
+                    </h3>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '0.84rem', color: 'var(--neutral-medium)', maxWidth: '460px' }}>
+                      Mỗi ngày nhận ngẫu nhiên 1 mã giảm giá từ các chương trình của Admin & Người bán phát hành!
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ zIndex: 1, display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                  {claimedCoupon ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                      <div style={{
+                        padding: '6px 14px',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        border: '1.5px dashed #10B981',
+                        borderRadius: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}>
+                        <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#10B981', letterSpacing: '1px' }}>
+                          {claimedCoupon.code} (-{claimedCoupon.discount}%)
+                        </span>
+                        <button 
+                          onClick={() => handleCopyCode(claimedCoupon.code)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: '#10B981',
+                            display: 'flex',
+                            alignItems: 'center',
+                            padding: '2px'
+                          }}
+                          title="Sao chép mã"
+                        >
+                          {copied ? <Check size={16} /> : <Copy size={16} />}
+                        </button>
+                      </div>
+                      
+                      {countdown && (
+                        <div style={{
+                          fontSize: '0.8rem',
+                          color: '#EF4444',
+                          fontWeight: 700,
+                          backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}>
+                          ⏳ Hết hạn sau: <span style={{ fontFamily: 'monospace', fontSize: '0.88rem' }}>{countdown}</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleClaimCoupon}
+                      disabled={claiming}
+                      className="btn btn-primary"
+                      style={{
+                        background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                        border: 'none',
+                        padding: '8px 16px',
+                        fontWeight: 700,
+                        boxShadow: '0 4px 10px rgba(245, 158, 11, 0.2)',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        color: '#fff',
+                        transition: 'all 0.2s',
+                        fontSize: '0.85rem'
+                      }}
+                    >
+                      {claiming ? 'Đang nhận...' : 'Nhận Mã Ngẫu Nhiên'}
+                    </button>
+                  )}
+                </div>
+
+                {claimError && (
+                  <div style={{ width: '100%', fontSize: '0.8rem', color: '#EF4444', marginTop: '8px', zIndex: 1 }}>
+                    ⚠️ {claimError}
+                  </div>
+                )}
+              </div>
+
               {/* Quick Stats Row */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '28px' }}>
                 <div className="glass-panel" style={{ padding: '20px', borderRadius: '14px', textAlign: 'center' }}>
@@ -364,7 +584,7 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
                   <div style={{ fontSize: '0.82rem', color: 'var(--neutral-medium)', marginTop: '4px' }}>Đơn hàng đã đặt</div>
                 </div>
                 <div className="glass-panel" style={{ padding: '20px', borderRadius: '14px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#6366F1' }}>{ordersList.reduce((s, o) => s + (o.totalAmount || 0), 0).toLocaleString('en-US')}</div>
+                  <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#6366F1' }}>{ordersList.reduce((s, o) => s + (o.totalAmount || 0), 0).toLocaleString('vi-VN')}</div>
                   <div style={{ fontSize: '0.82rem', color: 'var(--neutral-medium)', marginTop: '4px' }}>Tổng chi tiêu (VND)</div>
                 </div>
               </div>
@@ -419,7 +639,7 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
                       <div key={ord.id} className="mini-item">
                         <div className="mini-info">
                           <h4>Đơn {ord.invoiceNumber}</h4>
-                          <span className="mini-price">{ord.totalAmount.toLocaleString('en-US')} VND</span>
+                          <span className="mini-price">{ord.totalAmount.toLocaleString('vi-VN')} VND</span>
                         </div>
                         <p>{new Date(ord.createdAt).toLocaleDateString('vi-VN')}</p>
                       </div>
@@ -492,7 +712,7 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
 
                           {bk.cost > 0 && (
                             <div className="card-cost-banner">
-                              Chi phí dự kiến: <strong>{bk.cost.toLocaleString('en-US')} VND</strong>
+                              Chi phí dự kiến: <strong>{bk.cost.toLocaleString('vi-VN')} VND</strong>
                             </div>
                           )}
 
@@ -512,18 +732,18 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
 
           {!loading && subTab === 'orders' && (
             <div className="customer-orders animate-fade">
-              <h2>Purchase Order History</h2>
-              <p className="view-desc">Review certified devices and products purchased from the TechCycle marketplace.</p>
+              <h2>Lịch Sử Đơn Hàng</h2>
+              <p className="view-desc">Xem lại các thiết bị và sản phẩm đã mua từ TechCycle.</p>
 
               <div className="table-responsive">
                 <table className="dashboard-table">
                   <thead>
                     <tr>
-                      <th>Invoice ID</th>
-                      <th>Purchase Date</th>
-                      <th>Purchased Devices</th>
-                      <th>Total Amount</th>
-                      <th>Payment Method</th>
+                      <th>Mã đơn hàng</th>
+                      <th>Ngày mua</th>
+                      <th>Thiết bị đã mua</th>
+                      <th>Tổng tiền</th>
+                      <th>Phương thức thanh toán</th>
                       <th>Trạng thái lịch hẹn</th>
                     </tr>
                   </thead>
@@ -538,13 +758,13 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
                             </div>
                           )}
                         </td>
-                        <td>{new Date(ord.createdAt).toLocaleDateString('en-US')}</td>
+                        <td>{new Date(ord.createdAt).toLocaleDateString('vi-VN')}</td>
                         <td>
                           {ord.items.map((i, idx) => (
                             <div key={idx} className="tbl-mini-item-name">• {i.name}</div>
                           ))}
                         </td>
-                        <td><strong>{ord.totalAmount.toLocaleString('en-US')} VND</strong></td>
+                        <td><strong>{ord.totalAmount.toLocaleString('vi-VN')} VND</strong></td>
                         <td>{ord.paymentMethod === 'cod' ? 'Thanh toán tại cửa hàng (COD)' : ord.paymentMethod === 'vnpay' ? 'Thanh toán qua VNPay' : 'Chuyển khoản'}</td>
                         <td>
                           <span className={`status-delivery-tag ${ord.status}`}>
