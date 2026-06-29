@@ -24,7 +24,7 @@ exports.getOrders = async (req, res) => {
       let invoiceNumber = `INV-${ord.id}`;
       let appointmentDate = null;
       let appointmentTime = null;
-      
+
       if (ord.notes) {
         const parts = ord.notes.split('|');
         parts.forEach(part => {
@@ -40,7 +40,7 @@ exports.getOrders = async (req, res) => {
         'SELECT * FROM order_items WHERE order_id = @orderId',
         [{ name: 'orderId', value: ord.id }]
       );
-      
+
       const enrichedItems = await Promise.all(itemsResult.recordset.map(async (item) => {
         const prod = await db.findOne('products', { id: item.product_id });
         return {
@@ -90,7 +90,7 @@ exports.getOrders = async (req, res) => {
 // POST /api/orders - Tạo đơn hàng mới (Đặt lịch tới xem máy)
 exports.createOrder = async (req, res) => {
   const { items, appointmentInfo, shippingInfo, paymentMethod, totalAmount } = req.body;
-  
+
   // Support both old (shippingInfo) and new (appointmentInfo) format
   const info = appointmentInfo || shippingInfo;
 
@@ -195,7 +195,7 @@ exports.createOrder = async (req, res) => {
               WHERE id IN (SELECT product_id FROM order_items WHERE order_id = @orderId)
             `, [{ name: 'orderId', value: newOrder.id }]);
             console.log(`Tự động hủy đơn ${newOrder.id} do hết thời gian xác nhận thanh toán (10 phút).`);
-            
+
             // Send notification
             const notificationsList = req.app.get('notifications');
             if (notificationsList) {
@@ -231,7 +231,7 @@ exports.createOrder = async (req, res) => {
       const appointmentDateTime = new Date(`${info.appointmentDate}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`);
       const cancelTime = new Date(appointmentDateTime.getTime() + 2 * 60 * 60 * 1000); // +2 giờ
       const timeUntilCancel = cancelTime.getTime() - Date.now();
-      
+
       if (timeUntilCancel > 0) {
         setTimeout(async () => {
           try {
@@ -303,10 +303,10 @@ exports.updateOrderStatus = async (req, res) => {
   try {
     const orderId = req.params.id;
     const { status } = req.body;
-    
+
     const order = await db.findOne('orders', { id: orderId });
     if (!order) return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
-    
+
     if (req.user.role === 'customer' || req.user.role === 'Customer') {
       let customerProfile = await db.findOne('customer_profiles', { user_id: req.user.id });
       if (!customerProfile || order.customer_id !== customerProfile.id) {
@@ -326,7 +326,7 @@ exports.updateOrderStatus = async (req, res) => {
         WHERE id IN (SELECT product_id FROM order_items WHERE order_id = @orderId)
       `, [{ name: 'orderId', value: orderId }]);
     }
-    
+
     await db.update('orders', 'id', orderId, { status, updated_at: new Date().toISOString() });
     res.json({ message: 'Cập nhật trạng thái thành công', status });
   } catch (error) {
@@ -339,7 +339,7 @@ exports.updateOrderStatus = async (req, res) => {
 exports.confirmVisit = async (req, res) => {
   try {
     const orderId = req.params.id;
-    
+
     // Chỉ seller/admin mới được xác nhận
     if (req.user.role !== 'Admin' && req.user.role !== 'admin' && req.user.role !== 'seller') {
       return res.status(403).json({ message: 'Không có quyền thực hiện.' });
@@ -349,7 +349,7 @@ exports.confirmVisit = async (req, res) => {
     if (!order) return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
 
     // Cập nhật đơn hàng sang completed
-    await db.update('orders', 'id', orderId, { 
+    await db.update('orders', 'id', orderId, {
       status: 'completed',
       updated_at: new Date().toISOString()
     });
@@ -385,7 +385,7 @@ exports.confirmVisit = async (req, res) => {
 exports.confirmPayment = async (req, res) => {
   try {
     const orderId = req.params.id;
-    
+
     const order = await db.findOne('orders', { id: orderId });
     if (!order) {
       return res.status(404).json({ message: 'Đơn hàng không tồn tại.' });
@@ -400,7 +400,7 @@ exports.confirmPayment = async (req, res) => {
     const createdAt = new Date(order.created_at);
     const now = new Date();
     const minutesElapsed = (now - createdAt) / (1000 * 60);
-    
+
     if (minutesElapsed > 10) {
       return res.status(400).json({ message: 'Hết thời gian xác nhận thanh toán. Vui lòng đặt lại đơn hàng.' });
     }
@@ -423,7 +423,7 @@ exports.confirmPayment = async (req, res) => {
 exports.cancelOrder = async (req, res) => {
   try {
     const orderId = req.params.id;
-    
+
     const order = await db.findOne('orders', { id: orderId });
     if (!order) {
       return res.status(404).json({ message: 'Đơn hàng không tồn tại.' });
@@ -512,7 +512,7 @@ exports.sepayWebhook = async (req, res) => {
   try {
     // SePay gửi thông tin giao dịch qua body (trên thực tế thuộc tính là 'content' thay vì 'transferContent')
     const { transferAmount, transferContent, content, accountNumber } = req.body;
-    
+
     console.log('[SePay Webhook] Nhận được giao dịch:', JSON.stringify(req.body));
 
     // Kiểm tra API key từ header để bảo mật
@@ -520,7 +520,7 @@ exports.sepayWebhook = async (req, res) => {
     // Lấy token thực tế (bỏ tiền tố 'Apikey ' hoặc 'Bearer ' nếu có)
     const apiKey = authHeader.replace(/^(Apikey|Bearer)\s+/i, '').trim();
     const expectedKey = (process.env.SEPAY_API_KEY || 'huynh_le_kim_huy').trim();
-    
+
     if (expectedKey && apiKey !== expectedKey) {
       console.warn('[SePay Webhook] API key không hợp lệ:', apiKey);
       return res.status(401).json({ success: false, message: 'Unauthorized' });
@@ -529,7 +529,7 @@ exports.sepayWebhook = async (req, res) => {
     // Tìm mã đơn hàng bằng cách duyệt qua tất cả các giá trị trong body để tìm mẫu TC{orderId} (không phân biệt hoa thường)
     let orderId = null;
     let rawContent = '';
-    
+
     // Tìm trong các trường phổ biến trước
     const commonFields = ['content', 'description', 'transferContent', 'transfer_content'];
     for (const field of commonFields) {
@@ -543,7 +543,7 @@ exports.sepayWebhook = async (req, res) => {
         }
       }
     }
-    
+
     // Nếu vẫn không tìm thấy, quét toàn bộ req.body dưới dạng string
     if (!orderId) {
       const bodyStr = JSON.stringify(req.body).toUpperCase();
@@ -686,7 +686,7 @@ exports.startOrderTimeoutCheck = () => {
         const createdAt = new Date(order.created_at);
         const minutesElapsed = (Date.now() - createdAt.getTime()) / (1000 * 60);
         if (minutesElapsed > 10) {
-          await db.update('orders', 'id', order.id, { 
+          await db.update('orders', 'id', order.id, {
             status: 'cancelled',
             updated_at: new Date().toISOString()
           });

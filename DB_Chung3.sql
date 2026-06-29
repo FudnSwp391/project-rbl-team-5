@@ -1146,7 +1146,350 @@ GO
 
 
 /* ==========================================================
-   PART 10: OUTPUT VERIFICATION
+   PART 10: TÍNH NĂNG MÃ GIẢM GIÁ (COUPONS / PROMOTIONS)
+   Tuân thủ chuẩn Enterprise Architecture (Claude.md):
+   - Mục 6:  Chuẩn hóa 3NF, đủ FK và Constraints
+   - Mục 17: Schema Migration Script
+   - Mục 26: SARGable Queries + Proactive Indexing
+   ========================================================== */
+
+-- ------------------------------------------------
+-- 10.1 DDL: Tạo bảng coupons (Idempotent Migration)
+-- ------------------------------------------------
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[coupons]') AND type = N'U')
+BEGIN
+    CREATE TABLE coupons (
+        id                  INT             PRIMARY KEY IDENTITY(1,1),
+        code                VARCHAR(50)     UNIQUE NOT NULL,              -- Mã nhập từ phía Client
+        name                NVARCHAR(150)   NOT NULL,                     -- Tên chương trình khuyến mãi
+        discount_type       VARCHAR(20)     NOT NULL                      -- 'percentage' hoặc 'fixed_amount'
+                            CONSTRAINT chk_coupon_type CHECK (discount_type IN ('percentage', 'fixed_amount')),
+        discount_value      DECIMAL(12,2)   NOT NULL
+                            CONSTRAINT chk_coupon_value CHECK (discount_value > 0),
+        min_order_value     DECIMAL(12,2)   NULL,                         -- Đơn tối thiểu để áp dụng
+        max_discount_amount DECIMAL(12,2)   NULL,                         -- Trần giảm tối đa (dùng với percentage)
+        usage_limit         INT             NULL,                         -- NULL = không giới hạn
+        usage_count         INT             NOT NULL DEFAULT 0,
+        apply_to            VARCHAR(20)     NOT NULL DEFAULT 'all'        -- 'all', 'order', 'repair'
+                            CONSTRAINT chk_coupon_apply CHECK (apply_to IN ('all', 'order', 'repair')),
+        start_date          DATETIME        NOT NULL DEFAULT GETDATE(),
+        end_date            DATETIME        NULL,
+        status              VARCHAR(20)     NOT NULL DEFAULT 'active'
+                            CONSTRAINT chk_coupon_status CHECK (status IN ('active', 'disabled', 'expired')),
+        created_by          INT             NULL,                         -- Admin tạo mã (FK tới users)
+        created_at          DATETIME        NOT NULL DEFAULT GETDATE(),
+        updated_at          DATETIME        NOT NULL DEFAULT GETDATE(),
+
+        CONSTRAINT chk_coupon_date CHECK (end_date IS NULL OR end_date > start_date),
+        CONSTRAINT chk_coupon_max CHECK (
+            max_discount_amount IS NULL OR discount_type = 'percentage'
+        ),
+        FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+    );
+    PRINT '>> Đã tạo bảng: coupons';
+END
+ELSE
+    PRINT '>> Bảng coupons đã tồn tại, bỏ qua.';
+GO
+
+-- ------------------------------------------------
+-- 10.2 DDL: Thêm cột vào bảng orders (Idempotent)
+-- ------------------------------------------------
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[orders]') AND name = 'coupon_id')
+BEGIN
+    ALTER TABLE orders
+        ADD coupon_id        INT           NULL,
+            discount_amount  DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+            original_amount  DECIMAL(12,2) NULL;                         -- Giá gốc trước khi áp mã
+
+    ALTER TABLE orders
+        ADD CONSTRAINT fk_orders_coupon FOREIGN KEY (coupon_id) REFERENCES coupons(id) ON DELETE SET NULL;
+
+    PRINT '>> Đã thêm cột coupon_id, discount_amount, original_amount vào bảng orders.';
+END
+ELSE
+    PRINT '>> Cột coupon_id đã tồn tại trong orders, bỏ qua.';
+GO
+
+-- ------------------------------------------------
+-- 10.3 PROACTIVE INDEXING (Claude.md Mục 26)
+-- WHERE status + start_date + end_date: SARGable
+-- ------------------------------------------------
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[coupons]') AND name = N'idx_coupon_code_status')
+    CREATE UNIQUE INDEX idx_coupon_code_status ON coupons(code, status);
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[coupons]') AND name = N'idx_coupon_date_range')
+    CREATE INDEX idx_coupon_date_range ON coupons(status, start_date, end_date);
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[orders]') AND name = N'idx_orders_coupon_id')
+    CREATE INDEX idx_orders_coupon_id ON orders(coupon_id) WHERE coupon_id IS NOT NULL;
+GO
+
+-- ------------------------------------------------
+-- 10.4 DỮ LIỆU MẪU (SEEDING) - 8 Mã Giảm Giá
+-- Chạy an toàn nhiều lần nhờ kiểm tra MERGE
+-- ------------------------------------------------
+DECLARE @AdminId INT;
+SELECT @AdminId = id FROM users WHERE username = 'admin' AND role_id = (SELECT id FROM roles WHERE role_name = 'admin');
+
+MERGE INTO coupons AS target
+USING (VALUES
+    -- code,           name,                           type,           value,   min_order,   max_disc,   limit, apply,   start,        end
+    ('WELCOME10',   N'Chào Mừng Thành Viên Mới - 10%', 'percentage',   10.00,  1000000.00,  500000.00,   100,  'all',   GETDATE(),    DATEADD(MONTH,3,GETDATE())),
+    ('GIAMGIA200K', N'Giảm Thẳng 200.000đ',            'fixed_amount', 200000, 3000000.00,  NULL,         50,  'order', GETDATE(),    DATEADD(MONTH,1,GETDATE())),
+    ('FLASH50',     N'Flash Sale - Giảm 50%',           'percentage',   50.00,  0.00,        1000000.00,   10,  'all',   GETDATE(),    DATEADD(DAY,3,GETDATE())),
+    ('REPAIR15',    N'Khuyến Mãi Sửa Chữa 15%',        'percentage',   15.00,  500000.00,   300000.00,    80,  'repair',GETDATE(),    DATEADD(MONTH,2,GETDATE())),
+    ('SUMMER500K',  N'Hè Rực Rỡ - Giảm 500.000đ',     'fixed_amount', 500000, 8000000.00,  NULL,         30,  'order', GETDATE(),    DATEADD(MONTH,2,GETDATE())),
+    ('TECHVIP20',   N'VIP Member - Giảm 20%',           'percentage',   20.00,  5000000.00,  2000000.00,   20,  'all',   GETDATE(),    DATEADD(MONTH,6,GETDATE())),
+    ('FIRSTBUY',    N'Mua Lần Đầu Giảm 100.000đ',      'fixed_amount', 100000, 500000.00,   NULL,        200,  'order', GETDATE(),    DATEADD(YEAR,1,GETDATE())),
+    ('BLACKFRI30',  N'Black Friday - Giảm 30%',         'percentage',   30.00,  2000000.00,  1500000.00,   50,  'all',
+        DATEADD(MONTH,5,GETDATE()),  DATEADD(MONTH,5,DATEADD(DAY,5,GETDATE())))
+) AS src(code, name, discount_type, discount_value, min_order_value, max_discount_amount, usage_limit, apply_to, start_date, end_date)
+ON target.code = src.code
+WHEN NOT MATCHED THEN
+    INSERT (code, name, discount_type, discount_value, min_order_value, max_discount_amount, usage_limit, apply_to, start_date, end_date, created_by)
+    VALUES (src.code, src.name, src.discount_type, src.discount_value, src.min_order_value, src.max_discount_amount, src.usage_limit, src.apply_to, src.start_date, src.end_date, @AdminId);
+
+PRINT '>> Đã seed dữ liệu mẫu 8 mã giảm giá vào bảng coupons.';
+GO
+
+-- ------------------------------------------------
+-- 10.5 STORED PROCEDURE: sp_ApplyCoupon
+-- Logic nghiệp vụ xác thực + tính toán giảm giá
+-- Sử dụng Optimistic Check để tránh Race Condition
+-- ------------------------------------------------
+IF OBJECT_ID('sp_ApplyCoupon', 'P') IS NOT NULL DROP PROCEDURE sp_ApplyCoupon;
+GO
+CREATE PROCEDURE sp_ApplyCoupon
+    @CouponCode     VARCHAR(50),
+    @OrderTotal     DECIMAL(12,2),
+    @ApplyContext   VARCHAR(20) = 'order',    -- 'order' hoặc 'repair'
+
+    -- Output Params
+    @CouponId       INT             OUTPUT,
+    @DiscountAmt    DECIMAL(12,2)   OUTPUT,
+    @FinalTotal     DECIMAL(12,2)   OUTPUT,
+    @ErrorMsg       NVARCHAR(255)   OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET @CouponId    = NULL;
+    SET @DiscountAmt = 0;
+    SET @FinalTotal  = @OrderTotal;
+    SET @ErrorMsg    = NULL;
+
+    DECLARE
+        @Id             INT,
+        @DiscountType   VARCHAR(20),
+        @DiscountValue  DECIMAL(12,2),
+        @MinOrder       DECIMAL(12,2),
+        @MaxDiscount    DECIMAL(12,2),
+        @UsageLimit     INT,
+        @UsageCount     INT,
+        @ApplyTo        VARCHAR(20),
+        @StartDate      DATETIME,
+        @EndDate        DATETIME,
+        @Status         VARCHAR(20);
+
+    -- Tra mã từ DB (SARGable: WHERE code = @param, idx_coupon_code_status đáp ứng)
+    SELECT
+        @Id           = id,
+        @DiscountType = discount_type,
+        @DiscountValue= discount_value,
+        @MinOrder     = min_order_value,
+        @MaxDiscount  = max_discount_amount,
+        @UsageLimit   = usage_limit,
+        @UsageCount   = usage_count,
+        @ApplyTo      = apply_to,
+        @StartDate    = start_date,
+        @EndDate      = end_date,
+        @Status       = status
+    FROM coupons WITH (NOLOCK)  -- Đọc nhanh không lock, kiểm tra cuối dùng UPDATE với optimistic
+    WHERE code = @CouponCode;
+
+    -- 1. Không tồn tại
+    IF @Id IS NULL
+    BEGIN
+        SET @ErrorMsg = N'Mã giảm giá không tồn tại hoặc không hợp lệ.';
+        RETURN 1;
+    END
+
+    -- 2. Trạng thái không active
+    IF @Status <> 'active'
+    BEGIN
+        SET @ErrorMsg = N'Mã giảm giá đã bị vô hiệu hóa hoặc đã hết hạn.';
+        RETURN 2;
+    END
+
+    -- 3. Chưa đến ngày áp dụng (SARGable: so sánh trực tiếp, không wrap hàm)
+    IF GETDATE() < @StartDate
+    BEGIN
+        SET @ErrorMsg = N'Mã giảm giá chưa đến ngày áp dụng.';
+        RETURN 3;
+    END
+
+    -- 4. Đã hết hạn
+    IF @EndDate IS NOT NULL AND GETDATE() > @EndDate
+    BEGIN
+        SET @ErrorMsg = N'Mã giảm giá đã hết hạn sử dụng.';
+        RETURN 4;
+    END
+
+    -- 5. Hết lượt sử dụng
+    IF @UsageLimit IS NOT NULL AND @UsageCount >= @UsageLimit
+    BEGIN
+        SET @ErrorMsg = N'Mã giảm giá đã hết lượt sử dụng.';
+        RETURN 5;
+    END
+
+    -- 6. Không áp dụng đúng ngữ cảnh
+    IF @ApplyTo <> 'all' AND @ApplyTo <> @ApplyContext
+    BEGIN
+        SET @ErrorMsg = N'Mã giảm giá không áp dụng cho loại đơn hàng này.';
+        RETURN 6;
+    END
+
+    -- 7. Giá trị đơn hàng không đạt tối thiểu
+    IF @MinOrder IS NOT NULL AND @OrderTotal < @MinOrder
+    BEGIN
+        SET @ErrorMsg = CONCAT(N'Giá trị đơn hàng tối thiểu để dùng mã này là ', FORMAT(@MinOrder,'N0',N'vi-VN'), N'đ.');
+        RETURN 7;
+    END
+
+    -- 8. Tính toán số tiền được giảm
+    DECLARE @Calc DECIMAL(12,2);
+    IF @DiscountType = 'percentage'
+    BEGIN
+        SET @Calc = ROUND((@OrderTotal * @DiscountValue / 100), 0);
+        IF @MaxDiscount IS NOT NULL AND @Calc > @MaxDiscount
+            SET @Calc = @MaxDiscount;
+    END
+    ELSE -- fixed_amount
+    BEGIN
+        SET @Calc = @DiscountValue;
+    END
+
+    -- Không giảm quá tổng đơn hàng
+    IF @Calc > @OrderTotal SET @Calc = @OrderTotal;
+
+    SET @CouponId    = @Id;
+    SET @DiscountAmt = @Calc;
+    SET @FinalTotal  = @OrderTotal - @Calc;
+
+    RETURN 0; -- Thành công
+END
+GO
+
+-- ------------------------------------------------
+-- 10.6 STORED PROCEDURE: sp_ConfirmCouponUsage
+-- Tăng usage_count an toàn tránh Race Condition
+-- Dùng Optimistic Concurrency: chỉ UPDATE khi
+-- usage_count vẫn còn < usage_limit
+-- ------------------------------------------------
+IF OBJECT_ID('sp_ConfirmCouponUsage', 'P') IS NOT NULL DROP PROCEDURE sp_ConfirmCouponUsage;
+GO
+CREATE PROCEDURE sp_ConfirmCouponUsage
+    @CouponId    INT,
+    @ErrorMsg    NVARCHAR(255) OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET @ErrorMsg = NULL;
+
+    UPDATE coupons
+    SET
+        usage_count = usage_count + 1,
+        updated_at  = GETDATE()
+    WHERE id = @CouponId
+      AND (usage_limit IS NULL OR usage_count < usage_limit);
+
+    IF @@ROWCOUNT = 0
+    BEGIN
+        SET @ErrorMsg = N'Mã giảm giá đã hết lượt dùng (concurrent check failed).';
+        RETURN 1;
+    END
+
+    RETURN 0;
+END
+GO
+
+-- ------------------------------------------------
+-- 10.7 VIEW: v_coupons_dashboard
+-- Dành cho trang quản lý Admin - dễ tra cứu
+-- ------------------------------------------------
+IF OBJECT_ID('v_coupons_dashboard', 'V') IS NOT NULL DROP VIEW v_coupons_dashboard;
+GO
+CREATE VIEW v_coupons_dashboard AS
+SELECT
+    c.id,
+    c.code,
+    c.name                                                          AS coupon_name,
+    c.discount_type,
+    CASE c.discount_type
+        WHEN 'percentage'   THEN CONCAT(CAST(c.discount_value AS VARCHAR), '%')
+        WHEN 'fixed_amount' THEN CONCAT(FORMAT(c.discount_value,'N0','vi-VN'), 'đ')
+    END                                                             AS discount_display,
+    FORMAT(c.min_order_value, 'N0', 'vi-VN')                       AS min_order_display,
+    FORMAT(c.max_discount_amount, 'N0', 'vi-VN')                   AS max_discount_display,
+    c.apply_to,
+    c.usage_count,
+    ISNULL(CAST(c.usage_limit AS VARCHAR), N'Không giới hạn')      AS usage_limit_display,
+    CASE
+        WHEN c.usage_limit IS NOT NULL THEN
+            CONCAT(c.usage_count, ' / ', c.usage_limit, ' lượt')
+        ELSE
+            CONCAT(c.usage_count, ' lượt')
+    END                                                             AS usage_summary,
+    CONVERT(VARCHAR(10), c.start_date, 103)                        AS start_date_display,
+    ISNULL(CONVERT(VARCHAR(10), c.end_date, 103), N'Không giới hạn') AS end_date_display,
+    CASE
+        WHEN c.status <> 'active'                                   THEN N'Vô hiệu'
+        WHEN GETDATE() < c.start_date                               THEN N'Chưa đến ngày'
+        WHEN c.end_date IS NOT NULL AND GETDATE() > c.end_date      THEN N'Hết hạn'
+        WHEN c.usage_limit IS NOT NULL AND c.usage_count >= c.usage_limit THEN N'Hết lượt'
+        ELSE N'Đang hoạt động'
+    END                                                             AS current_status,
+    u.username                                                      AS created_by_username,
+    c.created_at
+FROM coupons c
+LEFT JOIN users u ON c.created_by = u.id;
+GO
+
+-- ------------------------------------------------
+-- 10.8 VIEW: v_orders_with_coupon
+-- Bổ sung thông tin giảm giá cho đơn hàng
+-- ------------------------------------------------
+IF OBJECT_ID('v_orders_with_coupon', 'V') IS NOT NULL DROP VIEW v_orders_with_coupon;
+GO
+CREATE VIEW v_orders_with_coupon AS
+SELECT
+    o.id                                                            AS order_id,
+    o.customer_id,
+    o.original_amount,
+    o.discount_amount,
+    o.total_amount,
+    o.status,
+    o.created_at,
+    c.code                                                          AS coupon_code,
+    c.name                                                          AS coupon_name,
+    c.discount_type,
+    cp.user_id,
+    u.full_name                                                     AS customer_name
+FROM orders o
+LEFT JOIN coupons c         ON o.coupon_id = c.id
+JOIN customer_profiles cp   ON o.customer_id = cp.id
+JOIN users u                ON cp.user_id = u.id;
+GO
+
+PRINT '>> Đã tạo xong toàn bộ cấu trúc tính năng Mã Giảm Giá (PART 10).';
+SELECT COUNT(*) AS [Tổng Số Mã Giảm Giá] FROM coupons;
+GO
+
+
+/* ==========================================================
+   PART 11: OUTPUT VERIFICATION
    ========================================================== */
 PRINT '=======================================================';
 PRINT '  TECHCYCLE MASTER DATABASE COMPLETED SUCCESSFULLY     ';

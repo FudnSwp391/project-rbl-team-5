@@ -19,6 +19,7 @@ const aiRoutes = require('./routes/aiRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const systemRoutes = require('./routes/systemRoutes');
 const conversationRoutes = require('./routes/conversationRoutes');
+const couponRoutes = require('./routes/couponRoutes');
 
 const app = express();
 const server = http.createServer(app);
@@ -57,6 +58,7 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/conversations', conversationRoutes);
+app.use('/api/coupons', couponRoutes);
 app.use('/api', systemRoutes);
 
 // In-memory notifications database (avoids touching SQL)
@@ -78,7 +80,7 @@ let complaints = [];
 app.post('/api/complaints', authenticateToken, (req, res) => {
   const { content } = req.body;
   if (!content) return res.status(400).json({ message: 'Nội dung khiếu nại không được để trống' });
-  
+
   const newComplaint = {
     id: Date.now().toString(),
     userId: req.user.id,
@@ -109,7 +111,7 @@ app.post('/api/upload-images', authenticateToken, async (req, res) => {
 
     const uploadedUrls = [];
     const API_BASE = (req.headers.host) ? `http://${req.headers.host}` : '';
-    
+
     for (let i = 0; i < images.length; i++) {
       const imgData = images[i];
       if (imgData.startsWith('http')) {
@@ -117,7 +119,7 @@ app.post('/api/upload-images', authenticateToken, async (req, res) => {
         uploadedUrls.push(imgData);
         continue;
       }
-      
+
       const matches = imgData.match(/^data:image\/([A-Za-z\-+]+);base64,(.+)$/);
       if (!matches) continue;
 
@@ -172,9 +174,9 @@ app.post('/api/notifications', authenticateToken, async (req, res) => {
       sender: req.user.role === 'admin' || req.user.role === 'Admin' ? 'Admin' : 'Seller',
       createdAt: new Date().toISOString()
     };
-    
+
     notifications.push(newNotif);
-    
+
     // Broadcast via socket.io to all users currently connected
     io.emit('newMarketingNotification', newNotif);
 
@@ -276,7 +278,7 @@ io.on('connection', (socket) => {
     // 3. Notify receiver for unread badge immediately
     if (receiverId) {
       io.to(String(receiverId)).emit('newMessageNotification', enrichedMsg);
-      
+
       // 4. Send bell notification immediately
       const isImage = text && text.startsWith('[IMG]');
       const notifMessage = isImage
@@ -312,7 +314,7 @@ io.on('connection', (socket) => {
       ).then(async (saveResult) => {
         const newId = saveResult.recordset[0]?.newId || null;
         console.log(`[MSG] Async Saved message id=${newId} conversation=${conversationId} from=${senderId} to=${receiverId}`);
-        
+
         let dbSenderName = senderName;
         let dbSenderAvatar = senderAvatar;
 
