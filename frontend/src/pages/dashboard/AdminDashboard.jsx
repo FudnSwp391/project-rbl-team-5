@@ -833,6 +833,10 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
   const activeBookingsPage = bookingsPage > totalBookingPages ? totalBookingPages : bookingsPage;
   const currentBookings = bookingsList.slice((activeBookingsPage - 1) * itemsPerPage, activeBookingsPage * itemsPerPage);
 
+  const totalPurchased = ordersList.filter(o => o.status === 'completed').length;
+  const totalPending = ordersList.filter(o => ['pending', 'reserved', 'waiting_payment', 'confirmed'].includes(o.status)).length;
+  const totalCanceled = ordersList.filter(o => ['canceled', 'cancelled'].includes(o.status)).length;
+
   return (
     <div className="dashboard-page admin-dashboard-layout animate-fade">
       <div className="dashboard-grid-layout">
@@ -984,11 +988,11 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                 )}
               </div>
               
-              <button className="topbar-action-btn messages" onClick={() => setSubTab('chat')} title="Messages">
+              <button className="topbar-action-btn messages" onClick={() => setSubTab('chat')} title="Tin nhắn">
                 <MessageSquare size={20} />
               </button>
               
-              <button className={`topbar-action-btn settings ${subTab === 'settings' ? 'active' : ''}`} onClick={() => setSubTab('settings')} title="Settings">
+              <button className={`topbar-action-btn settings ${subTab === 'settings' ? 'active' : ''}`} onClick={() => setSubTab('settings')} title="Cài đặt">
                 <Settings size={20} />
               </button>
               
@@ -1005,7 +1009,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
               >
                 <div className="profile-info">
                   <h4>{user.username === 'admin' ? 'Admin TechCycle' : user.username}</h4>
-                  <span>Administrator</span>
+                  <span>Quản trị viên</span>
                 </div>
                  <img src={getAvatarUrl(user.avatar, user.username)} alt={user.username} className="profile-avatar-circle" />
               </div>
@@ -1015,14 +1019,14 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
           {loading && (
             <div className="text-center py-5">
               <div className="spinner-border text-primary" role="status">
-                <span className="visually-hidden">Loading...</span>
+                <span className="visually-hidden">Đang tải...</span>
               </div>
             </div>
           )}
 
           {!loading && subTab === 'settings' && (
             <div className="settings-view animate-fade container py-4">
-              <h2 className="mb-4 text-center" style={{ fontWeight: 800 }}>Account Settings</h2>
+              <h2 className="mb-4 text-center" style={{ fontWeight: 800 }}>Cài Đặt Tài Khoản</h2>
               <ProfileSettings />
             </div>
           )}
@@ -1093,17 +1097,17 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                 <div className="stats-card-widget glass-panel service-analysis">
                   <div className="widget-header-row">
                     <div>
-                      <h3>Service Analysis</h3>
-                      <p>Key revenue source allocation</p>
+                      <h3>Phân Tích Dịch Vụ</h3>
+                      <p>Phân bổ nguồn doanh thu chính</p>
                     </div>
-                    <span className="details-text-link" onClick={() => setSubTab('bookings')}>Details</span>
+                    <span className="details-text-link" onClick={() => setSubTab('bookings')}>Chi tiết</span>
                   </div>
 
                   <div className="service-progress-list">
                     <div className="progress-item-bar">
                       <div className="progress-bar-labels">
                         <span className="progress-dot green"></span>
-                        <span className="bar-label">Repair Services</span>
+                        <span className="bar-label">Dịch vụ sửa chữa</span>
                         <span className="bar-value">{trend.repairShare}</span>
                       </div>
                       <div className="bar-track">
@@ -1114,7 +1118,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                     <div className="progress-item-bar">
                       <div className="progress-bar-labels">
                         <span className="progress-dot gray"></span>
-                        <span className="bar-label">Product Sales</span>
+                        <span className="bar-label">Bán sản phẩm</span>
                         <span className="bar-value">{trend.salesShare}</span>
                       </div>
                       <div className="bar-track">
@@ -1127,11 +1131,11 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
 
                   <div className="widget-bottom-stats-row">
                     <div className="bottom-metric-item">
-                      <span className="metric-label">NEW CUSTOMERS</span>
+                      <span className="metric-label">KHÁCH HÀNG MỚI</span>
                       <h4>{trend.newCustomers}</h4>
                     </div>
                     <div className="bottom-metric-item">
-                      <span className="metric-label">SATISFACTION RATE</span>
+                      <span className="metric-label">TỶ LỆ HÀI LÒNG</span>
                       <h4 className="green-text">{trend.satisfaction}</h4>
                     </div>
                   </div>
@@ -1139,18 +1143,18 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
 
                 <div className="stats-card-widget glass-panel recent-transactions">
                   <div className="widget-header-row">
-                    <h3>Recent Transactions</h3>
-                    <span className="three-dots-icon" onClick={() => alert("Opening historical transaction filters...")}>•••</span>
+                    <h3>Giao Dịch Gần Đây</h3>
+                    <span className="three-dots-icon" onClick={() => alert("Đang mở bộ lọc giao dịch lịch sử...")}>•••</span>
                   </div>
 
                   <div className="transactions-table-wrapper">
                     <table className="transactions-table">
                       <thead>
                         <tr>
-                          <th>CUSTOMER</th>
-                          <th>SERVICE</th>
-                          <th>AMOUNT</th>
-                          <th>STATUS</th>
+                          <th>KHÁCH HÀNG</th>
+                          <th>DỊCH VỤ</th>
+                          <th>SỐ TIỀN</th>
+                          <th>TRẠNG THÁI</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1158,52 +1162,52 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                           <>
                             <tr>
                               <td>Nguyen Huy</td>
-                              <td>Keyboard Switch Repair</td>
+                              <td>Sửa bàn phím cơ học</td>
                               <td><strong>1.5M VND</strong></td>
-                              <td><span className="badge badge-completed">COMPLETED</span></td>
+                              <td><span className="badge badge-completed">HOÀN THÀNH</span></td>
                             </tr>
                             <tr>
                               <td>Tran Minh</td>
-                              <td>iPhone Trade-In</td>
+                              <td>Đổi máy iPhone</td>
                               <td><strong>12.2M VND</strong></td>
-                              <td><span className="badge badge-pending">PENDING</span></td>
+                              <td><span className="badge badge-pending">ĐANG CHỞ</span></td>
                             </tr>
                             <tr>
                               <td>Le Anh</td>
-                              <td>SSD Upgrade 1TB</td>
+                              <td>Nâng cấp SSD 1TB</td>
                               <td><strong>3.2M VND</strong></td>
-                              <td><span className="badge badge-completed">COMPLETED</span></td>
+                              <td><span className="badge badge-completed">HOÀN THÀNH</span></td>
                             </tr>
                             <tr>
                               <td>Pham Van</td>
-                              <td>Power Supply Unit</td>
+                              <td>Bộ nguồn điện</td>
                               <td><strong>0.8M VND</strong></td>
-                              <td><span className="badge badge-completed" style={{ background: '#fee2e2', color: '#ef4444' }}>CANCELED</span></td>
+                              <td><span className="badge badge-completed" style={{ background: '#fee2e2', color: '#ef4444' }}>ĐÃ HỦY</span></td>
                             </tr>
                           </>
                         ) : timeRange === '30D' ? (
                           <>
                             <tr>
                               <td>Nguyen Huy</td>
-                              <td>Laptop Pro Repair</td>
+                              <td>Sửa Laptop Pro</td>
                               <td><strong>4.5M VND</strong></td>
-                              <td><span className="badge badge-completed">COMPLETED</span></td>
+                              <td><span className="badge badge-completed">HOÀN THÀNH</span></td>
                             </tr>
                             <tr>
                               <td>Tran Minh</td>
-                              <td>iPhone Trade-In</td>
+                              <td>Đổi máy iPhone</td>
                               <td><strong>12.2M VND</strong></td>
-                              <td><span className="badge badge-pending">PENDING</span></td>
+                              <td><span className="badge badge-pending">ĐANG CHỞ</span></td>
                             </tr>
                             <tr>
                               <td>Le Anh</td>
-                              <td>Laptop Air Screen</td>
+                              <td>Màn hình Laptop Air</td>
                               <td><strong>8.5M VND</strong></td>
-                              <td><span className="badge badge-completed">COMPLETED</span></td>
+                              <td><span className="badge badge-completed">HOÀN THÀNH</span></td>
                             </tr>
                             <tr>
                               <td>Pham Van</td>
-                              <td>Component Sales</td>
+                              <td>Bán linh kiện</td>
                               <td><strong>0.8M VND</strong></td>
                               <td><span className="badge badge-completed" style={{ background: '#fee2e2', color: '#ef4444' }}>CANCELED</span></td>
                             </tr>
@@ -1254,6 +1258,22 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
               <div className="section-block-wrapper" style={{ marginBottom: '32px', paddingBottom: '24px', borderBottom: '1px dashed var(--border-color)' }}>
                 <h2>Lịch Hẹn Xem Máy (Mua Thiết Bị)</h2>
                 <p className="view-desc">Quản lý danh sách khách hàng đặt lịch hẹn tới xem và kiểm tra máy trực tiếp tại cửa hàng.</p>
+
+                {/* Thống kê lịch hẹn */}
+                <div className="stats-summary-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '24px' }}>
+                  <div className="glass-panel" style={{ padding: '16px', borderRadius: '12px', textAlign: 'center', borderLeft: '4px solid var(--primary)' }}>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--neutral-medium)' }}>Tổng khách đã mua</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary)', marginTop: '4px' }}>{totalPurchased}</div>
+                  </div>
+                  <div className="glass-panel" style={{ padding: '16px', borderRadius: '12px', textAlign: 'center', borderLeft: '4px solid #f59e0b' }}>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--neutral-medium)' }}>Đang chờ xem/Thanh toán</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#f59e0b', marginTop: '4px' }}>{totalPending}</div>
+                  </div>
+                  <div className="glass-panel" style={{ padding: '16px', borderRadius: '12px', textAlign: 'center', borderLeft: '4px solid #ef4444' }}>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--neutral-medium)' }}>Đã hủy lịch/đơn</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#ef4444', marginTop: '4px' }}>{totalCanceled}</div>
+                  </div>
+                </div>
 
                 <div className="table-responsive">
                   <table className="dashboard-table">
@@ -1526,32 +1546,32 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
 
           {!loading && subTab === 'products' && (
             <div className="products-manager animate-fade">
-              <h2>Inventory & Certified Shop Management</h2>
-              <p className="view-desc">List refurbished appliances or manage available product listings in the marketplace.</p>
+              <h2>Quản Lý Cửa Hàng & Kho Sản Phẩm</h2>
+              <p className="view-desc">Đăng các thiết bị đã được tân trang hoặc quản lý các sản phẩm có sẵn trên chợ mua bán.</p>
 
               {/* Add form */}
               <form onSubmit={handleAddProduct} className="add-product-form glass-panel form-inline-custom">
-                <h3>Post Refurbished Device for Sale</h3>
+                <h3>Đăng Bán Thiết Bị Đã Tân Trang</h3>
                 {productSuccess && <div className="success-banner-alert">{productSuccess}</div>}
                 
                 <div className="form-row-grid">
                   <div className="form-group">
-                    <label className="form-label">Device Name</label>
+                    <label className="form-label">Tên thiết bị</label>
                     <input 
                       type="text" 
                       className="form-control" 
-                      placeholder="e.g. Samsung Inverter 488L" 
+                      placeholder="Ví dụ: Tủ lạnh Samsung Inverter 488L" 
                       value={newProdName}
                       onChange={e => setNewProdName(e.target.value)}
                       required
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Selling Price (VND)</label>
+                    <label className="form-label">Giá bán (VND)</label>
                     <input 
                       type="number" 
                       className="form-control" 
-                      placeholder="e.g. 15000000" 
+                      placeholder="Ví dụ: 15000000" 
                       value={newProdPrice}
                       onChange={e => setNewProdPrice(e.target.value)}
                       required
@@ -1561,31 +1581,31 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
 
                 <div className="form-row-grid">
                   <div className="form-group">
-                    <label className="form-label">Category</label>
+                    <label className="form-label">Danh mục</label>
                     <select 
                       className="form-control"
                       value={newProdCategory}
                       onChange={e => setNewProdCategory(e.target.value)}
                     >
-                      <option value="AirConditioner">Air Conditioner</option>
-                      <option value="WashingMachine">Washing Machine</option>
-                      <option value="Refrigerator">Refrigerator</option>
-                      <option value="Microwave">Microwave</option>
-                      <option value="Audio">Audio</option>
+                      <option value="AirConditioner">Điều hòa</option>
+                      <option value="WashingMachine">Máy giặt</option>
+                      <option value="Refrigerator">Tủ lạnh</option>
+                      <option value="Microwave">Lò vi sóng</option>
+                      <option value="Audio">Âm thanh</option>
                       <option value="Laptop">Laptop</option>
-                      <option value="Smartwatch">Smartwatch</option>
+                      <option value="Smartwatch">Đồng hồ thông minh</option>
                     </select>
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Inspected Quality Condition</label>
+                    <label className="form-label">Chất lượng kiểm định</label>
                     <select 
                       className="form-control"
                       value={newProdCondition}
                       onChange={e => setNewProdCondition(e.target.value)}
                     >
-                      <option value="excellent">Like New (99%)</option>
-                      <option value="good">Very Good (&gt;90%)</option>
-                      <option value="fair">Good (&gt;80%)</option>
+                      <option value="excellent">Như mới (99%)</option>
+                      <option value="good">Rất tốt (&gt;90%)</option>
+                      <option value="fair">Tốt (&gt;80%)</option>
                     </select>
                   </div>
                 </div>
@@ -1634,11 +1654,11 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                 )}
 
                 <div className="form-group">
-                  <label className="form-label">Detailed Description</label>
+                  <label className="form-label">Mô tả chi tiết</label>
                   <textarea 
                     className="form-control" 
                     rows="3" 
-                    placeholder="Enter details about battery, cosmetics, wear, warranty details..."
+                    placeholder="Nhập chi tiết về pin, ngoại quan, tình trạng hao mòn, chi tiết bảo hành..."
                     value={newProdDesc}
                     onChange={e => setNewProdDesc(e.target.value)}
                     required
@@ -1646,7 +1666,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                 </div>
 
                 <button type="submit" className="btn btn-primary">
-                  <Plus size={16} /> Publish Device
+                  <Plus size={16} /> Đăng bán sản phẩm
                 </button>
               </form>
 
@@ -1655,13 +1675,13 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                 <table className="dashboard-table">
                   <thead>
                     <tr>
-                      <th>Image</th>
-                      <th>Device Name</th>
-                      <th>Category</th>
-                      <th>Price</th>
-                      <th>Condition</th>
-                      <th>Status</th>
-                      <th>Actions</th>
+                      <th>Hình ảnh</th>
+                      <th>Tên thiết bị</th>
+                      <th>Danh mục</th>
+                      <th>Giá bán</th>
+                      <th>Chất lượng</th>
+                      <th>Trạng thái</th>
+                      <th>Thao tác</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1675,7 +1695,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                           <div className="tbl-subtext" style={{ maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{prod.description}</div>
                         </td>
                         <td>{prod.category}</td>
-                        <td>{prod.price.toLocaleString('en-US')} VND</td>
+                        <td>{prod.price.toLocaleString('vi-VN')} VND</td>
                         <td>
                           <span className={`badge badge-${prod.condition}`}>
                             {getConditionLabel(prod.condition)}
@@ -1683,7 +1703,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                         </td>
                         <td>
                           <span className={`status-dot ${prod.status}`}></span>
-                          {prod.status === 'available' ? 'Available' : 'Sold'}
+                          {prod.status === 'available' ? 'Còn hàng' : 'Đã bán'}
                         </td>
                         <td>
                           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -1746,19 +1766,19 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
 
           {!loading && subTab === 'users' && (
             <div className="users-manager animate-fade">
-              <h2>Staff & User Account Registry</h2>
-              <p className="view-desc">Monitor accounts, inspect details, and remove unauthorized credentials from the system database.</p>
+              <h2>Danh Sách Đăng Ký Tài Khoản & Nhân Viên</h2>
+              <p className="view-desc">Giám sát các tài khoản, kiểm tra thông tin chi tiết và xóa thông tin xác thực chưa được ủy quyền khỏi cơ sở dữ liệu.</p>
               
               <div className="table-responsive">
                 <table className="dashboard-table">
                   <thead>
                     <tr>
-                      <th>Full Name</th>
-                      <th>Email Login</th>
-                      <th>Phone Number</th>
-                      <th>Role Profile</th>
-                      <th>Joined Date</th>
-                      <th>Actions</th>
+                      <th>Họ và Tên</th>
+                      <th>Email đăng nhập</th>
+                      <th>Số điện thoại</th>
+                      <th>Vai trò</th>
+                      <th>Ngày tham gia</th>
+                      <th>Thao tác</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1791,19 +1811,19 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                                 fontWeight: 600
                               }}
                             >
-                              <option value="customer">Customer</option>
-                              <option value="technician">Technician</option>
-                              <option value="seller">Seller</option>
+                              <option value="customer">Khách hàng</option>
+                              <option value="technician">Kỹ thuật viên</option>
+                              <option value="seller">Người bán</option>
                             </select>
                           )}
                         </td>
-                        <td>{new Date(u.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
+                        <td>{new Date(u.createdAt).toLocaleDateString('vi-VN', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
                         <td>
                           <div className="action-buttons-wrap">
                             <button 
                               className="view-item-btn"
                               onClick={() => setViewingUser(u)}
-                              title="View account profile"
+                              title="Xem hồ sơ tài khoản"
                             >
                               <Eye size={16} />
                             </button>
@@ -1811,7 +1831,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                               <button 
                                 className="delete-item-btn"
                                 onClick={() => handleDeleteUser(u.id)}
-                                title="Delete user account"
+                                title="Xóa tài khoản người dùng"
                               >
                                 <Trash2 size={16} />
                               </button>
@@ -1978,19 +1998,19 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
               </div>
             ) : (
               <div className="customers-view animate-fade">
-                <h2>Customer Registry</h2>
-                <p className="view-desc">Complete register log of retail customers. Shows repair tickets and transaction orders.</p>
+                <h2>Sổ Khách Hàng</h2>
+                <p className="view-desc">Danh sách khách hàng đăng ký. Hiển thị phiếu sửa chữa và đơn hàng.</p>
                 
                 <div className="table-responsive">
                   <table className="dashboard-table">
                     <thead>
                       <tr>
-                        <th>Customer</th>
-                        <th>Email Address</th>
-                        <th>Phone Number</th>
-                        <th>Joined Date</th>
-                        <th>Repair Requests</th>
-                        <th>Orders Placed</th>
+                        <th>Khách hàng</th>
+                        <th>Địa chỉ email</th>
+                        <th>Số điện thoại</th>
+                        <th>Ngày tham gia</th>
+                        <th>Yêu cầu sửa chữa</th>
+                        <th>Đơn hàng đã đặt</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2007,9 +2027,9 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                             </td>
                             <td>{c.email}</td>
                             <td>{c.phone || 'N/A'}</td>
-                            <td>{new Date(c.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
-                            <td><span className="count-badge green">{bookingsCount} bookings</span></td>
-                            <td><span className="count-badge blue">{ordersCount} orders</span></td>
+                            <td>{new Date(c.createdAt).toLocaleDateString('vi-VN', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
+                            <td><span className="count-badge green">{bookingsCount} lịch hẹn</span></td>
+                            <td><span className="count-badge blue">{ordersCount} đơn hàng</span></td>
                           </tr>
                         );
                       })}
@@ -2446,9 +2466,9 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                         />
                       </div>
                       <div className="form-group">
-                        <label className="form-label-sm">HẠN SỬ DỤNG</label>
+                        <label className="form-label-sm">HẠN SỬ DỤNG (NGÀY & GIỜ HẾT HẠN)</label>
                         <input 
-                          type="date" 
+                          type="datetime-local" 
                           className="form-control"
                           value={newPromoExpiry}
                           onChange={e => setNewPromoExpiry(e.target.value)}
@@ -2559,7 +2579,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
         <div className="modal-backdrop" onClick={() => setViewingUser(null)}>
           <div className="modal-content glass-panel" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>User Registration Details</h3>
+              <h3>Chi Tiết Đăng Ký Tài Khoản</h3>
               <button className="close-btn" onClick={() => setViewingUser(null)}>&times;</button>
             </div>
             <div className="modal-body">
@@ -2572,17 +2592,17 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
               </div>
               <hr className="modal-divider" />
               <div className="modal-info-grid">
-                <div className="info-item"><strong>Account ID:</strong> <span>{viewingUser.id}</span></div>
-                <div className="info-item"><strong>Email Address:</strong> <span>{viewingUser.email}</span></div>
-                <div className="info-item"><strong>Phone Contact:</strong> <span>{viewingUser.phone || 'N/A'}</span></div>
-                <div className="info-item"><strong>Joined System:</strong> <span>{new Date(viewingUser.createdAt).toLocaleString('en-US')}</span></div>
+                <div className="info-item"><strong>ID Tài Khoản:</strong> <span>{viewingUser.id}</span></div>
+                <div className="info-item"><strong>Địa chỉ Email:</strong> <span>{viewingUser.email}</span></div>
+                <div className="info-item"><strong>Số điện thoại:</strong> <span>{viewingUser.phone || 'N/A'}</span></div>
+                <div className="info-item"><strong>Ngày gia nhập:</strong> <span>{new Date(viewingUser.createdAt).toLocaleString('vi-VN')}</span></div>
               </div>
             </div>
             <div className="modal-footer">
-              <button className="btn btn-outline btn-sm" onClick={() => setViewingUser(null)}>Close</button>
+              <button className="btn btn-outline btn-sm" onClick={() => setViewingUser(null)}>Đóng</button>
               {viewingUser.id !== user.id && viewingUser.role !== 'admin' && (
-                <button className="btn btn-danger btn-sm" onClick={() => { if (window.confirm("Are you sure?")) handleDeleteUser(viewingUser.id); }} style={{ background: '#ef4444', color: '#fff' }}>
-                  Delete Account
+                <button className="btn btn-danger btn-sm" onClick={() => { if (window.confirm("Bạn có chắc chắn muốn xóa?")) handleDeleteUser(viewingUser.id); }} style={{ background: '#ef4444', color: '#fff' }}>
+                  Xóa tài khoản
                 </button>
               )}
             </div>
@@ -2762,13 +2782,13 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                         value={editProdCategory}
                         onChange={e => setEditProdCategory(e.target.value)}
                       >
-                        <option value="AirConditioner">Air Conditioner</option>
-                        <option value="WashingMachine">Washing Machine</option>
-                        <option value="Refrigerator">Refrigerator</option>
-                        <option value="Microwave">Microwave</option>
-                        <option value="Audio">Audio</option>
+                        <option value="AirConditioner">Điều hòa</option>
+                        <option value="WashingMachine">Máy giặt</option>
+                        <option value="Refrigerator">Tủ lạnh</option>
+                        <option value="Microwave">Lò vi sóng</option>
+                        <option value="Audio">Âm thanh</option>
                         <option value="Laptop">Laptop</option>
-                        <option value="Smartwatch">Smartwatch</option>
+                        <option value="Smartwatch">Đồng hồ thông minh</option>
                       </select>
                     </div>
                     <div className="form-group">
@@ -2778,9 +2798,9 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                         value={editProdCondition}
                         onChange={e => setEditProdCondition(e.target.value)}
                       >
-                        <option value="excellent">Like New (99%)</option>
-                        <option value="good">Very Good (&gt;90%)</option>
-                        <option value="fair">Good (&gt;80%)</option>
+                        <option value="excellent">Như mới (99%)</option>
+                        <option value="good">Rất tốt (&gt;90%)</option>
+                        <option value="fair">Tốt (&gt;80%)</option>
                       </select>
                     </div>
                   </div>
@@ -2803,8 +2823,8 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                         value={editProdStatus}
                         onChange={e => setEditProdStatus(e.target.value)}
                       >
-                        <option value="available">Available</option>
-                        <option value="sold">Sold</option>
+                        <option value="available">Còn hàng</option>
+                        <option value="sold">Đã bán</option>
                       </select>
                     </div>
                   </div>

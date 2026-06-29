@@ -725,6 +725,10 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
   const activeBookingsPage = bookingsPage > totalBookingPages ? totalBookingPages : bookingsPage;
   const currentBookings = bookingsList.slice((activeBookingsPage - 1) * itemsPerPage, activeBookingsPage * itemsPerPage);
 
+  const totalPurchased = ordersList.filter(o => o.status === 'completed').length;
+  const totalPending = ordersList.filter(o => ['pending', 'reserved', 'waiting_payment', 'confirmed'].includes(o.status)).length;
+  const totalCanceled = ordersList.filter(o => ['canceled', 'cancelled'].includes(o.status)).length;
+
   return (
     <div className="dashboard-page admin-dashboard-layout seller-portal-layout animate-fade">
       <div className="dashboard-grid-layout">
@@ -813,14 +817,14 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
             <div style={{ flex: 1 }}></div>
 
             <div className="topbar-actions-profile">
-              <button className="topbar-action-btn theme-toggle" onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')} title="Toggle Light/Dark theme">
+              <button className="topbar-action-btn theme-toggle" onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')} title="Chuyển đổi sáng/tối">
                 {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
               </button>
               <div style={{ position: 'relative' }}>
                 <button 
                   className="topbar-action-btn notification" 
                   onClick={() => setShowNotifDropdown(!showNotifDropdown)} 
-                  title="Notifications"
+                  title="Thông báo"
                 >
                   <Bell size={20} />
                   {notifications.length > 0 && (
@@ -898,7 +902,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                 )}
               </div>
               
-              <button className="topbar-action-btn messages" onClick={() => setSubTab('chat')} title="Messages">
+              <button className="topbar-action-btn messages" onClick={() => setSubTab('chat')} title="Tin nhắn">
                 <MessageSquare size={20} />
               </button>
               
@@ -907,7 +911,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
               <div className="topbar-profile-widget">
                 <div className="profile-info">
                   <h4>Nhân Viên Bán Hàng</h4>
-                  <span>seller</span>
+                  <span>Người bán</span>
                 </div>
                 <img src={getAvatarUrl(user.avatar, user.username)} alt={user.username} className="profile-avatar-circle" />
               </div>
@@ -917,14 +921,14 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
           {loading && (
             <div className="text-center py-5">
               <div className="spinner-border text-primary" role="status">
-                <span className="visually-hidden">Loading...</span>
+                <span className="visually-hidden">Đang tải...</span>
               </div>
             </div>
           )}
 
           {!loading && subTab === 'settings' && (
             <div className="settings-view animate-fade container py-4">
-              <h2 className="mb-4 text-center" style={{ fontWeight: 800 }}>Account Settings</h2>
+              <h2 className="mb-4 text-center" style={{ fontWeight: 800 }}>Cài Đặt Tài Khoản</h2>
               <ProfileSettings />
             </div>
           )}
@@ -1491,6 +1495,22 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                 <h2>Lịch Hẹn Xem Máy (Mua Thiết Bị)</h2>
                 <p className="view-desc">Quản lý danh sách khách hàng đặt lịch hẹn tới xem và kiểm tra máy trực tiếp tại cửa hàng.</p>
 
+                {/* Thống kê lịch hẹn */}
+                <div className="stats-summary-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '24px' }}>
+                  <div className="glass-panel" style={{ padding: '16px', borderRadius: '12px', textAlign: 'center', borderLeft: '4px solid var(--primary)' }}>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--neutral-medium)' }}>Tổng khách đã mua</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary)', marginTop: '4px' }}>{totalPurchased}</div>
+                  </div>
+                  <div className="glass-panel" style={{ padding: '16px', borderRadius: '12px', textAlign: 'center', borderLeft: '4px solid #f59e0b' }}>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--neutral-medium)' }}>Đang chờ xem/Thanh toán</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#f59e0b', marginTop: '4px' }}>{totalPending}</div>
+                  </div>
+                  <div className="glass-panel" style={{ padding: '16px', borderRadius: '12px', textAlign: 'center', borderLeft: '4px solid #ef4444' }}>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--neutral-medium)' }}>Đã hủy lịch/đơn</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#ef4444', marginTop: '4px' }}>{totalCanceled}</div>
+                  </div>
+                </div>
+
                 <div className="table-responsive">
                   <table className="dashboard-table">
                     <thead>
@@ -1957,19 +1977,19 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
               </div>
             ) : (
               <div className="customers-view animate-fade">
-                <h2>Customer Registry</h2>
-                <p className="view-desc">Complete register log of retail customers. Shows repair tickets and transaction orders.</p>
+                <h2>Sổ Khách Hàng</h2>
+                <p className="view-desc">Danh sách khách hàng đăng ký. Hiển thị phiếu sửa chữa và đơn hàng.</p>
                 
                 <div className="table-responsive">
                   <table className="dashboard-table">
                     <thead>
                       <tr>
-                        <th>Customer</th>
-                        <th>Email Address</th>
-                        <th>Phone Number</th>
-                        <th>Joined Date</th>
-                        <th>Repair Requests</th>
-                        <th>Orders Placed</th>
+                        <th>Khách hàng</th>
+                        <th>Địa chỉ email</th>
+                        <th>Số điện thoại</th>
+                        <th>Ngày tham gia</th>
+                        <th>Yêu cầu sửa chữa</th>
+                        <th>Đơn hàng đã đặt</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1987,8 +2007,8 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                             <td>{c.email}</td>
                             <td>{c.phone || 'N/A'}</td>
                             <td>{new Date(c.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
-                            <td><span className="count-badge green">{bookingsCount} bookings</span></td>
-                            <td><span className="count-badge blue">{ordersCount} orders</span></td>
+                            <td><span className="count-badge green">{bookingsCount} lịch hẹn</span></td>
+                            <td><span className="count-badge blue">{ordersCount} đơn hàng</span></td>
                           </tr>
                         );
                       })}
@@ -2060,9 +2080,9 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                         />
                       </div>
                       <div className="form-group">
-                        <label className="form-label-sm">HẠN SỬ DỤNG</label>
+                        <label className="form-label-sm">HẠN SỬ DỤNG (NGÀY & GIỜ HẾT HẠN)</label>
                         <input 
-                          type="date" 
+                          type="datetime-local" 
                           className="form-control"
                           value={newPromoExpiry}
                           onChange={e => setNewPromoExpiry(e.target.value)}
@@ -2347,13 +2367,13 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                         value={editProdCategory}
                         onChange={e => setEditProdCategory(e.target.value)}
                       >
-                        <option value="AirConditioner">Air Conditioner</option>
-                        <option value="WashingMachine">Washing Machine</option>
-                        <option value="Refrigerator">Refrigerator</option>
-                        <option value="Microwave">Microwave</option>
-                        <option value="Audio">Audio</option>
+                        <option value="AirConditioner">Điều hòa</option>
+                        <option value="WashingMachine">Máy giặt</option>
+                        <option value="Refrigerator">Tủ lạnh</option>
+                        <option value="Microwave">Lò vi sóng</option>
+                        <option value="Audio">Âm thanh</option>
                         <option value="Laptop">Laptop</option>
-                        <option value="Smartwatch">Smartwatch</option>
+                        <option value="Smartwatch">Đồng hồ thông minh</option>
                       </select>
                     </div>
                     <div className="form-group">
@@ -2363,9 +2383,9 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                         value={editProdCondition}
                         onChange={e => setEditProdCondition(e.target.value)}
                       >
-                        <option value="excellent">Like New (99%)</option>
-                        <option value="good">Very Good (&gt;90%)</option>
-                        <option value="fair">Good (&gt;80%)</option>
+                        <option value="excellent">Như mới (99%)</option>
+                        <option value="good">Rất tốt (&gt;90%)</option>
+                        <option value="fair">Tốt (&gt;80%)</option>
                       </select>
                     </div>
                   </div>
@@ -2388,8 +2408,8 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                         value={editProdStatus}
                         onChange={e => setEditProdStatus(e.target.value)}
                       >
-                        <option value="available">Available</option>
-                        <option value="sold">Sold</option>
+                        <option value="available">Còn hàng</option>
+                        <option value="sold">Đã bán</option>
                       </select>
                     </div>
                   </div>
