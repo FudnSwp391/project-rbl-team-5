@@ -1007,7 +1007,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
             </button>
           </nav>
 
-          <button className="new-report-btn seller-impact-btn" onClick={() => alert("Xuất báo cáo tác động...")}>
+          <button className="new-report-btn seller-impact-btn" onClick={handleExportPDF} title="Xuất báo cáo tác động PDF">
             Xuất báo cáo tác động
           </button>
 
