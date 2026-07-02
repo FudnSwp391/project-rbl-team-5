@@ -460,52 +460,73 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
 
                 <div style={{ zIndex: 1, display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                   {claimedCoupon ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                      <div style={{
-                        padding: '6px 14px',
-                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                        border: '1.5px dashed #10B981',
-                        borderRadius: '8px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px'
-                      }}>
-                        <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#10B981', letterSpacing: '1px' }}>
-                          {claimedCoupon.code} (-{claimedCoupon.discount}%)
-                        </span>
-                        <button 
-                          onClick={() => handleCopyCode(claimedCoupon.code)}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            cursor: 'pointer',
-                            color: '#10B981',
-                            display: 'flex',
-                            alignItems: 'center',
-                            padding: '2px'
-                          }}
-                          title="Sao chép mã"
-                        >
-                          {copied ? <Check size={16} /> : <Copy size={16} />}
-                        </button>
-                      </div>
-                      
-                      {countdown && (
+                    claimedCoupon.used ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                         <div style={{
-                          fontSize: '0.8rem',
-                          color: '#EF4444',
-                          fontWeight: 700,
-                          backgroundColor: 'rgba(239, 68, 68, 0.08)',
-                          padding: '6px 12px',
+                          padding: '6px 14px',
+                          backgroundColor: 'rgba(156, 163, 175, 0.1)',
+                          border: '1.5px solid #9CA3AF',
                           borderRadius: '8px',
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '6px'
+                          gap: '8px'
                         }}>
-                          ⏳ Hết hạn sau: <span style={{ fontFamily: 'monospace', fontSize: '0.88rem' }}>{countdown}</span>
+                          <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#9CA3AF', letterSpacing: '1px', textDecoration: 'line-through' }}>
+                            {claimedCoupon.code} (-{claimedCoupon.discount}%)
+                          </span>
+                          <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#9CA3AF', backgroundColor: 'rgba(156, 163, 175, 0.15)', padding: '2px 8px', borderRadius: '4px' }}>
+                            Đã sử dụng
+                          </span>
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                        <div style={{
+                          padding: '6px 14px',
+                          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                          border: '1.5px dashed #10B981',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}>
+                          <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#10B981', letterSpacing: '1px' }}>
+                            {claimedCoupon.code} (-{claimedCoupon.discount}%)
+                          </span>
+                          <button 
+                            onClick={() => handleCopyCode(claimedCoupon.code)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              cursor: 'pointer',
+                              color: '#10B981',
+                              display: 'flex',
+                              alignItems: 'center',
+                              padding: '2px'
+                            }}
+                            title="Sao chép mã"
+                          >
+                            {copied ? <Check size={16} /> : <Copy size={16} />}
+                          </button>
+                        </div>
+                        
+                        {countdown && (
+                          <div style={{
+                            fontSize: '0.8rem',
+                            color: '#EF4444',
+                            fontWeight: 700,
+                            backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                          }}>
+                            ⏳ Hết hạn sau: <span style={{ fontFamily: 'monospace', fontSize: '0.88rem' }}>{countdown}</span>
+                          </div>
+                        )}
+                      </div>
+                    )
                   ) : (
                     <button
                       onClick={handleClaimCoupon}
@@ -587,7 +608,19 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
                       <div key={ord.id} className="mini-item">
                         <div className="mini-info">
                           <h4>Đơn {ord.invoiceNumber}</h4>
-                          <span className="mini-price">{ord.totalAmount.toLocaleString('vi-VN')} VND</span>
+                          <span className="mini-price" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }}>
+                            {ord.promoCode ? (
+                              <div style={{ display: 'flex', gap: '6px', fontSize: '0.75rem', flexWrap: 'wrap' }}>
+                                <span style={{ textDecoration: 'line-through', color: 'var(--neutral-medium)' }}>
+                                  {ord.items.reduce((s, i) => s + (i.price || 0), 0).toLocaleString('vi-VN')}
+                                </span>
+                                <span style={{ color: '#10B981', fontWeight: 600 }}>
+                                  -{Math.round((ord.items.reduce((s, i) => s + (i.price || 0), 0) * ord.discountPercent) / 100).toLocaleString('vi-VN')} ({ord.promoCode})
+                                </span>
+                              </div>
+                            ) : null}
+                            <strong>{ord.totalAmount.toLocaleString('vi-VN')} VND</strong>
+                          </span>
                         </div>
                         <p>{new Date(ord.createdAt).toLocaleDateString('vi-VN')}</p>
                       </div>
@@ -702,7 +735,19 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
                             <div key={idx} className="tbl-mini-item-name">• {i.name}</div>
                           ))}
                         </td>
-                        <td><strong>{ord.totalAmount.toLocaleString('vi-VN')} VND</strong></td>
+                        <td>
+                          {ord.promoCode ? (
+                            <>
+                              <div style={{ fontSize: '0.8rem', color: 'var(--neutral-medium)', textDecoration: 'line-through' }}>
+                                Gốc: {ord.items.reduce((s, i) => s + (i.price || 0), 0).toLocaleString('vi-VN')} VND
+                              </div>
+                              <div style={{ fontSize: '0.78rem', color: '#10B981', fontWeight: 600 }}>
+                                Giảm: -{Math.round((ord.items.reduce((s, i) => s + (i.price || 0), 0) * ord.discountPercent) / 100).toLocaleString('vi-VN')} VND ({ord.promoCode})
+                              </div>
+                            </>
+                          ) : null}
+                          <strong>{ord.totalAmount.toLocaleString('vi-VN')} VND</strong>
+                        </td>
                         <td>{ord.paymentMethod === 'cod' ? 'Thanh toán tại cửa hàng (COD)' : ord.paymentMethod === 'vnpay' ? 'Thanh toán qua VNPay' : 'Chuyển khoản'}</td>
                         <td>
                           <span className={`status-delivery-tag ${ord.status}`}>

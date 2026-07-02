@@ -240,6 +240,7 @@ app.post('/api/promocodes/validate', authenticateToken, async (req, res) => {
 
 // In-memory claims registry
 let couponClaims = [];
+app.set('couponClaims', couponClaims);
 
 // GET /api/promocodes/my-claimed - Get current active claimed coupon
 app.get('/api/promocodes/my-claimed', authenticateToken, async (req, res) => {
@@ -258,7 +259,8 @@ app.get('/api/promocodes/my-claimed', authenticateToken, async (req, res) => {
         code: activeClaim.code,
         discount: promo ? promo.discount : 10,
         expiresAt: activeClaim.expiresAt,
-        claimedAt: activeClaim.claimedAt
+        claimedAt: activeClaim.claimedAt,
+        used: activeClaim.used || false
       });
     }
     res.json(null);
@@ -326,7 +328,8 @@ app.post('/api/promocodes/claim-random', authenticateToken, async (req, res) => 
       userId,
       code: selectedPromo.code,
       claimedAt: nowISO,
-      expiresAt
+      expiresAt,
+      used: false
     };
 
     couponClaims.push(newClaim);
