@@ -45,6 +45,89 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
     markChatViewActive,
   } = useConsultationChat(user, token);
 
+  // --- COUPON REWARD STATES ---
+  const [claimedCoupon, setClaimedCoupon] = useState(null);
+  const [claimError, setClaimError] = useState('');
+  const [claiming, setClaiming] = useState(false);
+  const [countdown, setCountdown] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  const fetchClaimedCoupon = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/promocodes/my-claimed`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setClaimedCoupon(data);
+      }
+    } catch (err) {
+      console.error("Error fetching claimed coupon", err);
+    }
+  };
+
+  const handleClaimCoupon = async () => {
+    setClaiming(true);
+    setClaimError('');
+    try {
+      const res = await fetch(`${API_BASE}/api/promocodes/claim-random`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setClaimedCoupon(data);
+      } else {
+        setClaimError(data.message || 'Không thể nhận mã giảm giá.');
+      }
+    } catch (err) {
+      setClaimError('Lỗi kết nối tới máy chủ.');
+    } finally {
+      setClaiming(false);
+    }
+  };
+
+  const handleCopyCode = (code) => {
+    navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Handle claimed coupon countdown timer
+  useEffect(() => {
+    if (!claimedCoupon || !claimedCoupon.expiresAt) {
+      setCountdown('');
+      return;
+    }
+
+    const timer = setInterval(() => {
+      const expiry = new Date(claimedCoupon.expiresAt).getTime();
+      const now = new Date().getTime();
+      const diff = expiry - now;
+
+      if (diff <= 0) {
+        clearInterval(timer);
+        setCountdown('');
+        setClaimedCoupon(null);
+      } else {
+        const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+        const minutes = Math.floor((diff / (1000 * 60)) % 60);
+        const seconds = Math.floor((diff / 1000) % 60);
+        
+        const hStr = String(hours).padStart(2, '0');
+        const mStr = String(minutes).padStart(2, '0');
+        const sStr = String(seconds).padStart(2, '0');
+        
+        setCountdown(`${hStr}:${mStr}:${sStr}`);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [claimedCoupon]);
+
   const handleRequestConsultation = async () => {
     try {
       const res = await fetch(`${API_BASE}/api/conversations`, {
