@@ -349,13 +349,36 @@ exports.updateOrderStatus = async (req, res) => {
       }
     }
 
-    // Nếu hủy đơn → trả sản phẩm về active
+    // Nếu hủy đơn → trả sản phẩm về active và phục hồi mã giảm giá
     if (status === 'canceled' || status === 'cancelled') {
       await db.query(`
         UPDATE products 
         SET status = 'active' 
         WHERE id IN (SELECT product_id FROM order_items WHERE order_id = @orderId)
       `, [{ name: 'orderId', value: orderId }]);
+
+      // Restore coupon claim to active (used = false)
+      if (order.notes) {
+        const parts = order.notes.split('|');
+        const promoPart = parts.find(p => p.startsWith('promo:'));
+        if (promoPart) {
+          const promoCode = promoPart.replace('promo:', '');
+          const couponClaims = req.app.get('couponClaims');
+          if (couponClaims) {
+            const customerProfile = await db.findOne('customer_profiles', { id: order.customer_id });
+            if (customerProfile) {
+              const claim = couponClaims.find(
+                c => String(c.userId) === String(customerProfile.user_id) &&
+                     c.code.toLowerCase() === promoCode.toLowerCase() &&
+                     c.used
+              );
+              if (claim) {
+                claim.used = false;
+              }
+            }
+          }
+        }
+      }
     }
     
     await db.update('orders', 'id', orderId, { status, updated_at: new Date().toISOString() });

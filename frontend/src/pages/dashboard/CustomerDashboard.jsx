@@ -146,6 +146,9 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
       const dataOrders = await resOrders.json();
       if (Array.isArray(dataOrders)) setOrdersList(dataOrders);
       else setOrdersList([]);
+
+      // Fetch claimed coupon status to keep it up to date
+      await fetchClaimedCoupon();
     } catch (err) {
       console.error('Lỗi tải dữ liệu bảng điều khiển:', err);
     } finally {
