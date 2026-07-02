@@ -206,6 +206,7 @@ Dưới đây là tài liệu hướng dẫn sửa chữa chính thức từ cô
 YÊU CẦU QUAN TRỌNG: 
 - Hãy dựa 100% vào tài liệu trên để trả lời khách hàng.
 - Trả lời thân thiện, chuyên nghiệp, các bước rõ ràng.`;
+            }
         } else if (!mentionedProduct) {
             // Khách hàng chưa nêu rõ sản phẩm → yêu cầu chỉ rõ
             console.log("🟡 Khách hàng chưa chỉ rõ sản phẩm. AI sẽ hỏi thêm thông tin.");
