@@ -25,6 +25,9 @@ exports.getOrders = async (req, res) => {
       let appointmentDate = null;
       let appointmentTime = null;
       
+      let promoCode = '';
+      let discountPercent = 0;
+      
       if (ord.notes) {
         const parts = ord.notes.split('|');
         parts.forEach(part => {
@@ -32,6 +35,10 @@ exports.getOrders = async (req, res) => {
             paymentMethod = part.replace('payment:', '');
           } else if (part.startsWith('invoice:')) {
             invoiceNumber = part.replace('invoice:', '');
+          } else if (part.startsWith('promo:')) {
+            promoCode = part.replace('promo:', '');
+          } else if (part.startsWith('discount:')) {
+            discountPercent = Number(part.replace('discount:', '')) || 0;
           }
         });
       }
@@ -76,7 +83,9 @@ exports.getOrders = async (req, res) => {
         items: enrichedItems,
         appointmentInfo,
         // Backward compat
-        shippingInfo: appointmentInfo
+        shippingInfo: appointmentInfo,
+        promoCode,
+        discountPercent
       };
     }));
 
@@ -89,7 +98,7 @@ exports.getOrders = async (req, res) => {
 
 // POST /api/orders - Tạo đơn hàng mới (Đặt lịch tới xem máy)
 exports.createOrder = async (req, res) => {
-  const { items, appointmentInfo, shippingInfo, paymentMethod, totalAmount } = req.body;
+  const { items, appointmentInfo, shippingInfo, paymentMethod, totalAmount, promoCode, discountPercent } = req.body;
   
   // Support both old (shippingInfo) and new (appointmentInfo) format
   const info = appointmentInfo || shippingInfo;
@@ -126,12 +135,17 @@ exports.createOrder = async (req, res) => {
 
     // 3. Chèn đơn hàng vào bảng orders
     const orderStatus = paymentMethod === 'bank_transfer' ? 'waiting_payment' : 'pending';
+    
+    let notesStr = `payment:${paymentMethod}|invoice:${invoiceNumber}`;
+    if (promoCode) notesStr += `|promo:${promoCode}`;
+    if (discountPercent) notesStr += `|discount:${discountPercent}`;
+
     const newOrder = await db.insert('orders', {
       customer_id: customerProfile.id,
       total_amount: totalAmount,
       shipping_address: typeof info === 'object' ? JSON.stringify(info) : info,
       status: orderStatus,
-      notes: `payment:${paymentMethod}|invoice:${invoiceNumber}`,
+      notes: notesStr,
       created_at: now,
       updated_at: now
     });
@@ -290,6 +304,8 @@ exports.createOrder = async (req, res) => {
       items,
       paymentMethod,
       totalAmount,
+      promoCode,
+      discountPercent,
       redirectUrl: vnpayUrl
     });
   } catch (err) {
