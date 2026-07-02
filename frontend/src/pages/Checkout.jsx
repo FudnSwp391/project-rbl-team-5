@@ -48,8 +48,8 @@ const Checkout = ({ setActivePage }) => {
 
   // Dynamic SePay configuration state
   const [sepayConfig, setSepayConfig] = useState({
-    bankBrand: 'vietcombank',
-    accountNo: '1023456789',
+    bankBrand: 'TPBank',
+    accountNo: '0325225503',
     accountName: 'CONG TY TNHH TECHCYCLE VN'
   });
 
@@ -132,7 +132,7 @@ const Checkout = ({ setActivePage }) => {
               clearCart(); // Clear cart now that payment is confirmed
               setCompletedOrder(currentOrder);
               setStep('invoice');
-            } else if (currentOrder && currentOrder.status === 'canceled') {
+            } else if (currentOrder && (currentOrder.status === 'canceled' || currentOrder.status === 'cancelled')) {
               clearInterval(intervalId);
               setCompletedOrder(currentOrder);
               setError('Giao dịch đã hết hạn thanh toán (quá 3 phút) và đơn hàng đã bị hủy. Các mặt hàng đã được trả về giỏ hàng.');
@@ -168,7 +168,7 @@ const Checkout = ({ setActivePage }) => {
   // Countdown timer for 3 minutes payment limit
   useEffect(() => {
     let timerId;
-    if (step === 'payment_qr' && completedOrder && completedOrder.status !== 'canceled') {
+    if (step === 'payment_qr' && completedOrder && completedOrder.status !== 'canceled' && completedOrder.status !== 'cancelled') {
       const calculateTimeLeft = () => {
         const createdAt = new Date(completedOrder.createdAt);
         const elapsedMs = new Date() - createdAt;
@@ -239,6 +239,34 @@ const Checkout = ({ setActivePage }) => {
       setError('Lỗi kiểm tra trạng thái thanh toán.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCancelPayment = async () => {
+    if (!completedOrder) return;
+    if (window.confirm("Bạn có chắc chắn muốn hủy thanh toán và hủy đơn hàng này không? Sản phẩm sẽ được trả lại shop ngay lập tức.")) {
+      setLoading(true);
+      setError('');
+      try {
+        const res = await fetch(`${API_BASE}/api/orders/${completedOrder.id}/cancel`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (res.ok) {
+          alert("Đã hủy thanh toán và hoàn trả sản phẩm về shop thành công!");
+          setCompletedOrder(null);
+          setStep('payment'); // Quay lại bước chọn phương thức thanh toán
+        } else {
+          const data = await res.json();
+          setError(data.message || 'Lỗi khi hủy thanh toán.');
+        }
+      } catch (err) {
+        setError('Lỗi kết nối khi hủy thanh toán.');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -627,15 +655,12 @@ const Checkout = ({ setActivePage }) => {
               <div className="payment-qr-actions">
                 <button 
                   type="button" 
-                  className="btn btn-outline" 
-                  onClick={() => {
-                    if (window.confirm("Đơn hàng của bạn đã được tạo ở trạng thái Chờ thanh toán. Bạn có chắc chắn muốn quay lại cửa hàng?")) {
-                      setActivePage('shop');
-                    }
-                  }}
+                  className="btn btn-outline btn-cancel-payment" 
+                  onClick={handleCancelPayment}
                   disabled={loading}
+                  style={{ borderColor: '#ff4d4f', color: '#ff4d4f' }}
                 >
-                  Quay lại Chợ đồ cũ
+                  Hủy thanh toán & Quay lại
                 </button>
                 <button 
                   type="button" 

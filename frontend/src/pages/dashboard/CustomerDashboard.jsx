@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import io from 'socket.io-client';
+import useConsultationChat from '../../hooks/useConsultationChat';
+import ChatPanel from '../../components/ChatPanel';
 import { 
   LayoutDashboard, ShoppingBag, Calendar, MessageSquare,
-  Sun, Moon, Search, Bell, HelpCircle, LogOut, Send, Settings, Image, Paperclip
+  Sun, Moon, Bell, HelpCircle, LogOut, Settings, Gift, Copy, Check
 } from 'lucide-react';
 import ProfileSettings from '../../components/ProfileSettings';
 import { useCart } from '../../context/CartContext';
@@ -26,20 +27,135 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
   const [newDate, setNewDate] = useState('');
   const [newTime, setNewTime] = useState('09:00 AM');
 
-  // --- CHAT SYSTEM STATES ---
   const [chatConversations, setChatConversations] = useState([]);
-  const [selectedBooking, setSelectedBooking] = useState(null);
-  const [chatMessages, setChatMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [isUploadingImage, setIsUploadingImage] = useState(false);
-  const socketRef = useRef(null);
-  const chatEndRef = useRef(null);
-  const fetchConversationsListRef = useRef(null);
-  const fileInputRef = useRef(null);
 
-  const fetchData = async () => {
+  // --- CHAT HOOK ---
+  const {
+    selectedConversation,
+    chatMessages,
+    newMessage,
+    isUploadingImage,
+    isLoading: chatLoading,
+    unreadCount,
+    typingUsers,
+    handleSelectConversation,
+    handleSendMessage,
+    handleImageUpload,
+    handleTyping,
+    markChatViewActive,
+  } = useConsultationChat(user, token);
+
+  // --- COUPON REWARD STATES ---
+  const [claimedCoupon, setClaimedCoupon] = useState(null);
+  const [claimError, setClaimError] = useState('');
+  const [claiming, setClaiming] = useState(false);
+  const [countdown, setCountdown] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  const fetchClaimedCoupon = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/promocodes/my-claimed`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setClaimedCoupon(data);
+      }
+    } catch (err) {
+      console.error("Error fetching claimed coupon", err);
+    }
+  };
+
+  const handleClaimCoupon = async () => {
+    setClaiming(true);
+    setClaimError('');
+    try {
+      const res = await fetch(`${API_BASE}/api/promocodes/claim-random`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setClaimedCoupon(data);
+      } else {
+        setClaimError(data.message || 'Không thể nhận mã giảm giá.');
+      }
+    } catch (err) {
+      setClaimError('Lỗi kết nối tới máy chủ.');
+    } finally {
+      setClaiming(false);
+    }
+  };
+
+  const handleCopyCode = (code) => {
+    navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Handle claimed coupon countdown timer
+  useEffect(() => {
+    if (!claimedCoupon || !claimedCoupon.expiresAt) {
+      setCountdown('');
+      return;
+    }
+
+    const timer = setInterval(() => {
+      const expiry = new Date(claimedCoupon.expiresAt).getTime();
+      const now = new Date().getTime();
+      const diff = expiry - now;
+
+      if (diff <= 0) {
+        clearInterval(timer);
+        setCountdown('');
+        setClaimedCoupon(null);
+      } else {
+        const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+        const minutes = Math.floor((diff / (1000 * 60)) % 60);
+        const seconds = Math.floor((diff / 1000) % 60);
+        
+        const hStr = String(hours).padStart(2, '0');
+        const mStr = String(minutes).padStart(2, '0');
+        const sStr = String(seconds).padStart(2, '0');
+        
+        setCountdown(`${hStr}:${mStr}:${sStr}`);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [claimedCoupon]);
+
+  const handleRequestConsultation = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/conversations`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert('Tạo yêu cầu tư vấn thành công! Vui lòng chờ nhân viên hỗ trợ.');
+        fetchData(false);
+        setSubTab('chat');
+        handleSelectConversation(data.conversation);
+      } else {
+        alert(data.message || 'Lỗi tạo yêu cầu.');
+        if (data.conversation) {
+          setSubTab('chat');
+          handleSelectConversation(data.conversation);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi kết nối');
+    }
+  };
+
+  const fetchData = async (isInitial = false) => {
     if (!user || !token) return;
-    setLoading(true);
+    if (isInitial) setLoading(true);
     try {
       const resBookings = await fetch(`${API_BASE}/api/bookings`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -54,131 +170,44 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
       const dataOrders = await resOrders.json();
       if (Array.isArray(dataOrders)) setOrdersList(dataOrders);
       else setOrdersList([]);
+
+      const resConversations = await fetch(`${API_BASE}/api/conversations/my`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const dataConversations = await resConversations.json();
+      if (Array.isArray(dataConversations)) setChatConversations(dataConversations);
+      else setChatConversations([]);
     } catch (err) {
       console.error('Lỗi tải dữ liệu bảng điều khiển:', err);
     } finally {
-      setLoading(false);
+      if (isInitial) setLoading(false);
     }
   };
 
 
 
   useEffect(() => {
-    fetchData();
-  }, [user, token, subTab]);
+    fetchData(true);
+  }, [user, token]);
 
-  // --- WEBSOCKET CHAT LOGIC ---
+  // Check pending chat selection
   useEffect(() => {
-    if (!user) return;
-    socketRef.current = io(`${API_BASE}`);
-    socketRef.current.emit('registerUser', user.id);
-
-    socketRef.current.on('receiveMessage', (message) => {
-      if (selectedBooking && message.bookingId === selectedBooking.id) {
-        setChatMessages(prev => [...prev, message]);
+    const pendingBookingId = localStorage.getItem('pending_chat_booking_id');
+    if (pendingBookingId && bookingsList.length > 0 && subTab === 'chat') {
+      const targetBooking = bookingsList.find(b => String(b.id) === String(pendingBookingId));
+      if (targetBooking) {
+        handleSelectConversation(targetBooking);
+        localStorage.removeItem('pending_chat_booking_id');
       }
-      if (fetchConversationsListRef.current) fetchConversationsListRef.current();
-    });
-
-    return () => {
-      if (socketRef.current) socketRef.current.disconnect();
-    };
-  }, [user, selectedBooking]);
-
-  useEffect(() => {
-    if (chatEndRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [chatMessages]);
+  }, [bookingsList, subTab, handleSelectConversation]);
 
-  const fetchConversationsList = useCallback(() => {
-    if (bookingsList.length === 0) return;
-    const chats = bookingsList.filter(b => b.status !== 'pending');
-    setChatConversations(chats);
-  }, [bookingsList]);
-
+  // Đánh dấu tab chat active/inactive để cập nhật unread badge
   useEffect(() => {
-    fetchConversationsListRef.current = fetchConversationsList;
-  }, [fetchConversationsList]);
+    markChatViewActive(subTab === 'chat');
+  }, [subTab, markChatViewActive]);
 
-  useEffect(() => {
-    fetchConversationsList();
-  }, [fetchConversationsList]);
 
-  const handleSelectConversation = (booking) => {
-    setSelectedBooking(booking);
-    setChatMessages([]);
-    if (socketRef.current) {
-      socketRef.current.emit('joinBookingRoom', booking.id);
-    }
-    fetch(`${API_BASE}/api/messages/${booking.id}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(data => setChatMessages(data))
-      .catch(err => console.error('Lỗi tải lịch sử chat:', err));
-  };
-
-  const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file || !selectedBooking) return;
-
-    setIsUploadingImage(true);
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/upload-images`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ images: [reader.result] })
-        });
-        const data = await res.json();
-        if (res.ok && data.urls && data.urls.length > 0) {
-          const imageUrl = data.urls[0];
-          const receiverId = user.role === 'customer' 
-            ? selectedBooking.technicianId 
-            : selectedBooking.customerId;
-          if (socketRef.current) {
-            socketRef.current.emit('sendMessage', {
-              senderId: user.id,
-              receiverId,
-              bookingId: selectedBooking.id,
-              text: `[IMG]${imageUrl}`
-            });
-          }
-        } else {
-          alert('Lỗi tải ảnh lên');
-        }
-      } catch (err) {
-        console.error('Lỗi tải ảnh:', err);
-      } finally {
-        setIsUploadingImage(false);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleSendMessage = (e) => {
-    e.preventDefault();
-    if (!newMessage.trim() || !selectedBooking) return;
-    const receiverId = user.role === 'customer' 
-      ? selectedBooking.technicianId 
-      : selectedBooking.customerId;
-    const messagePayload = {
-      senderId: user.id,
-      receiverId,
-      bookingId: selectedBooking.id,
-      text: newMessage
-    };
-    if (socketRef.current) {
-      socketRef.current.emit('sendMessage', messagePayload);
-      setNewMessage('');
-    }
-  };
 
   const handleCancelOrder = async (orderId) => {
     if (!window.confirm('Bạn có chắc chắn muốn hủy lịch hẹn này không?')) return;
@@ -192,8 +221,8 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
         body: JSON.stringify({ status: 'canceled' })
       });
       if (res.ok) {
-        alert('Hủy lịch hẹn thành công');
-        fetchData();
+        alert('Hủy đơn hàng thành công!');
+        fetchData(false);
       } else {
         const data = await res.json();
         alert(data.message || 'Lỗi hủy lịch hẹn');
@@ -306,46 +335,55 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
             </div>
             <div className="brand-text-wrapper">
               <h3>TechCycle</h3>
-              <span>#ANALYTICS HUB</span>
+              <span>#TRUNG TÂM PHÂN TÍCH</span>
             </div>
           </div>
           
           <nav className="sidebar-nav-menu">
             <button className={`sidebar-nav-btn ${subTab === 'overview' ? 'active' : ''}`} onClick={() => setSubTab('overview')}>
               <LayoutDashboard size={18} />
-              Overview
+              Tổng quan
             </button>
             <button className={`sidebar-nav-btn ${subTab === 'bookings' ? 'active' : ''}`} onClick={() => setSubTab('bookings')}>
               <Calendar size={18} />
-              Repair Status
+              Trạng thái sửa chữa
             </button>
             <button className={`sidebar-nav-btn ${subTab === 'orders' ? 'active' : ''}`} onClick={() => setSubTab('orders')}>
               <ShoppingBag size={18} />
-              Order History
+              Lịch sử đơn hàng
             </button>
-            <button className={`sidebar-nav-btn ${subTab === 'chat' ? 'active' : ''}`} onClick={() => setSubTab('chat')}>
+            <button className={`sidebar-nav-btn ${subTab === 'chat' ? 'active' : ''}`} onClick={() => setSubTab('chat')} style={{ position: 'relative' }}>
               <MessageSquare size={18} />
-              Technical Support
+              Hỗ trợ & Tư vấn
+              {unreadCount > 0 && (
+                <span style={{
+                  position: 'absolute', top: '6px', right: '10px',
+                  background: '#ef4444', color: '#fff',
+                  fontSize: '0.65rem', fontWeight: 800,
+                  padding: '1px 5px', borderRadius: '10px', minWidth: '18px',
+                  textAlign: 'center', lineHeight: '16px'
+                }}>{unreadCount > 9 ? '9+' : unreadCount}</span>
+              )}
             </button>
           </nav>
 
           <div className="sidebar-bottom-nav">
             <button className={`sidebar-nav-btn bottom-btn ${subTab === 'settings' ? 'active' : ''}`} onClick={() => setSubTab('settings')}>
               <Settings size={18} />
-              Settings
+              Cài đặt
             </button>
             <button className={`sidebar-nav-btn bottom-btn ${subTab === 'help' ? 'active' : ''}`} onClick={() => setSubTab('help')}>
               <HelpCircle size={18} />
-              Help
+              Hỗ trợ
             </button>
             <button className="sidebar-nav-btn bottom-btn logout" onClick={handleLogout}>
               <LogOut size={18} />
-              Logout
+              Đăng xuất
             </button>
           </div>
 
           <div className="sidebar-copyright-text">
-            <p>© 2026 TechCycle - performance management & circular economy solution.</p>
+            <p>© 2026 TechCycle - quản lý hiệu suất & giải pháp kinh tế tuần hoàn.</p>
           </div>
         </aside>
 
@@ -353,10 +391,10 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
         <main className="dashboard-main-content">
           <header className="dashboard-top-bar glass-panel" style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <div className="topbar-actions-profile">
-              <button className="topbar-action-btn theme-toggle" onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')} title="Toggle Light/Dark theme">
+              <button className="topbar-action-btn theme-toggle" onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')} title="Chuyển đổi sáng/tối">
                 {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
               </button>
-              <button className="topbar-action-btn notification" onClick={() => alert("No new notifications.")} title="Notifications">
+              <button className="topbar-action-btn notification" onClick={() => alert("Không có thông báo mới.")} title="Thông báo">
                 <Bell size={20} />
               </button>
               
@@ -365,7 +403,7 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
               <div className="topbar-profile-widget">
                 <div className="profile-info">
                   <h4>{user.username}</h4>
-                  <span>Customer</span>
+                  <span>Khách hàng</span>
                 </div>
                  <img src={getAvatarUrl(user.avatar, user.username)} alt={user.username} className="profile-avatar-circle" />
               </div>
@@ -375,7 +413,7 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
           {loading && (
             <div className="text-center py-5">
               <div className="spinner-border text-primary" role="status">
-                <span className="visually-hidden">Loading...</span>
+                <span className="visually-hidden">Đang tải...</span>
               </div>
             </div>
           )}
@@ -398,6 +436,136 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
                 <p style={{ marginTop: '6px', opacity: 0.9, fontSize: '0.92rem' }}>Theo dõi yêu cầu sửa chữa và lịch sử mua hàng của bạn tại đây.</p>
               </div>
 
+              {/* Lucky Coupon Claim Frame */}
+              <div className="lucky-coupon-card glass-panel" style={{
+                padding: '20px 24px',
+                borderRadius: '16px',
+                marginBottom: '28px',
+                background: 'var(--glass-bg, rgba(255, 255, 255, 0.05))',
+                border: '1.5px solid rgba(245, 158, 11, 0.3)',
+                boxShadow: 'var(--shadow-md)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '16px',
+                position: 'relative',
+                overflow: 'hidden'
+              }}>
+                {/* Decorative background glow */}
+                <div style={{
+                  position: 'absolute',
+                  top: '-40px',
+                  left: '-40px',
+                  width: '120px',
+                  height: '120px',
+                  background: 'rgba(245, 158, 11, 0.12)',
+                  filter: 'blur(30px)',
+                  borderRadius: '50%',
+                  zIndex: 0
+                }}></div>
+
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'center', zIndex: 1 }}>
+                  <div style={{
+                    width: '44px',
+                    height: '44px',
+                    borderRadius: '10px',
+                    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#F59E0B'
+                  }}>
+                    <Gift size={22} />
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-color)' }}>
+                      🎁 Quà Tặng Mỗi Ngày
+                    </h3>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '0.84rem', color: 'var(--neutral-medium)', maxWidth: '460px' }}>
+                      Mỗi ngày nhận ngẫu nhiên 1 mã giảm giá từ các chương trình của Admin & Người bán phát hành!
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ zIndex: 1, display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                  {claimedCoupon ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                      <div style={{
+                        padding: '6px 14px',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        border: '1.5px dashed #10B981',
+                        borderRadius: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}>
+                        <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#10B981', letterSpacing: '1px' }}>
+                          {claimedCoupon.code} (-{claimedCoupon.discount}%)
+                        </span>
+                        <button 
+                          onClick={() => handleCopyCode(claimedCoupon.code)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: '#10B981',
+                            display: 'flex',
+                            alignItems: 'center',
+                            padding: '2px'
+                          }}
+                          title="Sao chép mã"
+                        >
+                          {copied ? <Check size={16} /> : <Copy size={16} />}
+                        </button>
+                      </div>
+                      
+                      {countdown && (
+                        <div style={{
+                          fontSize: '0.8rem',
+                          color: '#EF4444',
+                          fontWeight: 700,
+                          backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}>
+                          ⏳ Hết hạn sau: <span style={{ fontFamily: 'monospace', fontSize: '0.88rem' }}>{countdown}</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleClaimCoupon}
+                      disabled={claiming}
+                      className="btn btn-primary"
+                      style={{
+                        background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                        border: 'none',
+                        padding: '8px 16px',
+                        fontWeight: 700,
+                        boxShadow: '0 4px 10px rgba(245, 158, 11, 0.2)',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        color: '#fff',
+                        transition: 'all 0.2s',
+                        fontSize: '0.85rem'
+                      }}
+                    >
+                      {claiming ? 'Đang nhận...' : 'Nhận Mã Ngẫu Nhiên'}
+                    </button>
+                  )}
+                </div>
+
+                {claimError && (
+                  <div style={{ width: '100%', fontSize: '0.8rem', color: '#EF4444', marginTop: '8px', zIndex: 1 }}>
+                    ⚠️ {claimError}
+                  </div>
+                )}
+              </div>
+
               {/* Quick Stats Row */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '28px' }}>
                 <div className="glass-panel" style={{ padding: '20px', borderRadius: '14px', textAlign: 'center' }}>
@@ -409,7 +577,7 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
                   <div style={{ fontSize: '0.82rem', color: 'var(--neutral-medium)', marginTop: '4px' }}>Đơn hàng đã đặt</div>
                 </div>
                 <div className="glass-panel" style={{ padding: '20px', borderRadius: '14px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#6366F1' }}>{ordersList.reduce((s, o) => s + (o.totalAmount || 0), 0).toLocaleString('en-US')}</div>
+                  <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#6366F1' }}>{ordersList.reduce((s, o) => s + (o.totalAmount || 0), 0).toLocaleString('vi-VN')}</div>
                   <div style={{ fontSize: '0.82rem', color: 'var(--neutral-medium)', marginTop: '4px' }}>Tổng chi tiêu (VND)</div>
                 </div>
               </div>
@@ -449,7 +617,7 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
                       <div key={ord.id} className="mini-item">
                         <div className="mini-info">
                           <h4>Đơn {ord.invoiceNumber}</h4>
-                          <span className="mini-price">{ord.totalAmount.toLocaleString('en-US')} VND</span>
+                          <span className="mini-price">{ord.totalAmount.toLocaleString('vi-VN')} VND</span>
                         </div>
                         <p>{new Date(ord.createdAt).toLocaleDateString('vi-VN')}</p>
                       </div>
@@ -463,12 +631,12 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
 
           {!loading && subTab === 'bookings' && (
             <div className="customer-bookings animate-fade">
-              <h2>Track Appliance Repair Status</h2>
-              <p className="view-desc">Monitor hardware inspections and consult directly with your assigned technician.</p>
+              <h2>Theo Dõi Trạng Thái Sửa Chữa</h2>
+              <p className="view-desc">Theo dõi quá trình kiểm tra thiết bị và cập nhật trạng thái từ thợ sửa chữa.</p>
 
               <div className="bookings-cards-grid">
                 {bookingsList.length === 0 ? (
-                  <div className="glass-panel text-center py-4">No repair schedules registered yet.</div>
+                  <div className="glass-panel text-center py-4">Bạn chưa có lịch hẹn sửa chữa nào.</div>
                 ) : (
                   bookingsList.map(bk => (
                     <div key={bk.id} className="repair-card glass-panel">
@@ -483,46 +651,31 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
 
                       <div className="card-body">
                         <h4>{bk.deviceType}</h4>
-                        <p className="card-issue"><strong>Reported Fault:</strong> {bk.issueDescription}</p>
+                        <p className="card-issue"><strong>Lỗi báo cáo:</strong> {bk.issueDescription}</p>
                         
                         <div className="card-details-row">
                           <div>
-                            <span className="card-meta-lbl">Assigned Tech:</span>
+                            <span className="card-meta-lbl">Thợ phụ trách:</span>
                             <p><strong>{bk.technicianName}</strong></p>
                           </div>
                           <div>
-                            <span className="card-meta-lbl">Scheduled Date:</span>
+                            <span className="card-meta-lbl">Lịch hẹn:</span>
                             <p>{bk.preferredDate} ({bk.preferredTime})</p>
                           </div>
                         </div>
 
                         {bk.cost > 0 && (
                           <div className="card-cost-banner">
-                            Estimated Cost: <strong>{bk.cost.toLocaleString('en-US')} VND</strong>
+                            Chi phí dự kiến: <strong>{bk.cost.toLocaleString('en-US')} VND</strong>
                           </div>
                         )}
 
                         {bk.notes && (
                           <div className="card-notes-banner">
-                            <strong>Technician Message:</strong> {bk.notes}
+                            <strong>Ghi chú từ thợ:</strong> {bk.notes}
                           </div>
                         )}
                       </div>
-
-                      {bk.technicianId && (
-                        <div className="card-actions">
-                          <button 
-                            className="btn btn-primary btn-sm"
-                            onClick={() => {
-                              setSubTab('chat');
-                              handleSelectConversation(bk);
-                            }}
-                          >
-                            <MessageSquare size={16} />
-                            Chat with Technician
-                          </button>
-                        </div>
-                      )}
                     </div>
                   ))
                 )}
@@ -532,18 +685,18 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
 
           {!loading && subTab === 'orders' && (
             <div className="customer-orders animate-fade">
-              <h2>Purchase Order History</h2>
-              <p className="view-desc">Review certified devices and products purchased from the TechCycle marketplace.</p>
+              <h2>Lịch Sử Đơn Hàng</h2>
+              <p className="view-desc">Xem lại các thiết bị và sản phẩm đã mua từ TechCycle.</p>
 
               <div className="table-responsive">
                 <table className="dashboard-table">
                   <thead>
                     <tr>
-                      <th>Invoice ID</th>
-                      <th>Purchase Date</th>
-                      <th>Purchased Devices</th>
-                      <th>Total Amount</th>
-                      <th>Payment Method</th>
+                      <th>Mã đơn hàng</th>
+                      <th>Ngày mua</th>
+                      <th>Thiết bị đã mua</th>
+                      <th>Tổng tiền</th>
+                      <th>Phương thức thanh toán</th>
                       <th>Trạng thái lịch hẹn</th>
                     </tr>
                   </thead>
@@ -558,13 +711,13 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
                             </div>
                           )}
                         </td>
-                        <td>{new Date(ord.createdAt).toLocaleDateString('en-US')}</td>
+                        <td>{new Date(ord.createdAt).toLocaleDateString('vi-VN')}</td>
                         <td>
                           {ord.items.map((i, idx) => (
                             <div key={idx} className="tbl-mini-item-name">• {i.name}</div>
                           ))}
                         </td>
-                        <td><strong>{ord.totalAmount.toLocaleString('en-US')} VND</strong></td>
+                        <td><strong>{ord.totalAmount.toLocaleString('vi-VN')} VND</strong></td>
                         <td>{ord.paymentMethod === 'cod' ? 'Thanh toán tại cửa hàng (COD)' : ord.paymentMethod === 'vnpay' ? 'Thanh toán qua VNPay' : 'Chuyển khoản'}</td>
                         <td>
                           <span className={`status-delivery-tag ${ord.status}`}>
@@ -641,148 +794,27 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
           )}
 
           {!loading && subTab === 'chat' && (
-            <div className="chat-view-layout glass-panel animate-fade">
-              <div className="chat-conversations-sidebar">
-                <h3>Repair Tickets</h3>
-                <p className="chat-sub-lbl">Select a ticket to begin consultation</p>
-                <div className="chat-conversations-list">
-                  {chatConversations.map(conv => (
-                    <div 
-                      key={conv.id} 
-                      className={`conv-item-card ${selectedBooking?.id === conv.id ? 'active' : ''}`}
-                      onClick={() => handleSelectConversation(conv)}
-                    >
-                      <div className="conv-item-info">
-                        <h4>{conv.deviceType}</h4>
-                        <p className="conv-user-name">
-                          Tech: {conv.technicianName}
-                        </p>
-                      </div>
-                      <span className="conv-id">#{conv.id}</span>
-                    </div>
-                  ))}
-                  {chatConversations.length === 0 && (
-                    <p className="empty-text">No assigned repairs available to start messaging.</p>
-                  )}
-                </div>
+            <div className="animate-fade" style={{ height: 'calc(100vh - 160px)', minHeight: '520px' }}>
+              <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h2 style={{ margin: 0 }}>Tư vấn Khách hàng</h2>
+                <button className="btn btn-primary" onClick={handleRequestConsultation}>
+                  + Yêu cầu tư vấn mới
+                </button>
               </div>
-
-              <div className="chat-thread-panel">
-                {selectedBooking ? (
-                  <>
-                    <div className="thread-header">
-                      <div>
-                        <h4>{selectedBooking.deviceType}</h4>
-                        <p>#{selectedBooking.id} • Technician: {selectedBooking.technicianName}</p>
-                      </div>
-                    </div>
-
-                    <div className="chat-messages-thread">
-                      {chatMessages.map(msg => {
-                        const isMe = msg.senderId === user.id;
-                        return (
-                          <div key={msg.id} className={`chat-message-bubble ${isMe ? 'mine' : 'theirs'}`}>
-                             {!isMe && <img src={getAvatarUrl(msg.senderAvatar, msg.senderName)} alt={msg.senderName} className="msg-avatar" />}
-                            <div className="msg-bubble-content">
-                              {!isMe && <span className="sender-name">{msg.senderName}</span>}
-                              {msg.text && msg.text.startsWith('[IMG]') ? (
-                                <img src={msg.text.replace('[IMG]', '')} alt="attachment" className="chat-image-attachment" onClick={() => window.open(msg.text.replace('[IMG]', ''), '_blank')} />
-                              ) : (
-                                <p className="msg-text">{msg.text}</p>
-                              )}
-                              <span className="msg-time">{new Date(msg.createdAt || msg.timestamp || new Date()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                      <div ref={chatEndRef} />
-                    </div>
-
-                    <form className="chat-input-form" onSubmit={handleSendMessage}>
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        ref={fileInputRef} 
-                        style={{ display: 'none' }} 
-                        onChange={handleImageUpload}
-                      />
-                      <button 
-                        type="button" 
-                        className="chat-attach-btn" 
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={isUploadingImage}
-                      >
-                        <Paperclip size={18} />
-                      </button>
-                      <input 
-                        type="text" 
-                        placeholder={isUploadingImage ? "Đang tải ảnh lên..." : "Type your message..."}
-                        value={newMessage}
-                        onChange={e => setNewMessage(e.target.value)}
-                        disabled={isUploadingImage}
-                      />
-                      <button type="submit" className="chat-send-btn" disabled={isUploadingImage}>
-                        <Send size={18} />
-                      </button>
-                    </form>
-                  </>
-                ) : (
-                  <div className="no-chat-selected">
-                    <p>Select a conversation from the sidebar to view chat logs.</p>
-                  </div>
-                )}
-              </div>
-
-              {selectedBooking && (
-                <div className="chat-case-details-panel">
-                  <h3>Repair Ticket</h3>
-                  <hr className="details-divider" />
-                  <div className="details-content">
-                    <div className="details-device-header">
-                      <h4>{selectedBooking.deviceType}</h4>
-                      <span className="details-id">#{selectedBooking.id}</span>
-                    </div>
-                    
-                    <div className="details-progress-stepper">
-                      <div className={`stepper-step ${['assigned', 'inspecting', 'repairing', 'completed'].includes(selectedBooking.status) ? 'active' : ''}`}>
-                        <div className="step-bullet">1</div>
-                        <div className="step-info"><span className="step-name">Assigned</span></div>
-                      </div>
-                      <div className={`stepper-step ${['inspecting', 'repairing', 'completed'].includes(selectedBooking.status) ? 'active' : ''}`}>
-                        <div className="step-bullet">2</div>
-                        <div className="step-info"><span className="step-name">Inspect</span></div>
-                      </div>
-                      <div className={`stepper-step ${['repairing', 'completed'].includes(selectedBooking.status) ? 'active' : ''}`}>
-                        <div className="step-bullet">3</div>
-                        <div className="step-info"><span className="step-name">Repairing</span></div>
-                      </div>
-                      <div className={`stepper-step ${selectedBooking.status === 'completed' ? 'active' : ''}`}>
-                        <div className="step-bullet">4</div>
-                        <div className="step-info"><span className="step-name">Done</span></div>
-                      </div>
-                    </div>
-
-                    <hr className="details-divider" />
-
-                    <div className="details-row">
-                      <span>Estimated Cost:</span>
-                      <span className="details-cost-val">
-                        {selectedBooking.cost > 0 ? `${selectedBooking.cost.toLocaleString('en-US')} VND` : 'Chờ kiểm tra báo giá'}
-                      </span>
-                    </div>
-
-                    <div className="details-row-vertical">
-                      <span>Customer Fault Report:</span>
-                      <p className="details-issue-text">{selectedBooking.issueDescription}</p>
-                    </div>
-
-                    <div className="details-row-vertical">
-                      <span>Technician Notes:</span>
-                      <p className="details-notes-text">{selectedBooking.notes || 'No notes added yet.'}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
+              <ChatPanel
+                conversations={chatConversations}
+                selectedConversation={selectedConversation}
+                chatMessages={chatMessages}
+                newMessage={newMessage}
+                isLoading={chatLoading}
+                isUploadingImage={isUploadingImage}
+                typingUsers={typingUsers}
+                userRole="customer"
+                onSelectConversation={handleSelectConversation}
+                onSendMessage={handleSendMessage}
+                onTyping={handleTyping}
+                onImageUpload={handleImageUpload}
+              />
             </div>
           )}
 

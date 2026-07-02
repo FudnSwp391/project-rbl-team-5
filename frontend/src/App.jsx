@@ -12,6 +12,8 @@ import VnpayReturn from './pages/VnpayReturn';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import ChatBot from "./components/chatbot/ChatBot";
+import ChatToast from './components/ChatToast';
+import { io } from 'socket.io-client';
 
 
 
@@ -33,8 +35,44 @@ function MainApp() {
   const { user } = useAuth();
   const [dashboardSubTab, setDashboardSubTab] = useState(initial.subTab);
   const [showFilters, setShowFilters] = useState(false);
+  const [chatToasts, setChatToasts] = useState([]);
 
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
+
+  useEffect(() => {
+    if (!user) return;
+    const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || /^(\d{1,3}\.){3}\d{1,3}$/.test(window.location.hostname)) ? `${window.location.protocol}//${window.location.hostname}:5000` : '';
+    const socket = io(API_BASE);
+    socket.emit('registerUser', String(user.id));
+
+    socket.on('newBellNotification', (notif) => {
+      if (notif.type === 'chat') {
+        if (window.isChatViewActive && Number(window.currentActiveChatBookingId) === Number(notif.bookingId)) {
+          // User is currently viewing this exact chat, no toast needed
+          return;
+        }
+        const toastId = `toast_${Date.now()}_${Math.random()}`;
+        setChatToasts(prev => [...prev.slice(-4), { ...notif, toastId }]);
+        setTimeout(() => {
+          setChatToasts(prev => prev.filter(t => t.toastId !== toastId));
+        }, 5000);
+      }
+    });
+
+    return () => socket.disconnect();
+  }, [user]);
+
+  const handleToastClick = (toast) => {
+    setChatToasts(prev => prev.filter(t => t.toastId !== toast.toastId));
+    localStorage.setItem('pending_chat_booking_id', toast.bookingId);
+    
+    const role = user?.role?.toLowerCase();
+    if (role === 'admin') setDashboardSubTab('bookings');
+    else if (role === 'seller') setDashboardSubTab('bookings');
+    else setDashboardSubTab('chat');
+    
+    setActivePage('dashboard');
+  };
 
   // Reset showFilters when navigating away from shop
   useEffect(() => {
@@ -126,18 +164,49 @@ function MainApp() {
         {renderPage()}
       </main>
       {!isConsoleDashboard && <Footer />}
-      {!isConsoleDashboard && <ChatBot />}
+      {!isConsoleDashboard && (
+        <ChatBot 
+          onProductClick={async (productId) => {
+            try {
+              const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || /^(\d{1,3}\.){3}\d{1,3}$/.test(window.location.hostname)) 
+                ? `${window.location.protocol}//${window.location.hostname}:5000` 
+                : '';
+              const res = await fetch(`${API_BASE}/api/products/${productId}`);
+              if (res.ok) {
+                const product = await res.json();
+                setSelectedProduct(product);
+                setActivePage('shop');
+              }
+            } catch (err) {
+              console.error('Error opening product from chatbot:', err);
+            }
+          }}
+        />
+      )}
+      
+      {/* Global Chat Toasts */}
+      <ChatToast 
+        toasts={chatToasts}
+        onDismiss={(id) => setChatToasts(prev => prev.filter(t => t.toastId !== id))}
+        onClickToast={handleToastClick}
+      />
     </div>
+  );
+}
+
+function CartWrapper() {
+  const { user } = useAuth();
+  return (
+    <CartProvider key={user?.id || 'guest'}>
+      <MainApp />
+    </CartProvider>
   );
 }
 
 function App() {
   return (
-
     <AuthProvider>
-      <CartProvider>
-        <MainApp />
-      </CartProvider>
+      <CartWrapper />
     </AuthProvider>
   );
 }

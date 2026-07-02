@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import ProductCard, { getProductImage } from '../components/ProductCard';
 import { useCart } from '../context/CartContext';
 import { Search, SlidersHorizontal, ShieldCheck, Truck, RefreshCw, X, ShoppingCart } from 'lucide-react';
@@ -168,19 +169,19 @@ const Shop = ({ selectedProduct, setSelectedProduct, showFilters, setShowFilters
 
   return (
     <div className="shop-page container py-4 animate-fade">
-      
+
       <div className="shop-header-row mb-5" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '20px' }}>
         <button className={`toggle-filters-btn ${showFilters ? 'active' : ''}`} onClick={() => setShowFilters(!showFilters)}>
           <SlidersHorizontal size={16} />
           <span>Bộ lọc</span>
         </button>
-        
+
         <div className="shop-header text-center" style={{ flex: 1, minWidth: '280px' }}>
           <div className="shop-badge-premium">Chợ Công Nghệ Xanh</div>
           <h1 className="shop-title fw-bold" style={{ margin: '0 0 10px 0' }}>Chợ Thiết Bị Công Nghệ Cũ</h1>
           <p className="shop-subtitle text-muted" style={{ margin: '0 auto', maxWidth: '600px' }}>Mua sắm thiết bị chính hãng, giá tiết kiệm, bảo hành đổi trả uy tín và góp phần bảo vệ môi trường.</p>
         </div>
-        
+
         <div className="header-placeholder" style={{ width: '120px' }}></div>
       </div>
 
@@ -193,7 +194,7 @@ const Shop = ({ selectedProduct, setSelectedProduct, showFilters, setShowFilters
           <button className="close-filters-btn" onClick={() => setShowFilters(false)} title="Đóng bộ lọc">
             <X size={18} />
           </button>
-          
+
           <div className="sidebar-section-header mb-3">
             <SlidersHorizontal size={18} />
             <h3 className="m-0 fw-bold">Bộ lọc</h3>
@@ -304,13 +305,13 @@ const Shop = ({ selectedProduct, setSelectedProduct, showFilters, setShowFilters
                   className={`category-tab-btn ${category === cat ? 'active' : ''}`}
                   onClick={() => setCategory(cat)}
                 >
-                  {cat === 'All' ? 'Tất cả' : 
-                   cat === 'AirConditioner' ? 'Máy lạnh' : 
-                   cat === 'WashingMachine' ? 'Máy giặt' : 
-                   cat === 'Refrigerator' ? 'Tủ lạnh' : 
-                   cat === 'Microwave' ? 'Lò vi sóng' : 
-                   cat === 'Audio' ? 'Tai nghe' : 
-                   cat === 'Laptop' ? 'Laptop' : 'Đồng hồ'}
+                  {cat === 'All' ? 'Tất cả' :
+                    cat === 'AirConditioner' ? 'Máy lạnh' :
+                      cat === 'WashingMachine' ? 'Máy giặt' :
+                        cat === 'Refrigerator' ? 'Tủ lạnh' :
+                          cat === 'Microwave' ? 'Lò vi sóng' :
+                            cat === 'Audio' ? 'Tai nghe' :
+                              cat === 'Laptop' ? 'Laptop' : 'Đồng hồ'}
                 </button>
               ))}
             </div>
@@ -412,9 +413,9 @@ const Shop = ({ selectedProduct, setSelectedProduct, showFilters, setShowFilters
         </main>
       </div>
 
-      {/* Product Detail Modal */}
-      {selectedProduct && (
-        <div className="modal-overlay animate-fade" onClick={closeDetailModal}>
+      {/* Product Detail Modal — render via Portal vào document.body để tránh bị ảnh hưởng bởi transform của cha */}
+      {selectedProduct && createPortal(
+        <div className="modal-overlay" onClick={closeDetailModal}>
           <div className="product-detail-modal animate-slide-up" onClick={e => e.stopPropagation()}>
             <button className="modal-close-btn" onClick={closeDetailModal}>
               <X size={24} />
@@ -485,7 +486,8 @@ const Shop = ({ selectedProduct, setSelectedProduct, showFilters, setShowFilters
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

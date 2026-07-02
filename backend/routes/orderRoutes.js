@@ -5,6 +5,7 @@ const authenticateToken = require('../middleware/authMiddleware');
 
 router.get('/', authenticateToken, orderController.getOrders);
 router.post('/', authenticateToken, orderController.createOrder);
+router.post('/sepay-webhook', orderController.sepayWebhook); // Không cần auth - SePay gọi trực tiếp
 router.put('/:id/status', authenticateToken, orderController.updateOrderStatus);
 router.put('/:id/confirm-visit', authenticateToken, orderController.confirmVisit);
 router.post('/:id/confirm-payment', authenticateToken, orderController.confirmPayment);
@@ -12,4 +13,5 @@ router.post('/:id/cancel', authenticateToken, orderController.cancelOrder);
 router.put('/:id/reschedule', authenticateToken, orderController.rescheduleOrder);
 
 module.exports = router;
+
 

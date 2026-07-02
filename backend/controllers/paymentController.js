@@ -33,14 +33,14 @@ exports.createPaymentUrl = async (req, res) => {
 };
 
 exports.generateVnpayUrl = (orderId, amount, ipAddr, orderInfo) => {
-  const tmnCode = process.env.VNP_TMNCODE;
-  const secretKey = process.env.VNP_HASHSECRET;
-  const vnpUrl = process.env.VNP_URL;
-  const returnUrl = process.env.VNP_RETURNURL;
+  const tmnCode = process.env.VNP_TMNCODE || 'CGXZLS0Z';
+  const secretKey = process.env.VNP_HASHSECRET || 'XNBCJFAKAZQSGTARRLGCHVZCWCEFWSKC';
+  const vnpUrl = process.env.VNP_URL || 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html';
+  const returnUrl = process.env.VNP_RETURNURL || 'http://localhost:5173';
 
-  // Validate required environment variables
+  // Validate required variables
   if (!tmnCode || !secretKey || !vnpUrl || !returnUrl) {
-    throw new Error('Missing required VNPay environment variables: VNP_TMNCODE, VNP_HASHSECRET, VNP_URL, VNP_RETURNURL');
+    throw new Error('Missing required VNPay configurations');
   }
 
   // Hàm tạo ngày giờ đúng chuẩn múi giờ Việt Nam (GMT+7)
@@ -105,7 +105,7 @@ exports.vnpayReturn = async (req, res) => {
 
   let sortedParams = sortObject(vnp_Params);
 
-  const secretKey = process.env.VNP_HASHSECRET;
+  const secretKey = process.env.VNP_HASHSECRET || 'XNBCJFAKAZQSGTARRLGCHVZCWCEFWSKC';
   if (!secretKey) {
     return res.status(500).json({ code: '99', message: 'VNP_HASHSECRET not configured' });
   }
@@ -127,6 +127,13 @@ exports.vnpayReturn = async (req, res) => {
           [{ name: 'orderId', value: orderId }]
         );
 
+        // Cập nhật trạng thái sản phẩm trong đơn sang 'sold_out' (đã bán) để ẩn khỏi chợ đồ cũ ngay lập tức
+        await db.query(`
+          UPDATE products 
+          SET status = 'sold_out' 
+          WHERE id IN (SELECT product_id FROM order_items WHERE order_id = @orderId)
+        `, [{ name: 'orderId', value: orderId }]);
+
         // Fetch order items to return for the invoice
         const itemsResult = await db.query(
           'SELECT * FROM order_items WHERE order_id = @orderId',
@@ -142,6 +149,60 @@ exports.vnpayReturn = async (req, res) => {
             quantity: item.quantity
           };
         }));
+
+        // Lấy thông tin chi tiết đơn hàng để gửi mail
+        try {
+          const order = await db.findOne('orders', { id: orderId });
+          if (order) {
+            const customerProfile = await db.findOne('customer_profiles', { id: order.customer_id });
+            let customerEmail = '';
+            if (customerProfile) {
+              const user = await db.findOne('users', { id: customerProfile.user_id });
+              if (user) {
+                customerEmail = user.email;
+              }
+            }
+
+            if (customerEmail) {
+              // Parse invoice number
+              let invoiceNumber = `INV-${order.id}`;
+              if (order.notes) {
+                const parts = order.notes.split('|');
+                parts.forEach(part => {
+                  if (part.startsWith('invoice:')) {
+                    invoiceNumber = part.replace('invoice:', '');
+                  }
+                });
+              }
+
+              // Parse shipping info
+              let shippingInfo = {};
+              if (order.shipping_address) {
+                const trimmed = order.shipping_address.trim();
+                if (trimmed.startsWith('{')) {
+                  try {
+                    shippingInfo = JSON.parse(trimmed);
+                  } catch (e) {
+                    shippingInfo = { address: order.shipping_address, fullName: 'Khách hàng', phone: '' };
+                  }
+                } else {
+                  shippingInfo = { address: order.shipping_address, fullName: 'Khách hàng', phone: '' };
+                }
+              }
+
+              const { sendOrderConfirmationEmail } = require('../emailService');
+              await sendOrderConfirmationEmail(customerEmail, {
+                invoiceNumber,
+                createdAt: order.created_at,
+                totalAmount: order.total_amount,
+                shippingInfo,
+                items: enrichedItems
+              });
+            }
+          }
+        } catch (emailErr) {
+          console.error('Lỗi gửi email xác nhận VNPay:', emailErr);
+        }
 
         res.status(200).json({ 
           code: rspCode, 

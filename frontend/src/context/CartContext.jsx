@@ -1,16 +1,20 @@
 import { createContext, useState, useEffect, useContext } from 'react';
+import { useAuth } from './AuthContext';
 
 const CartContext = createContext();
 
 export const CartProvider = ({ children }) => {
+  const { user } = useAuth();
+  const cartKey = user && user.id ? `techcycle_cart_${user.id}` : 'techcycle_cart_guest';
+
   const [cartItems, setCartItems] = useState(() => {
-    const savedCart = localStorage.getItem('techcycle_cart');
+    const savedCart = localStorage.getItem(cartKey);
     return savedCart ? JSON.parse(savedCart) : [];
   });
 
   useEffect(() => {
-    localStorage.setItem('techcycle_cart', JSON.stringify(cartItems));
-  }, [cartItems]);
+    localStorage.setItem(cartKey, JSON.stringify(cartItems));
+  }, [cartItems, cartKey]);
 
   const addToCart = (product) => {
     setCartItems((prevItems) => {

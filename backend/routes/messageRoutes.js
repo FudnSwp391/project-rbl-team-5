@@ -3,6 +3,6 @@ const router = express.Router();
 const messageController = require('../controllers/messageController');
 const authenticateToken = require('../middleware/authMiddleware');
 
-router.get('/:bookingId', authenticateToken, messageController.getMessages);
+router.get('/:conversationId', authenticateToken, messageController.getMessages);
 
 module.exports = router;

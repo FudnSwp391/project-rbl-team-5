@@ -68,8 +68,10 @@ exports.getBookings = async (req, res) => {
         device_type: 'Thiết bị điện tử',
         issue_description: b.user_description || '',
         customerName: customer ? (customer.full_name || customer.username) : 'Ẩn danh',
+        customerAvatar: customer ? (customer.avatar || '') : '',
         customerPhone: customer ? customer.phone : '',
         technicianName: technician ? (technician.full_name || technician.username) : 'Chưa phân công',
+        technicianAvatar: technician ? (technician.avatar || '') : '',
         preferred_date: b.appointment_date,
         cost: b.quoted_price
       };
@@ -187,7 +189,9 @@ exports.updateBooking = async (req, res) => {
 
     // Add support for new columns
     const finalPickupDate = pickup_date || pickupDate;
-    if (finalPickupDate !== undefined) updates.pickup_date = finalPickupDate;
+    if (finalPickupDate !== undefined) {
+      updates.pickup_date = finalPickupDate === "" ? null : finalPickupDate;
+    }
 
     const finalReplacedParts = replaced_parts || replacedParts;
     if (finalReplacedParts !== undefined) updates.replaced_parts = finalReplacedParts;

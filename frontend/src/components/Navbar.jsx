@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { Recycle, ShoppingCart, User, LogOut, LayoutDashboard, ShoppingBag, Calendar, Menu, X, Sun, Moon, Bell, SlidersHorizontal } from 'lucide-react';
+import { io } from 'socket.io-client';
 import './Navbar.css';
 
 const Navbar = ({ activePage, setActivePage, theme, setTheme, setDashboardSubTab, dashboardSubTab, showFilters, setShowFilters }) => {
@@ -19,7 +20,8 @@ const Navbar = ({ activePage, setActivePage, theme, setTheme, setDashboardSubTab
 
   const fetchNotifications = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/notifications');
+      const url = user ? `http://localhost:5000/api/notifications?userId=${user.id}` : 'http://localhost:5000/api/notifications';
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         setNotifications(data);
@@ -37,14 +39,94 @@ const Navbar = ({ activePage, setActivePage, theme, setTheme, setDashboardSubTab
   useEffect(() => {
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 15000);
-    return () => clearInterval(interval);
-  }, []);
+    
+    // Khởi tạo socket lắng nghe real-time notification
+    const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || /^(\d{1,3}\.){3}\d{1,3}$/.test(window.location.hostname)) ? `${window.location.protocol}//${window.location.hostname}:5000` : '';
+    const socket = io(API_BASE);
+
+    if (user) {
+      socket.emit('registerUser', String(user.id));
+    }
+
+    const handleNewNotif = (notif) => {
+      setNotifications(prev => [notif, ...prev]);
+      
+      // Không tăng chấm đỏ nếu đang mở chat của đúng booking đó
+      const isViewingThisChat = notif.type === 'chat' && window.isChatViewActive && Number(window.currentActiveChatBookingId) === Number(notif.bookingId);
+      
+      if (!showNotifDropdown && !isViewingThisChat) {
+        setUnreadCount(prev => prev + 1);
+      }
+    };
+
+    socket.on('newBellNotification', handleNewNotif);
+    socket.on('newMarketingNotification', handleNewNotif);
+
+    return () => {
+      clearInterval(interval);
+      socket.disconnect();
+    };
+  }, [user, showNotifDropdown]);
 
   const handleToggleDropdown = () => {
     setShowNotifDropdown(!showNotifDropdown);
     if (!showNotifDropdown && notifications.length > 0) {
       setUnreadCount(0);
       localStorage.setItem('last_seen_notif_id', notifications[0].id);
+    }
+  };
+
+  const handleNotificationClick = (n) => {
+    setShowNotifDropdown(false);
+    if (!user) return;
+    
+    const role = String(user.role).toLowerCase();
+    
+    // Always navigate to the dashboard page first
+    setActivePage('dashboard');
+    
+    // Nếu là thông báo chat có bookingId, lưu vào localStorage để dashboard chọn đúng hội thoại
+    if (n.type === 'chat' || n.bookingId) {
+      localStorage.setItem('pending_chat_booking_id', n.bookingId);
+    }
+    
+    // Determine target subTab based on role and notification content
+    if (role === 'seller') {
+      if (n.title?.includes('Lịch hẹn') || n.title?.includes('Đơn hàng') || n.title?.includes('xem máy')) {
+        setDashboardSubTab('bookings');
+      } else if (n.title?.includes('Chat') || n.title?.includes('nhắn') || n.title?.includes('Q&A')) {
+        setDashboardSubTab('chat');
+      } else if (n.title?.includes('Sản phẩm')) {
+        setDashboardSubTab('products');
+      } else {
+        setDashboardSubTab('bookings');
+      }
+    } else if (role === 'admin') {
+      if (n.title?.includes('Lịch hẹn') || n.title?.includes('Đơn hàng') || n.title?.includes('xem máy') || n.title?.includes('sửa chữa')) {
+        setDashboardSubTab('bookings');
+      } else if (n.title?.includes('complaint') || n.title?.includes('khiếu nại')) {
+        setDashboardSubTab('complaints');
+      } else {
+        setDashboardSubTab('stats');
+      }
+    } else if (role === 'technician') {
+      if (n.title?.includes('sửa chữa') || n.title?.includes('phân công') || n.title?.includes('Hẹn')) {
+        setDashboardSubTab('bookings');
+      } else if (n.title?.includes('Chat') || n.title?.includes('nhắn')) {
+        setDashboardSubTab('chat');
+      } else {
+        setDashboardSubTab('bookings');
+      }
+    } else if (role === 'customer') {
+      if (n.title?.includes('sửa chữa') || n.title?.includes('phân công') || n.title?.includes('lịch hẹn')) {
+        setDashboardSubTab('bookings');
+      } else if (n.title?.includes('Đơn hàng') || n.title?.includes('mua hàng') || n.title?.includes('xem máy') || n.title?.includes('thanh toán')) {
+        setDashboardSubTab('orders');
+      } else if (n.title?.includes('Chat') || n.title?.includes('nhắn')) {
+        setDashboardSubTab('chat');
+      } else {
+        setDashboardSubTab('overview');
+      }
     }
   };
 
@@ -137,7 +219,12 @@ const Navbar = ({ activePage, setActivePage, theme, setTheme, setDashboardSubTab
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     {notifications.map((n) => (
-                      <div key={n.id} style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', background: 'var(--neutral-bg)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                      <div 
+                        key={n.id} 
+                        onClick={() => handleNotificationClick(n)}
+                        className="notification-item-card"
+                        style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', background: 'var(--neutral-bg)', borderRadius: '8px', border: '1px solid var(--border-color)', cursor: 'pointer' }}
+                      >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px' }}>
                           <span style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--primary-dark)' }}>{n.title}</span>
                           <span style={{ fontSize: '0.7rem', color: 'var(--neutral-medium)', flexShrink: 0 }}>{new Date(n.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>

@@ -1,26 +1,28 @@
 const { db } = require('../db');
 
-// GET /api/messages/:bookingId
+// GET /api/messages/:conversationId
 exports.getMessages = async (req, res) => {
   try {
-    const { bookingId } = req.params;
-    const messages = await db.find('Messages', { booking_id: bookingId });
+    const { conversationId } = req.params;
 
-    // Enrich với thông tin người gửi
-    const enrichedMessages = await Promise.all(messages.map(async (m) => {
-      const sender = m.sender_id ? await db.findOne('users', { id: m.sender_id }) : null;
-      return {
-        ...m,
-        senderId: m.sender_id,
-        receiverId: m.receiver_id,
-        bookingId: m.booking_id,
-        text: m.text_content,
-        senderName: sender ? sender.username : 'Ẩn danh',
-        senderAvatar: sender ? sender.avatar : ''
-      };
-    }));
+    const result = await db.query(
+      `SELECT 
+         m.id,
+         m.sender_id   AS senderId,
+         m.receiver_id AS receiverId,
+         m.conversation_id  AS conversationId,
+         m.text_content AS text,
+         m.timestamp   AS createdAt,
+         u.username    AS senderName,
+         u.avatar      AS senderAvatar
+       FROM messages m
+       LEFT JOIN users u ON m.sender_id = u.id
+       WHERE m.conversation_id = @conversationId
+       ORDER BY m.timestamp ASC`,
+      [{ name: 'conversationId', value: Number(conversationId) }]
+    );
 
-    res.json(enrichedMessages);
+    res.json(result.recordset || []);
   } catch (err) {
     console.error('Lỗi lấy tin nhắn:', err);
     res.status(500).json({ message: 'Lỗi lấy tin nhắn.', error: err.message });

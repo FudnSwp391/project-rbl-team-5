@@ -5,7 +5,7 @@ import ChatForm from "./ChatForm.jsx";
 import ChatMessage from "./ChatMessage.jsx";
 import "./chatbot.css";
 
-const ChatBot = () => {
+const ChatBot = ({ onProductClick }) => {
     const [chatHistory, setChatHistory] = useState([]);
     const [showChatbot, setShowChatbot] = useState(false);
     const chatBodyRef = useRef();
@@ -19,7 +19,8 @@ const ChatBot = () => {
         };
 
         try {
-            const response = await axios.post("http://localhost:3001/api/chat", {
+            const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000' : '';
+            const response = await axios.post(`${API_BASE}/api/chatbot1/chat`, {
                 history,
             });
             updateHistory(response.data.reply);
@@ -74,7 +75,7 @@ const ChatBot = () => {
                         </p>
                     </div>
                     {chatHistory.map((chat, index) => (
-                        <ChatMessage key={index} chat={chat} />
+                        <ChatMessage key={index} chat={chat} onProductClick={onProductClick} />
                     ))}
                 </div>
 

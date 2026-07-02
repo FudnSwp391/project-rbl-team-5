@@ -9,8 +9,14 @@ import {
 } from 'lucide-react';
 import ProfileSettings from '../../components/ProfileSettings';
 import { getProductImage } from '../../components/ProductCard';
+import ChatPanel from '../../components/ChatPanel';
+import InternalChatPanel from '../../components/InternalChatPanel';
+import NotificationBell from '../../components/NotificationBell';
+import useConsultationChat from '../../hooks/useConsultationChat';
+import useInternalChat from '../../hooks/useInternalChat';
+import useNotifications from '../../hooks/useNotifications';
 
-const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000' : '';
+const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || /^(\d{1,3}\.){3}\d{1,3}$/.test(window.location.hostname)) ? `${window.location.protocol}//${window.location.hostname}:5000` : '';
 
 const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInitialSubTab }) => {
   const { user, token, getAvatarUrl, logout } = useAuth();
@@ -19,28 +25,124 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
   const [viewingUser, setViewingUser] = useState(null);
   const fileInputRef = useRef(null);
 
-  // --- CHAT SYSTEM STATES ---
-  const [chatConversations, setChatConversations] = useState([]);
-  const [selectedBooking, setSelectedBooking] = useState(null);
-  const [chatMessages, setChatMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [isUploadingImage, setIsUploadingImage] = useState(false);
-  const socketRef = useRef(null);
-  const chatEndRef = useRef(null);
-  const fetchConversationsListRef = useRef(null);
-  const chatFileInputRef = useRef(null);
-
   // --- DATA STATES ---
   const [stats, setStats] = useState(null);
   const [productsList, setProductsList] = useState([]);
   const [bookingsList, setBookingsList] = useState([]);
   const [ordersList, setOrdersList] = useState([]);
-  const [notifications, setNotifications] = useState([]);
-  const [showNotifDropdown, setShowNotifDropdown] = useState(false);
+  const [usersList, setUsersList] = useState([]);
   const [newOrderCount, setNewOrderCount] = useState(0);
   const [newBookingCount, setNewBookingCount] = useState(0);
   const [techsList, setTechsList] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // --- CHAT SYSTEM STATES ---
+  const [chatConversations, setChatConversations] = useState([]);
+  const {
+    selectedConversation,
+    setSelectedConversation,
+    chatMessages,
+    newMessage,
+    isUploadingImage,
+    isLoading: chatLoading,
+    unreadCount,
+    unreadConversations,
+    typingUsers,
+    handleSelectConversation,
+    handleSendMessage,
+    handleImageUpload,
+    handleTyping,
+    markChatViewActive
+  } = useConsultationChat(user, token);
+
+  // --- INTERNAL CHAT HOOK ---
+  const {
+    selectedConversation: internalConversation,
+    chatMessages: internalMessages,
+    newMessage: internalNewMessage,
+    isUploadingImage: isInternalUploading,
+    isLoading: isInternalLoading,
+    unreadCount: internalUnreadCount,
+    unreadSenders: internalUnreadSenders,
+    typingUsers: internalTypingUsers,
+    handleSelectStaff: handleSelectInternalStaff,
+    handleSendMessage: handleSendInternalMessage,
+    handleImageUpload: handleInternalImageUpload,
+    handleTyping: handleInternalTyping,
+    markChatViewActive: markInternalChatActive,
+  } = useInternalChat(user, token);
+
+  const internalStaffList = usersList.filter(u => u.role === 'admin' || u.role === 'technician');
+
+  const handleGlobalEvent = useCallback((eventName, data) => {
+    if (eventName === 'newOrder' || eventName === 'newBooking' || eventName === 'newOrderForSeller' || eventName === 'newBookingForSeller') {
+      if (eventName === 'newOrder') setNewOrderCount(prev => prev + 1);
+      if (eventName === 'newBooking') setNewBookingCount(prev => prev + 1);
+      fetchData();
+    }
+  }, []);
+
+  const { notifications, clearAllNotifications } = useNotifications(user, token, handleGlobalEvent);
+
+  const socketRef = useRef(null);
+
+  const handleAcceptConsultation = async (conversationId) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/conversations/${conversationId}/accept`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        alert('Đã nhận tư vấn thành công!');
+        fetchData();
+        if (selectedConversation && selectedConversation.id === conversationId) {
+          setSelectedConversation({ 
+            ...selectedConversation, 
+            status: 'active', 
+            seller_id: user.id, 
+            sellerName: user.username, 
+            sellerAvatar: user.avatar 
+          });
+        }
+      } else {
+        const data = await res.json();
+        alert(data.message || 'Lỗi nhận tư vấn');
+      }
+    } catch (err) {
+      alert('Lỗi kết nối');
+    }
+  };
+
+  const handleStartCustomerChat = (customerId) => {
+    const customerBookings = chatConversations.filter(b => b.customerId === customerId);
+    if (customerBookings.length > 0) {
+      const latestBooking = [...customerBookings].sort((a, b) => b.id - a.id)[0];
+      handleSelectConversation(latestBooking);
+      setSubTab('chat');
+    } else {
+      alert("Khách hàng này chưa có yêu cầu tư vấn nào.");
+    }
+  };
+
+  useEffect(() => {
+    if (subTab === 'chat') {
+      markChatViewActive(true);
+      markInternalChatActive(false);
+    } else if (subTab === 'internal-chat') {
+      markChatViewActive(false);
+      markInternalChatActive(true);
+    } else {
+      markChatViewActive(false);
+      markInternalChatActive(false);
+    }
+  }, [subTab, markChatViewActive, markInternalChatActive]);
+
+  // --- PAGINATION STATES ---
+  const [ordersPage, setOrdersPage] = useState(1);
+  const [bookingsPage, setBookingsPage] = useState(1);
+  const itemsPerPage = 10;
 
   // --- RESCHEDULE STATES ---
   const [editingOrderId, setEditingOrderId] = useState(null);
@@ -91,15 +193,35 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
   const [notifImage, setNotifImage] = useState('');
   const [notifImageFile, setNotifImageFile] = useState(null);
 
-  const fetchData = async () => {
+  const fetchData = async (isInitial = false) => {
     if (!user || !token) return;
-    setLoading(true);
+    if (isInitial) setLoading(true);
+    // Do not reset pagination on background refresh
+    if (isInitial) {
+      setOrdersPage(1);
+      setBookingsPage(1);
+    }
     try {
       const resBookings = await fetch(`${API_BASE}/api/bookings`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const dataBookings = await resBookings.json();
-      if (Array.isArray(dataBookings)) setBookingsList(dataBookings);
+      if (Array.isArray(dataBookings)) {
+        setBookingsList(dataBookings);
+      }
+
+      // 4. Fetch users for internal chat
+      try {
+        const resUsers = await fetch(`${API_BASE}/api/users/list`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (resUsers.ok) {
+          const usersData = await resUsers.json();
+          setUsersList(usersData);
+        }
+      } catch (e) {
+        console.error('Error fetching users:', e);
+      }
 
       const resStats = await fetch(`${API_BASE}/api/users/stats`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -131,13 +253,31 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
         setPromoCodes(dataPromos);
       }
 
-      const resNotifs = await fetch(`${API_BASE}/api/notifications`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+
+
+      // Fetch pending consultations and my active consultations
+      const [resPending, resMyConvs] = await Promise.all([
+        fetch(`${API_BASE}/api/conversations/pending`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch(`${API_BASE}/api/conversations/my`, { headers: { 'Authorization': `Bearer ${token}` } })
+      ]);
+      const dataPending = await resPending.json();
+      const dataMyConvs = await resMyConvs.json();
+      
+      let allConvs = [];
+      if (Array.isArray(dataPending)) allConvs = [...allConvs, ...dataPending];
+      if (Array.isArray(dataMyConvs)) allConvs = [...allConvs, ...dataMyConvs];
+      
+      // Deduplicate by ID just in case
+      const uniqueConvs = Array.from(new Map(allConvs.map(item => [item.id, item])).values());
+      // Sort: pending first, then by updated
+      uniqueConvs.sort((a, b) => {
+        if (a.status === 'pending' && b.status !== 'pending') return -1;
+        if (a.status !== 'pending' && b.status === 'pending') return 1;
+        return new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at);
       });
-      if (resNotifs.ok) {
-        const dataNotifs = await resNotifs.json();
-        setNotifications(dataNotifs);
-      }
+      
+      setChatConversations(uniqueConvs);
+
     } catch (err) {
       console.error('Lỗi tải dữ liệu bảng điều khiển:', err);
     } finally {
@@ -148,139 +288,35 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
   // --- WEBSOCKET CHAT LOGIC ---
   useEffect(() => {
     if (!user) return;
-    socketRef.current = io(`${API_BASE}`);
-    socketRef.current.emit('registerUser', user.id);
+    const socketRefObj = { current: io(`${API_BASE}`) };
+    socketRefObj.current.emit('registerUser', user.id);
 
-    socketRef.current.on('receiveMessage', (message) => {
-      if (selectedBooking && message.bookingId === selectedBooking.id) {
-        setChatMessages(prev => Array.isArray(prev) ? [...prev, message] : [message]);
-      }
-      if (fetchConversationsListRef.current) fetchConversationsListRef.current();
+    socketRefObj.current.on('newOrderForSeller', (data) => {
+      alert(`🔔 [ĐƠN HÀNG MỚI] ${data.message}`);
+      fetchData(); 
     });
 
-    socketRef.current.on('newOrderForSeller', (data) => {
-      setNewOrderCount(prev => prev + 1);
-      alert(`🔔 [HẸN XEM MÁY MỚI] ${data.message}`);
-      fetchData(); // Reload dashboard data
-    });
-
-    socketRef.current.on('newBookingForSeller', (data) => {
-      setNewBookingCount(prev => prev + 1);
-      alert(`🔔 [HẸN SỬA MÁY MỚI] ${data.message}`);
-      fetchData(); // Reload dashboard data
+    socketRefObj.current.on('newBookingForSeller', (data) => {
+      alert(`🔔 [LỊCH HẸN MỚI] ${data.message}`);
+      fetchData(); 
     });
 
     return () => {
-      if (socketRef.current) socketRef.current.disconnect();
+      if (socketRefObj.current) socketRefObj.current.disconnect();
     };
-  }, [user, selectedBooking]);
+  }, [user]);
 
   useEffect(() => {
-    if (chatEndRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [chatMessages]);
-
-  const fetchConversationsList = useCallback(() => {
-    if (bookingsList.length === 0) return;
-    const chats = bookingsList.filter(b => b.status !== 'pending');
-    setChatConversations(chats);
-  }, [bookingsList]);
+    fetchData(true);
+  }, [user, token]);
 
   useEffect(() => {
-    fetchConversationsListRef.current = fetchConversationsList;
-  }, [fetchConversationsList]);
+    setSelectedConversation(null);
+  }, [subTab, setSelectedConversation]);
 
   useEffect(() => {
-    fetchConversationsList();
-  }, [fetchConversationsList]);
-
-  const handleSelectConversation = (booking) => {
-    setSelectedBooking(booking);
-    setChatMessages([]);
-    if (socketRef.current) {
-      socketRef.current.emit('joinBookingRoom', booking.id);
-    }
-    fetch(`${API_BASE}/api/messages/${booking.id}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          setChatMessages(data);
-        } else {
-          setChatMessages([]);
-          console.error('Expected array of messages, got:', data);
-        }
-      })
-      .catch(err => {
-        console.error('Lỗi tải lịch sử chat:', err);
-        setChatMessages([]);
-      });
-  };
-
-  const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file || !selectedBooking) return;
-
-    setIsUploadingImage(true);
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/upload-images`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ images: [reader.result] })
-        });
-        const data = await res.json();
-        if (res.ok && data.urls && data.urls.length > 0) {
-          const imageUrl = data.urls[0];
-          const receiverId = selectedBooking.customerId;
-          if (socketRef.current) {
-            socketRef.current.emit('sendMessage', {
-              senderId: user.id,
-              receiverId,
-              bookingId: selectedBooking.id,
-              text: `[IMG]${imageUrl}`
-            });
-          }
-        } else {
-          alert('Lỗi tải ảnh lên');
-        }
-      } catch (err) {
-        console.error('Lỗi tải ảnh:', err);
-      } finally {
-        setIsUploadingImage(false);
-        if (chatFileInputRef.current) chatFileInputRef.current.value = '';
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleSendMessage = (e) => {
-    e.preventDefault();
-    if (!newMessage.trim() || !selectedBooking) return;
-    const receiverId = selectedBooking.customerId;
-    const messagePayload = {
-      senderId: user.id,
-      receiverId,
-      bookingId: selectedBooking.id,
-      text: newMessage
-    };
-    if (socketRef.current) {
-      socketRef.current.emit('sendMessage', messagePayload);
-      setNewMessage('');
-    }
-  };
-
-
-
-  useEffect(() => {
-    fetchData();
-  }, [user, token, subTab]);
+    markInternalChatActive(subTab === 'internal-chat');
+  }, [subTab, markInternalChatActive]);
 
   const handleLogout = () => {
     logout();
@@ -434,6 +470,26 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
       alert('Không thể kết nối đến máy chủ.');
     }
   };
+
+  const handleNotificationClick = async (notif) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/notifications`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ id: notif.id })
+      });
+      if (res.ok) {
+        clearAllNotifications();
+      }
+    } catch (err) {
+      console.error('Lỗi click thông báo:', err);
+    }
+    
+    if (notif.type === 'chat') {
+      setSubTab('internal-chat');
+    }
+  };
+
 
   const handleImageFileChange = (e) => {
     const file = e.target.files[0];
@@ -744,6 +800,237 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
     }
   };
 
+  // --- PDF EXPORT ---
+  const handleExportPDF = () => {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const timeStr = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
+    // Calculate statistics
+    const totalOrders = ordersList.length;
+    const completedOrders = ordersList.filter(o => o.status === 'completed').length;
+    const pendingOrders = ordersList.filter(o => ['pending', 'reserved', 'waiting_payment'].includes(o.status)).length;
+    const canceledOrders = ordersList.filter(o => o.status === 'canceled' || o.status === 'cancelled').length;
+    const totalRevenue = ordersList
+      .filter(o => o.status === 'completed')
+      .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+    const totalProducts = productsList.length;
+    const activeProducts = productsList.filter(p => p.status === 'available' || p.status === 'active').length;
+    const soldProducts = productsList.filter(p => p.status === 'sold_out' || p.status === 'sold').length;
+    const totalBookings = bookingsList.length;
+
+    const getCategoryVN = (cat) => {
+      switch(cat) {
+        case 'AirConditioner': return 'Máy lạnh';
+        case 'WashingMachine': return 'Máy giặt';
+        case 'Refrigerator': return 'Tủ lạnh';
+        case 'Audio': return 'Tai nghe';
+        case 'Laptop': return 'Laptop';
+        case 'Smartwatch': return 'Đồng hồ';
+        default: return cat || 'Gia dụng';
+      }
+    };
+
+    const getCondVN = (cond) => {
+      switch(cond) {
+        case 'excellent': return 'Như mới';
+        case 'good': return 'Rất tốt';
+        case 'fair': return 'Khá tốt';
+        default: return cond || '-';
+      }
+    };
+
+    const getStatusVN = (st) => {
+      switch(st) {
+        case 'pending': return 'Đang chờ';
+        case 'completed': return 'Hoàn thành';
+        case 'canceled': case 'cancelled': return 'Đã hủy';
+        case 'reserved': return 'Đã giữ chỗ';
+        case 'active': case 'available': return 'Còn hàng';
+        case 'sold_out': case 'sold': return 'Đã bán';
+        case 'waiting_payment': return 'Chờ thanh toán';
+        case 'assigned': return 'Đã phân công';
+        case 'inspecting': return 'Đang kiểm tra';
+        case 'repairing': return 'Đang sửa chữa';
+        case 'confirmed': return 'Đã xác nhận';
+        default: return st || '-';
+      }
+    };
+
+    // Build products table rows
+    const productRows = productsList.map((p, i) => `
+      <tr>
+        <td style="text-align:center">${i + 1}</td>
+        <td>${p.name || '-'}</td>
+        <td style="text-align:center">${getCategoryVN(p.category)}</td>
+        <td style="text-align:center">${getCondVN(p.condition)}</td>
+        <td style="text-align:right">${(p.price || 0).toLocaleString('vi-VN')} ₫</td>
+        <td style="text-align:center">${getStatusVN(p.status)}</td>
+      </tr>
+    `).join('');
+
+    // Build orders table rows (latest 20)
+    const recentOrders = [...ordersList].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)).slice(0, 20);
+    const orderRows = recentOrders.map((o, i) => `
+      <tr>
+        <td style="text-align:center">${i + 1}</td>
+        <td>#${o.invoiceNumber || o.id}</td>
+        <td style="text-align:right">${(o.totalAmount || 0).toLocaleString('vi-VN')} ₫</td>
+        <td style="text-align:center">${getStatusVN(o.status)}</td>
+        <td style="text-align:center">${o.createdAt ? new Date(o.createdAt).toLocaleDateString('vi-VN') : '-'}</td>
+      </tr>
+    `).join('');
+
+    // Build bookings table rows (latest 20)
+    const recentBookings = [...bookingsList].sort((a, b) => new Date(b.created_at || b.createdAt || 0) - new Date(a.created_at || a.createdAt || 0)).slice(0, 20);
+    const bookingRows = recentBookings.map((b, i) => `
+      <tr>
+        <td style="text-align:center">${i + 1}</td>
+        <td>#${b.id}</td>
+        <td>${b.device_type || b.deviceType || '-'}</td>
+        <td style="text-align:center">${getStatusVN(b.status)}</td>
+        <td style="text-align:center">${(b.appointment_date || b.created_at || b.createdAt) ? new Date(b.appointment_date || b.created_at || b.createdAt).toLocaleDateString('vi-VN') : '-'}</td>
+      </tr>
+    `).join('');
+
+    const htmlContent = `
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Báo Cáo Kinh Doanh - TechCycle</title>
+  <style>
+    @page { size: A4; margin: 18mm 15mm; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', 'Be Vietnam Pro', system-ui, Arial, sans-serif; color: #1a1a1a; font-size: 11px; line-height: 1.5; }
+    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #006D44; padding-bottom: 12px; margin-bottom: 20px; }
+    .header-left h1 { font-size: 20px; color: #006D44; margin-bottom: 2px; }
+    .header-left p { font-size: 11px; color: #666; }
+    .header-right { text-align: right; font-size: 10px; color: #888; }
+    .header-right .shop-name { font-size: 13px; font-weight: 700; color: #333; }
+
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 22px; }
+    .stat-box { border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px; text-align: center; }
+    .stat-box .stat-number { font-size: 22px; font-weight: 800; color: #006D44; }
+    .stat-box .stat-label { font-size: 10px; color: #777; text-transform: uppercase; margin-top: 2px; letter-spacing: 0.5px; }
+    .stat-box.revenue .stat-number { color: #D97706; }
+    .stat-box.pending .stat-number { color: #F59E0B; }
+    .stat-box.canceled .stat-number { color: #EF4444; }
+
+    .section-title { font-size: 14px; font-weight: 700; color: #006D44; margin: 20px 0 10px 0; padding-bottom: 4px; border-bottom: 1.5px solid #e5e7eb; }
+    table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-bottom: 16px; }
+    th { background: #006D44; color: #fff; padding: 7px 8px; text-align: left; font-weight: 600; font-size: 10px; text-transform: uppercase; }
+    td { padding: 6px 8px; border-bottom: 1px solid #eee; }
+    tr:nth-child(even) { background: #f9fafb; }
+
+    .footer { margin-top: 30px; padding-top: 12px; border-top: 1.5px solid #e0e0e0; display: flex; justify-content: space-between; font-size: 9px; color: #aaa; }
+    .signature-area { margin-top: 40px; display: flex; justify-content: space-between; }
+    .signature-box { text-align: center; width: 200px; }
+    .signature-box .sig-title { font-size: 11px; font-weight: 700; color: #333; margin-bottom: 50px; }
+    .signature-box .sig-line { border-top: 1px solid #999; padding-top: 4px; font-size: 10px; color: #666; }
+
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-left">
+      <h1>♻️ TechCycle</h1>
+      <p>Nền tảng mua bán & sửa chữa thiết bị điện tử tân trang</p>
+    </div>
+    <div class="header-right">
+      <div class="shop-name">${user?.username || 'Người bán'}</div>
+      <div>Ngày xuất: ${dateStr} lúc ${timeStr}</div>
+      <div>Email: ${user?.email || '-'}</div>
+    </div>
+  </div>
+
+  <h2 style="text-align:center; font-size:16px; color:#1a1a1a; margin-bottom:18px;">BÁO CÁO TỔNG HỢP KINH DOANH</h2>
+
+  <div class="stats-grid">
+    <div class="stat-box revenue">
+      <div class="stat-number">${totalRevenue.toLocaleString('vi-VN')} ₫</div>
+      <div class="stat-label">Doanh thu (Hoàn thành)</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-number">${totalOrders}</div>
+      <div class="stat-label">Tổng đơn hàng</div>
+    </div>
+    <div class="stat-box pending">
+      <div class="stat-number">${pendingOrders}</div>
+      <div class="stat-label">Đang chờ xử lý</div>
+    </div>
+    <div class="stat-box canceled">
+      <div class="stat-number">${canceledOrders}</div>
+      <div class="stat-label">Đã hủy</div>
+    </div>
+  </div>
+
+  <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+    <div class="stat-box">
+      <div class="stat-number">${totalProducts}</div>
+      <div class="stat-label">Tổng sản phẩm</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-number">${activeProducts}</div>
+      <div class="stat-label">Đang bán</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-number">${totalBookings}</div>
+      <div class="stat-label">Lịch hẹn sửa chữa</div>
+    </div>
+  </div>
+
+  <div class="section-title">📦 Danh Sách Sản Phẩm Kho Hàng (${totalProducts} sản phẩm)</div>
+  <table>
+    <thead><tr><th style="width:30px">#</th><th>Tên thiết bị</th><th style="text-align:center">Danh mục</th><th style="text-align:center">Tình trạng</th><th style="text-align:right">Giá bán</th><th style="text-align:center">Trạng thái</th></tr></thead>
+    <tbody>${productRows || '<tr><td colspan="6" style="text-align:center;color:#999">Không có sản phẩm</td></tr>'}</tbody>
+  </table>
+
+  <div class="section-title">🧾 Đơn Hàng Gần Đây (${Math.min(recentOrders.length, 20)} / ${totalOrders} đơn)</div>
+  <table>
+    <thead><tr><th style="width:30px">#</th><th>Mã đơn</th><th style="text-align:right">Tổng tiền</th><th style="text-align:center">Trạng thái</th><th style="text-align:center">Ngày tạo</th></tr></thead>
+    <tbody>${orderRows || '<tr><td colspan="5" style="text-align:center;color:#999">Không có đơn hàng</td></tr>'}</tbody>
+  </table>
+
+  <div class="section-title">🔧 Lịch Hẹn Sửa Chữa Gần Đây (${Math.min(recentBookings.length, 20)} / ${totalBookings} phiếu)</div>
+  <table>
+    <thead><tr><th style="width:30px">#</th><th>Mã phiếu</th><th>Thiết bị</th><th style="text-align:center">Trạng thái</th><th style="text-align:center">Ngày hẹn</th></tr></thead>
+    <tbody>${bookingRows || '<tr><td colspan="5" style="text-align:center;color:#999">Không có lịch hẹn</td></tr>'}</tbody>
+  </table>
+
+  <div class="signature-area">
+    <div class="signature-box">
+      <div class="sig-title">Người lập báo cáo</div>
+      <div class="sig-line">${user?.username || '_______________'}</div>
+    </div>
+    <div class="signature-box">
+      <div class="sig-title">Xác nhận của quản lý</div>
+      <div class="sig-line">_______________</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>TechCycle © ${now.getFullYear()} — Báo cáo tự động</span>
+    <span>Trang 1</span>
+  </div>
+</body>
+</html>`;
+
+    const printWindow = window.open('', '_blank', 'width=900,height=700');
+    if (printWindow) {
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => { printWindow.print(); }, 400);
+    } else {
+      alert('Trình duyệt đã chặn cửa sổ popup. Vui lòng cho phép popup để xuất PDF.');
+    }
+  };
+
   const getStatusLabel = (st) => {
     switch (st) {
       case 'pending': return 'Đang chờ';
@@ -783,6 +1070,18 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
 
   combinedItems.sort((a, b) => new Date(b.date) - new Date(a.date));
 
+  const totalOrderPages = Math.ceil(ordersList.length / itemsPerPage) || 1;
+  const activeOrdersPage = ordersPage > totalOrderPages ? totalOrderPages : ordersPage;
+  const currentOrders = ordersList.slice((activeOrdersPage - 1) * itemsPerPage, activeOrdersPage * itemsPerPage);
+
+  const totalBookingPages = Math.ceil(bookingsList.length / itemsPerPage) || 1;
+  const activeBookingsPage = bookingsPage > totalBookingPages ? totalBookingPages : bookingsPage;
+  const currentBookings = bookingsList.slice((activeBookingsPage - 1) * itemsPerPage, activeBookingsPage * itemsPerPage);
+
+  const totalPurchased = ordersList.filter(o => o.status === 'completed').length;
+  const totalPending = ordersList.filter(o => ['pending', 'reserved', 'waiting_payment', 'confirmed'].includes(o.status)).length;
+  const totalCanceled = ordersList.filter(o => ['canceled', 'cancelled'].includes(o.status)).length;
+
   return (
     <div className="dashboard-page admin-dashboard-layout seller-portal-layout animate-fade">
       <div className="dashboard-grid-layout">
@@ -794,7 +1093,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
             </div>
             <div className="brand-text-wrapper">
               <h3>TechCycle</h3>
-              <span>Seller Portal</span>
+              <span>Kênh Người Bán</span>
             </div>
           </div>
           
@@ -810,6 +1109,16 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
             <button className={`sidebar-nav-btn ${subTab === 'add-product' ? 'active' : ''}`} onClick={() => setSubTab('add-product')}>
               <Plus size={18} />
               Thêm sản phẩm
+            </button>
+            <button className={`sidebar-nav-btn ${subTab === 'chat' ? 'active' : ''}`} onClick={() => setSubTab('chat')}>
+              <MessageSquare size={20} />
+              <span>Hỗ trợ Tư vấn</span>
+              {unreadCount > 0 && <span className="nav-badge" style={{ background: '#ef4444', color: 'white', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold' }}>{unreadCount}</span>}
+            </button>
+            <button className={`sidebar-nav-btn ${subTab === 'internal-chat' ? 'active' : ''}`} onClick={() => setSubTab('internal-chat')}>
+              <MessageSquare size={20} />
+              <span>Tin nhắn nội bộ</span>
+              {internalUnreadCount > 0 && <span className="nav-badge" style={{ background: '#3b82f6', color: 'white', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold' }}>{internalUnreadCount}</span>}
             </button>
             <button className={`sidebar-nav-btn ${subTab === 'bookings' ? 'active' : ''}`} onClick={() => { setSubTab('bookings'); setNewOrderCount(0); setNewBookingCount(0); }}>
               <Calendar size={18} />
@@ -830,7 +1139,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
             </button>
           </nav>
 
-          <button className="new-report-btn seller-impact-btn" onClick={() => alert("Xuất báo cáo tác động...")}>
+          <button className="new-report-btn seller-impact-btn" onClick={handleExportPDF} title="Xuất báo cáo tác động PDF">
             Xuất báo cáo tác động
           </button>
 
@@ -850,7 +1159,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
           </div>
 
           <div className="sidebar-copyright-text">
-            <p>© 2026 TechCycle - performance management & circular economy solution.</p>
+            <p>© 2026 TechCycle - quản lý hiệu suất & giải pháp kinh tế tuần hoàn.</p>
           </div>
         </aside>
 
@@ -865,93 +1174,25 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                subTab === 'customers' ? 'Quản lý khách hàng' : 
                subTab === 'marketing' ? 'Chương trình khuyến mãi' : 
                subTab === 'chat' ? 'Tin nhắn hỗ trợ' : 
+               subTab === 'internal-chat' ? 'Tin nhắn nội bộ' : 
                subTab === 'settings' ? 'Cài đặt tài khoản' : 'Bảng điều khiển'}
             </h2>
 
             <div style={{ flex: 1 }}></div>
 
             <div className="topbar-actions-profile">
-              <button className="topbar-action-btn theme-toggle" onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')} title="Toggle Light/Dark theme">
+              <button className="topbar-action-btn theme-toggle" onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')} title="Chuyển đổi sáng/tối">
                 {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
               </button>
               <div style={{ position: 'relative' }}>
-                <button 
-                  className="topbar-action-btn notification" 
-                  onClick={() => setShowNotifDropdown(!showNotifDropdown)} 
-                  title="Notifications"
-                >
-                  <Bell size={20} />
-                  {notifications.length > 0 && (
-                    <span style={{
-                      position: 'absolute',
-                      top: '-4px',
-                      right: '-4px',
-                      backgroundColor: 'var(--accent-red)',
-                      color: 'white',
-                      borderRadius: '50%',
-                      width: '18px',
-                      height: '18px',
-                      fontSize: '0.65rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: 700
-                    }}>
-                      {notifications.length}
-                    </span>
-                  )}
-                </button>
-
-                {showNotifDropdown && (
-                  <div 
-                    className="glass-panel" 
-                    style={{
-                      position: 'absolute',
-                      right: 0,
-                      top: '40px',
-                      width: '320px',
-                      maxHeight: '400px',
-                      overflowY: 'auto',
-                      zIndex: 1000,
-                      padding: '16px',
-                      boxShadow: 'var(--shadow-lg)',
-                      borderRadius: 'var(--border-radius-md)',
-                      backgroundColor: 'var(--card-bg, #ffffff)',
-                      border: '1px solid var(--border-color)',
-                      textAlign: 'left'
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
-                      <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700 }}>Thông báo</h4>
-                      <button 
-                        style={{ background: 'none', border: 'none', color: '#006D44', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600 }}
-                        onClick={() => setNotifications([])}
-                      >
-                        Xóa tất cả
-                      </button>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      {notifications.length === 0 ? (
-                        <p style={{ fontSize: '0.8rem', color: 'var(--neutral-medium)', textAlign: 'center', margin: '20px 0' }}>Không có thông báo mới.</p>
-                      ) : (
-                        notifications.map(n => (
-                          <div key={n.id} style={{ padding: '8px', borderRadius: '4px', backgroundColor: 'var(--neutral-lightest)', borderLeft: '3px solid var(--primary)' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                              <strong style={{ fontSize: '0.8rem', color: 'var(--neutral-darkest)' }}>{n.title}</strong>
-                              <span style={{ fontSize: '0.65rem', color: 'var(--neutral-medium)' }}>
-                                {new Date(n.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-                              </span>
-                            </div>
-                            <p style={{ margin: '4px 0 0 0', fontSize: '0.75rem', color: 'var(--neutral-dark)' }}>{n.message}</p>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                )}
+                <NotificationBell 
+                  notifications={notifications} 
+                  onClearAll={clearAllNotifications} 
+                  onClickNotification={handleNotificationClick} 
+                />
               </div>
               
-              <button className="topbar-action-btn messages" onClick={() => setSubTab('chat')} title="Messages">
+              <button className="topbar-action-btn messages" onClick={() => setSubTab('chat')} title="Tin nhắn">
                 <MessageSquare size={20} />
               </button>
               
@@ -960,7 +1201,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
               <div className="topbar-profile-widget">
                 <div className="profile-info">
                   <h4>Nhân Viên Bán Hàng</h4>
-                  <span>seller</span>
+                  <span>Người bán</span>
                 </div>
                 <img src={getAvatarUrl(user.avatar, user.username)} alt={user.username} className="profile-avatar-circle" />
               </div>
@@ -970,14 +1211,14 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
           {loading && (
             <div className="text-center py-5">
               <div className="spinner-border text-primary" role="status">
-                <span className="visually-hidden">Loading...</span>
+                <span className="visually-hidden">Đang tải...</span>
               </div>
             </div>
           )}
 
           {!loading && subTab === 'settings' && (
             <div className="settings-view animate-fade container py-4">
-              <h2 className="mb-4 text-center" style={{ fontWeight: 800 }}>Account Settings</h2>
+              <h2 className="mb-4 text-center" style={{ fontWeight: 800 }}>Cài Đặt Tài Khoản</h2>
               <ProfileSettings />
             </div>
           )}
@@ -1200,7 +1441,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                       />
                       <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--neutral-medium)' }} />
                     </div>
-                    <button className="icon-btn" onClick={() => alert("Xuất báo cáo...")}>📥</button>
+                    <button className="icon-btn" onClick={handleExportPDF} title="Xuất báo cáo PDF">📥</button>
                   </div>
                 </div>
 
@@ -1544,6 +1785,22 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                 <h2>Lịch Hẹn Xem Máy (Mua Thiết Bị)</h2>
                 <p className="view-desc">Quản lý danh sách khách hàng đặt lịch hẹn tới xem và kiểm tra máy trực tiếp tại cửa hàng.</p>
 
+                {/* Thống kê lịch hẹn */}
+                <div className="stats-summary-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '24px' }}>
+                  <div className="glass-panel" style={{ padding: '16px', borderRadius: '12px', textAlign: 'center', borderLeft: '4px solid var(--primary)' }}>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--neutral-medium)' }}>Tổng khách đã mua</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary)', marginTop: '4px' }}>{totalPurchased}</div>
+                  </div>
+                  <div className="glass-panel" style={{ padding: '16px', borderRadius: '12px', textAlign: 'center', borderLeft: '4px solid #f59e0b' }}>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--neutral-medium)' }}>Đang chờ xem/Thanh toán</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#f59e0b', marginTop: '4px' }}>{totalPending}</div>
+                  </div>
+                  <div className="glass-panel" style={{ padding: '16px', borderRadius: '12px', textAlign: 'center', borderLeft: '4px solid #ef4444' }}>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--neutral-medium)' }}>Đã hủy lịch/đơn</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#ef4444', marginTop: '4px' }}>{totalCanceled}</div>
+                  </div>
+                </div>
+
                 <div className="table-responsive">
                   <table className="dashboard-table">
                     <thead>
@@ -1563,7 +1820,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                           <td colSpan="7" style={{ textAlign: 'center', padding: '20px', color: 'var(--neutral-medium)' }}>Chưa có lịch hẹn xem máy nào.</td>
                         </tr>
                       ) : (
-                        ordersList.map(o => (
+                        currentOrders.map(o => (
                           <tr key={o.id}>
                             <td>
                               <strong>{o.appointmentInfo?.fullName || o.shippingInfo?.fullName || 'Khách hàng'}</strong>
@@ -1669,6 +1926,34 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                     </tbody>
                   </table>
                 </div>
+
+                {totalOrderPages > 1 && (
+                  <div className="pagination-wrapper">
+                    <button 
+                      disabled={activeOrdersPage === 1} 
+                      onClick={() => setOrdersPage(activeOrdersPage - 1)}
+                      className="pagination-btn"
+                    >
+                      Trước
+                    </button>
+                    {Array.from({ length: totalOrderPages }, (_, i) => i + 1).map(page => (
+                      <button
+                        key={page}
+                        onClick={() => setOrdersPage(page)}
+                        className={`pagination-btn ${activeOrdersPage === page ? 'active' : ''}`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                    <button 
+                      disabled={activeOrdersPage === totalOrderPages} 
+                      onClick={() => setOrdersPage(activeOrdersPage + 1)}
+                      className="pagination-btn"
+                    >
+                      Sau
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Section 2: Phiếu Hẹn Sửa Chữa */}
@@ -1695,7 +1980,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                           <td colSpan="7" style={{ textAlign: 'center', padding: '20px', color: 'var(--neutral-medium)' }}>Chưa có phiếu hẹn sửa chữa nào.</td>
                         </tr>
                       ) : (
-                        bookingsList.map(bk => (
+                        currentBookings.map(bk => (
                           <tr key={bk.id}>
                             <td>
                               <strong>{bk.customerName}</strong>
@@ -1798,6 +2083,34 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                     </tbody>
                   </table>
                 </div>
+
+                {totalBookingPages > 1 && (
+                  <div className="pagination-wrapper">
+                    <button 
+                      disabled={activeBookingsPage === 1} 
+                      onClick={() => setBookingsPage(activeBookingsPage - 1)}
+                      className="pagination-btn"
+                    >
+                      Trước
+                    </button>
+                    {Array.from({ length: totalBookingPages }, (_, i) => i + 1).map(page => (
+                      <button
+                        key={page}
+                        onClick={() => setBookingsPage(page)}
+                        className={`pagination-btn ${activeBookingsPage === page ? 'active' : ''}`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                    <button 
+                      disabled={activeBookingsPage === totalBookingPages} 
+                      onClick={() => setBookingsPage(activeBookingsPage + 1)}
+                      className="pagination-btn"
+                    >
+                      Sau
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1807,7 +2120,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
               <div className="customer-detail-view animate-fade">
                 <div className="detail-header-row">
                   <button className="back-to-list-btn" onClick={() => setViewingUser(null)}>
-                    <ArrowLeft size={16} /> Back to List
+                    <ArrowLeft size={16} /> Quay lại danh sách
                   </button>
                   <h2>Chi tiết Khách hàng</h2>
                 </div>
@@ -1822,18 +2135,18 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                             alt={viewingUser.username} 
                             className="detail-avatar" 
                           />
-                          <span className="member-badge">🌟 GOLD MEMBER</span>
+                          <span className="member-badge">🌟 THÀNH VIÊN VÀNG</span>
                         </div>
                         <div className="profile-meta-info">
                           <h3>{viewingUser.username}</h3>
-                          <span className="role-pill">Customer</span>
-                          <span className="status-text">Male • ID: #{viewingUser.id}</span>
+                          <span className="role-pill">Khách hàng</span>
+                          <span className="status-text">{viewingUser.gender === 'female' ? 'Nữ' : 'Nam'} • ID: #{viewingUser.id}</span>
                         </div>
                       </div>
                       <hr className="widget-divider" />
                       <div className="profile-card-actions">
-                        <button className="btn btn-outline btn-sm btn-send-message" onClick={() => { setSubTab('chat'); alert("Redirecting to Customer Q&A chat..."); }}>
-                          <MessageSquare size={14} /> Send Message
+                        <button className="btn btn-outline btn-sm btn-send-message" onClick={() => handleStartCustomerChat(viewingUser.id)}>
+                          <MessageSquare size={14} /> Gửi tin nhắn
                         </button>
                       </div>
                     </div>
@@ -1843,25 +2156,25 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                     <div className="personal-info-card-widget glass-panel h-100">
                       <div className="card-header d-flex align-items-center gap-2 mb-3">
                         <Users size={16} className="header-icon" />
-                        <h3 className="m-0">PERSONAL INFO</h3>
+                        <h3 className="m-0">THÔNG TIN CÁ NHÂN</h3>
                       </div>
                       <div className="info-list">
                         <div className="info-row">
-                          <span className="info-label">USER ID</span>
+                          <span className="info-label">MÃ TÀI KHOẢN</span>
                           <span className="info-value value-id">{viewingUser.id}</span>
                         </div>
                         <div className="info-row">
-                          <span className="info-label">EMAIL ADDRESS</span>
+                          <span className="info-label">ĐỊA CHỈ EMAIL</span>
                           <span className="info-value">{viewingUser.email}</span>
                         </div>
                         <div className="info-row">
-                          <span className="info-label">PHONE NUMBER</span>
-                          <span className="info-value">{viewingUser.phone || 'N/A'}</span>
+                          <span className="info-label">SỐ ĐIỆN THOẠI</span>
+                          <span className="info-value">{viewingUser.phone || 'Chưa cung cấp'}</span>
                         </div>
                         <div className="info-row">
-                          <span className="info-label">REGISTRATION DATE</span>
+                          <span className="info-label">NGÀY ĐĂNG KÝ</span>
                           <span className="info-value">
-                            {new Date(viewingUser.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                            {new Date(viewingUser.createdAt).toLocaleDateString('vi-VN', { year: 'numeric', month: 'long', day: 'numeric' })}
                           </span>
                         </div>
                       </div>
@@ -1875,9 +2188,9 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                       <div className="address-card-header d-flex justify-content-between align-items-center mb-3">
                         <div className="header-title-wrap d-flex align-items-center gap-2">
                           <MapPin size={16} className="green-text" />
-                          <h3 className="m-0">Shipping Address</h3>
+                          <h3 className="m-0">Địa chỉ giao hàng</h3>
                         </div>
-                        <span className="badge badge-default-address">DEFAULT</span>
+                        <span className="badge badge-default-address">MẶC ĐỊNH</span>
                       </div>
                       <p className="address-text">
                         {ordersList.filter(o => o.customerId === viewingUser.id)[0]?.shippingInfo?.address || '103 Eco Tower, District 1, Ho Chi Minh City, 70000, Vietnam'}
@@ -1890,7 +2203,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                       <div className="address-card-header d-flex justify-content-between align-items-center mb-3">
                         <div className="header-title-wrap d-flex align-items-center gap-2">
                           <CreditCard size={16} className="orange-text" />
-                          <h3 className="m-0">Billing Address</h3>
+                          <h3 className="m-0">Địa chỉ thanh toán</h3>
                         </div>
                       </div>
                       <p className="address-text">
@@ -1902,18 +2215,18 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
 
                 <div className="recent-orders-card-widget glass-panel mb-4">
                   <div className="recent-orders-header d-flex justify-content-between align-items-center mb-3">
-                    <h3 className="m-0">Recent Order History</h3>
-                    <span className="view-all-link" onClick={() => alert("Redirecting to all orders...")}>View All</span>
+                    <h3 className="m-0">Lịch sử đơn hàng gần đây</h3>
+                    <span className="view-all-link" onClick={() => alert("Chuyển hướng đến tất cả đơn hàng...")}>Xem tất cả</span>
                   </div>
                   <div className="table-responsive">
                     <table className="dashboard-table table">
                       <thead>
                         <tr>
-                          <th>ORDER ID</th>
-                          <th>PRODUCT NAME</th>
-                          <th>DATE</th>
-                          <th>AMOUNT</th>
-                          <th>STATUS</th>
+                          <th>MÃ ĐƠN HÀNG</th>
+                          <th>TÊN SẢN PHẨM</th>
+                          <th>NGÀY</th>
+                          <th>SỐ TIỀN</th>
+                          <th>TRẠNG THÁI</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1922,10 +2235,10 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                             <tr key={o.id}>
                               <td className="green-text font-bold">#{o.id.toUpperCase()}</td>
                               <td>{o.items.map(it => it.name).join(', ')}</td>
-                              <td>{new Date(o.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
+                              <td>{new Date(o.createdAt).toLocaleDateString('vi-VN', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
                               <td>
                                 <span className="price-vnd-formatted">
-                                  {o.totalAmount.toLocaleString('en-US')}
+                                  {o.totalAmount.toLocaleString('vi-VN')}
                                   <span className="price-vnd-label"> VND</span>
                                 </span>
                               </td>
@@ -1941,9 +2254,9 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                             <tr>
                               <td className="green-text font-bold">#ORD-5521</td>
                               <td>Solar-Powered Power Bank X1</td>
-                              <td>12 May, 2024</td>
+                              <td>12 Tháng 5, 2024</td>
                               <td>5,450,000 VND</td>
-                              <td><span className="status-delivery-tag completed">DELIVERED</span></td>
+                              <td><span className="status-delivery-tag completed">ĐÃ GIAO THÀNH CÔNG</span></td>
                             </tr>
                           </>
                         )}
@@ -1954,19 +2267,19 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
               </div>
             ) : (
               <div className="customers-view animate-fade">
-                <h2>Customer Registry</h2>
-                <p className="view-desc">Complete register log of retail customers. Shows repair tickets and transaction orders.</p>
+                <h2>Sổ Khách Hàng</h2>
+                <p className="view-desc">Danh sách khách hàng đăng ký. Hiển thị phiếu sửa chữa và đơn hàng.</p>
                 
                 <div className="table-responsive">
                   <table className="dashboard-table">
                     <thead>
                       <tr>
-                        <th>Customer</th>
-                        <th>Email Address</th>
-                        <th>Phone Number</th>
-                        <th>Joined Date</th>
-                        <th>Repair Requests</th>
-                        <th>Orders Placed</th>
+                        <th>Khách hàng</th>
+                        <th>Địa chỉ email</th>
+                        <th>Số điện thoại</th>
+                        <th>Ngày tham gia</th>
+                        <th>Yêu cầu sửa chữa</th>
+                        <th>Đơn hàng đã đặt</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1984,8 +2297,8 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                             <td>{c.email}</td>
                             <td>{c.phone || 'N/A'}</td>
                             <td>{new Date(c.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
-                            <td><span className="count-badge green">{bookingsCount} bookings</span></td>
-                            <td><span className="count-badge blue">{ordersCount} orders</span></td>
+                            <td><span className="count-badge green">{bookingsCount} lịch hẹn</span></td>
+                            <td><span className="count-badge blue">{ordersCount} đơn hàng</span></td>
                           </tr>
                         );
                       })}
@@ -2057,9 +2370,9 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                         />
                       </div>
                       <div className="form-group">
-                        <label className="form-label-sm">HẠN SỬ DỤNG</label>
+                        <label className="form-label-sm">HẠN SỬ DỤNG (NGÀY & GIỜ HẾT HẠN)</label>
                         <input 
-                          type="date" 
+                          type="datetime-local" 
                           className="form-control"
                           value={newPromoExpiry}
                           onChange={e => setNewPromoExpiry(e.target.value)}
@@ -2153,148 +2466,43 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
           )}
 
           {!loading && subTab === 'chat' && (
-            <div className="chat-view-layout glass-panel animate-fade">
-              <div className="chat-conversations-sidebar">
-                <h3>Vé Bảo Hành</h3>
-                <p className="chat-sub-lbl">Chọn một vé để bắt đầu tư vấn</p>
-                <div className="chat-conversations-list">
-                  {chatConversations.map(conv => (
-                    <div 
-                      key={conv.id} 
-                      className={`conv-item-card ${selectedBooking?.id === conv.id ? 'active' : ''}`}
-                      onClick={() => handleSelectConversation(conv)}
-                    >
-                      <div className="conv-item-info">
-                        <h4>{conv.deviceType}</h4>
-                        <p className="conv-user-name">
-                          Client: {conv.customerName}
-                        </p>
-                      </div>
-                      <span className="conv-id">#{conv.id}</span>
-                    </div>
-                  ))}
-                  {chatConversations.length === 0 && (
-                    <p className="empty-text">Không có bảo hành nào được gán để bắt đầu nhắn tin.</p>
-                  )}
-                </div>
-              </div>
+            <div className="animate-fade" style={{ height: 'calc(100vh - 160px)', minHeight: '520px' }}>
+              <ChatPanel
+                conversations={chatConversations.filter(c => c.status !== 'internal')}
+                selectedConversation={selectedConversation}
+                chatMessages={chatMessages}
+                newMessage={newMessage}
+                isLoading={chatLoading}
+                isUploadingImage={isUploadingImage}
+                typingUsers={typingUsers}
+                unreadConversations={unreadConversations}
+                userRole="seller"
+                onSelectConversation={handleSelectConversation}
+                onSendMessage={handleSendMessage}
+                onTyping={handleTyping}
+                onImageUpload={handleImageUpload}
+                onAcceptConsultation={handleAcceptConsultation}
+              />
+            </div>
+          )}
 
-              <div className="chat-thread-panel">
-                {selectedBooking ? (
-                  <>
-                    <div className="thread-header">
-                      <div>
-                        <h4>{selectedBooking.deviceType}</h4>
-                        <p>#{selectedBooking.id} • Customer: {selectedBooking.customerName}</p>
-                      </div>
-                    </div>
-
-                    <div className="chat-messages-thread">
-                      {Array.isArray(chatMessages) && chatMessages.map(msg => {
-                        const isMe = msg.senderId === user.id;
-                        return (
-                          <div key={msg.id} className={`chat-message-bubble ${isMe ? 'mine' : 'theirs'}`}>
-                            {!isMe && <img src={getAvatarUrl(msg.senderAvatar, msg.senderName)} alt={msg.senderName} className="msg-avatar" />}
-                            <div className="msg-bubble-content">
-                              {!isMe && <span className="sender-name">{msg.senderName}</span>}
-                              {msg.text && msg.text.startsWith('[IMG]') ? (
-                                <img src={msg.text.replace('[IMG]', '')} alt="attachment" className="chat-image-attachment" onClick={() => window.open(msg.text.replace('[IMG]', ''), '_blank')} />
-                              ) : (
-                                <p className="msg-text">{msg.text}</p>
-                              )}
-                              <span className="msg-time">{new Date(msg.createdAt || msg.timestamp || new Date()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                      <div ref={chatEndRef} />
-                    </div>
-
-                    <form className="chat-input-form" onSubmit={handleSendMessage}>
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        ref={chatFileInputRef} 
-                        style={{ display: 'none' }} 
-                        onChange={handleImageUpload}
-                      />
-                      <button 
-                        type="button" 
-                        className="chat-attach-btn" 
-                        onClick={() => chatFileInputRef.current?.click()}
-                        disabled={isUploadingImage}
-                      >
-                        <Paperclip size={18} />
-                      </button>
-                      <input 
-                        type="text" 
-                        placeholder={isUploadingImage ? "Đang tải ảnh lên..." : "Nhập tin nhắn của bạn..."}
-                        value={newMessage}
-                        onChange={e => setNewMessage(e.target.value)}
-                        disabled={isUploadingImage}
-                      />
-                      <button type="submit" className="chat-send-btn" disabled={isUploadingImage}>
-                        <Send size={18} />
-                      </button>
-                    </form>
-                  </>
-                ) : (
-                  <div className="no-chat-selected">
-                    <p>Chọn một cuộc trò chuyện từ thanh bên để xem nhật ký trò chuyện.</p>
-                  </div>
-                )}
-              </div>
-
-              {selectedBooking && (
-                <div className="chat-case-details-panel">
-                  <h3>Vé Bảo Hành</h3>
-                  <hr className="details-divider" />
-                  <div className="details-content">
-                    <div className="details-device-header">
-                      <h4>{selectedBooking.deviceType}</h4>
-                      <span className="details-id">#{selectedBooking.id}</span>
-                    </div>
-                    
-                    <div className="details-progress-stepper">
-                      <div className={`stepper-step ${['assigned', 'inspecting', 'repairing', 'completed'].includes(selectedBooking.status) ? 'active' : ''}`}>
-                        <div className="step-bullet">1</div>
-                        <div className="step-info"><span className="step-name">Được Gán</span></div>
-                      </div>
-                      <div className={`stepper-step ${['inspecting', 'repairing', 'completed'].includes(selectedBooking.status) ? 'active' : ''}`}>
-                        <div className="step-bullet">2</div>
-                        <div className="step-info"><span className="step-name">Kiểm Tra</span></div>
-                      </div>
-                      <div className={`stepper-step ${['repairing', 'completed'].includes(selectedBooking.status) ? 'active' : ''}`}>
-                        <div className="step-bullet">3</div>
-                        <div className="step-info"><span className="step-name">Đang Sửa</span></div>
-                      </div>
-                      <div className={`stepper-step ${selectedBooking.status === 'completed' ? 'active' : ''}`}>
-                        <div className="step-bullet">4</div>
-                        <div className="step-info"><span className="step-name">Hoàn Thành</span></div>
-                      </div>
-                    </div>
-
-                    <hr className="details-divider" />
-
-                    <div className="details-row">
-                      <span>Chi Phí Ước Tính:</span>
-                      <span className="details-cost-val">
-                        {selectedBooking.cost > 0 ? `${selectedBooking.cost.toLocaleString('en-US')} VND` : 'Inspect pending'}
-                      </span>
-                    </div>
-
-                    <div className="details-row-vertical">
-                      <span>Báo Cáo Lỗi Từ Khách Hàng:</span>
-                      <p className="details-issue-text">{selectedBooking.issueDescription}</p>
-                    </div>
-
-                    <div className="details-row-vertical">
-                      <span>Ghi Chú Kỹ Thuật:</span>
-                      <p className="details-notes-text">{selectedBooking.notes || 'Chưa có ghi chú.'}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
+          {!loading && subTab === 'internal-chat' && (
+            <div className="animate-fade" style={{ height: 'calc(100vh - 160px)', minHeight: '520px' }}>
+              <InternalChatPanel
+                staffList={internalStaffList}
+                selectedConversation={internalConversation}
+                chatMessages={internalMessages}
+                newMessage={internalNewMessage}
+                isLoading={isInternalLoading}
+                isUploadingImage={isInternalUploading}
+                typingUsers={internalTypingUsers}
+                unreadSenders={internalUnreadSenders}
+                onSelectStaff={handleSelectInternalStaff}
+                onSendMessage={handleSendInternalMessage}
+                onTyping={handleInternalTyping}
+                onImageUpload={handleInternalImageUpload}
+                userRole="seller"
+              />
             </div>
           )}
         </main>
@@ -2471,13 +2679,13 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                         value={editProdCategory}
                         onChange={e => setEditProdCategory(e.target.value)}
                       >
-                        <option value="AirConditioner">Air Conditioner</option>
-                        <option value="WashingMachine">Washing Machine</option>
-                        <option value="Refrigerator">Refrigerator</option>
-                        <option value="Microwave">Microwave</option>
-                        <option value="Audio">Audio</option>
+                        <option value="AirConditioner">Điều hòa</option>
+                        <option value="WashingMachine">Máy giặt</option>
+                        <option value="Refrigerator">Tủ lạnh</option>
+                        <option value="Microwave">Lò vi sóng</option>
+                        <option value="Audio">Âm thanh</option>
                         <option value="Laptop">Laptop</option>
-                        <option value="Smartwatch">Smartwatch</option>
+                        <option value="Smartwatch">Đồng hồ thông minh</option>
                       </select>
                     </div>
                     <div className="form-group">
@@ -2487,9 +2695,9 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                         value={editProdCondition}
                         onChange={e => setEditProdCondition(e.target.value)}
                       >
-                        <option value="excellent">Like New (99%)</option>
-                        <option value="good">Very Good (&gt;90%)</option>
-                        <option value="fair">Good (&gt;80%)</option>
+                        <option value="excellent">Như mới (99%)</option>
+                        <option value="good">Rất tốt (&gt;90%)</option>
+                        <option value="fair">Tốt (&gt;80%)</option>
                       </select>
                     </div>
                   </div>
@@ -2512,8 +2720,8 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                         value={editProdStatus}
                         onChange={e => setEditProdStatus(e.target.value)}
                       >
-                        <option value="available">Available</option>
-                        <option value="sold">Sold</option>
+                        <option value="available">Còn hàng</option>
+                        <option value="sold">Đã bán</option>
                       </select>
                     </div>
                   </div>
