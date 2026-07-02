@@ -17,6 +17,8 @@
     "mssql": "^12.5.5",
     "nodemailer": "^9.0.0",
     "qs": "^6.15.2",
-    "socket.io": "^4.7.5"
+    "sequelize": "^6.37.8",
+    "socket.io": "^4.7.5",
+    "tedious": "^20.0.0"
   }
 }
