@@ -5,7 +5,7 @@ import ChatForm from "./ChatForm.jsx";
 import ChatMessage from "./ChatMessage.jsx";
 import "./chatbot.css";
 
-const ChatBot = () => {
+const ChatBot = ({ onProductClick }) => {
     const [chatHistory, setChatHistory] = useState([]);
     const [showChatbot, setShowChatbot] = useState(false);
     const chatBodyRef = useRef();
@@ -74,7 +74,7 @@ const ChatBot = () => {
                         </p>
                     </div>
                     {chatHistory.map((chat, index) => (
-                        <ChatMessage key={index} chat={chat} />
+                        <ChatMessage key={index} chat={chat} onProductClick={onProductClick} />
                     ))}
                 </div>
 

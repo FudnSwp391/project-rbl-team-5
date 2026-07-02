@@ -800,6 +800,237 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
     }
   };
 
+  // --- PDF EXPORT ---
+  const handleExportPDF = () => {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const timeStr = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
+    // Calculate statistics
+    const totalOrders = ordersList.length;
+    const completedOrders = ordersList.filter(o => o.status === 'completed').length;
+    const pendingOrders = ordersList.filter(o => ['pending', 'reserved', 'waiting_payment'].includes(o.status)).length;
+    const canceledOrders = ordersList.filter(o => o.status === 'canceled' || o.status === 'cancelled').length;
+    const totalRevenue = ordersList
+      .filter(o => o.status === 'completed')
+      .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+    const totalProducts = productsList.length;
+    const activeProducts = productsList.filter(p => p.status === 'available' || p.status === 'active').length;
+    const soldProducts = productsList.filter(p => p.status === 'sold_out' || p.status === 'sold').length;
+    const totalBookings = bookingsList.length;
+
+    const getCategoryVN = (cat) => {
+      switch(cat) {
+        case 'AirConditioner': return 'Máy lạnh';
+        case 'WashingMachine': return 'Máy giặt';
+        case 'Refrigerator': return 'Tủ lạnh';
+        case 'Audio': return 'Tai nghe';
+        case 'Laptop': return 'Laptop';
+        case 'Smartwatch': return 'Đồng hồ';
+        default: return cat || 'Gia dụng';
+      }
+    };
+
+    const getCondVN = (cond) => {
+      switch(cond) {
+        case 'excellent': return 'Như mới';
+        case 'good': return 'Rất tốt';
+        case 'fair': return 'Khá tốt';
+        default: return cond || '-';
+      }
+    };
+
+    const getStatusVN = (st) => {
+      switch(st) {
+        case 'pending': return 'Đang chờ';
+        case 'completed': return 'Hoàn thành';
+        case 'canceled': case 'cancelled': return 'Đã hủy';
+        case 'reserved': return 'Đã giữ chỗ';
+        case 'active': case 'available': return 'Còn hàng';
+        case 'sold_out': case 'sold': return 'Đã bán';
+        case 'waiting_payment': return 'Chờ thanh toán';
+        case 'assigned': return 'Đã phân công';
+        case 'inspecting': return 'Đang kiểm tra';
+        case 'repairing': return 'Đang sửa chữa';
+        case 'confirmed': return 'Đã xác nhận';
+        default: return st || '-';
+      }
+    };
+
+    // Build products table rows
+    const productRows = productsList.map((p, i) => `
+      <tr>
+        <td style="text-align:center">${i + 1}</td>
+        <td>${p.name || '-'}</td>
+        <td style="text-align:center">${getCategoryVN(p.category)}</td>
+        <td style="text-align:center">${getCondVN(p.condition)}</td>
+        <td style="text-align:right">${(p.price || 0).toLocaleString('vi-VN')} ₫</td>
+        <td style="text-align:center">${getStatusVN(p.status)}</td>
+      </tr>
+    `).join('');
+
+    // Build orders table rows (latest 20)
+    const recentOrders = [...ordersList].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)).slice(0, 20);
+    const orderRows = recentOrders.map((o, i) => `
+      <tr>
+        <td style="text-align:center">${i + 1}</td>
+        <td>#${o.invoiceNumber || o.id}</td>
+        <td style="text-align:right">${(o.totalAmount || 0).toLocaleString('vi-VN')} ₫</td>
+        <td style="text-align:center">${getStatusVN(o.status)}</td>
+        <td style="text-align:center">${o.createdAt ? new Date(o.createdAt).toLocaleDateString('vi-VN') : '-'}</td>
+      </tr>
+    `).join('');
+
+    // Build bookings table rows (latest 20)
+    const recentBookings = [...bookingsList].sort((a, b) => new Date(b.created_at || b.createdAt || 0) - new Date(a.created_at || a.createdAt || 0)).slice(0, 20);
+    const bookingRows = recentBookings.map((b, i) => `
+      <tr>
+        <td style="text-align:center">${i + 1}</td>
+        <td>#${b.id}</td>
+        <td>${b.device_type || b.deviceType || '-'}</td>
+        <td style="text-align:center">${getStatusVN(b.status)}</td>
+        <td style="text-align:center">${(b.appointment_date || b.created_at || b.createdAt) ? new Date(b.appointment_date || b.created_at || b.createdAt).toLocaleDateString('vi-VN') : '-'}</td>
+      </tr>
+    `).join('');
+
+    const htmlContent = `
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Báo Cáo Kinh Doanh - TechCycle</title>
+  <style>
+    @page { size: A4; margin: 18mm 15mm; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', 'Be Vietnam Pro', system-ui, Arial, sans-serif; color: #1a1a1a; font-size: 11px; line-height: 1.5; }
+    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #006D44; padding-bottom: 12px; margin-bottom: 20px; }
+    .header-left h1 { font-size: 20px; color: #006D44; margin-bottom: 2px; }
+    .header-left p { font-size: 11px; color: #666; }
+    .header-right { text-align: right; font-size: 10px; color: #888; }
+    .header-right .shop-name { font-size: 13px; font-weight: 700; color: #333; }
+
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 22px; }
+    .stat-box { border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px; text-align: center; }
+    .stat-box .stat-number { font-size: 22px; font-weight: 800; color: #006D44; }
+    .stat-box .stat-label { font-size: 10px; color: #777; text-transform: uppercase; margin-top: 2px; letter-spacing: 0.5px; }
+    .stat-box.revenue .stat-number { color: #D97706; }
+    .stat-box.pending .stat-number { color: #F59E0B; }
+    .stat-box.canceled .stat-number { color: #EF4444; }
+
+    .section-title { font-size: 14px; font-weight: 700; color: #006D44; margin: 20px 0 10px 0; padding-bottom: 4px; border-bottom: 1.5px solid #e5e7eb; }
+    table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-bottom: 16px; }
+    th { background: #006D44; color: #fff; padding: 7px 8px; text-align: left; font-weight: 600; font-size: 10px; text-transform: uppercase; }
+    td { padding: 6px 8px; border-bottom: 1px solid #eee; }
+    tr:nth-child(even) { background: #f9fafb; }
+
+    .footer { margin-top: 30px; padding-top: 12px; border-top: 1.5px solid #e0e0e0; display: flex; justify-content: space-between; font-size: 9px; color: #aaa; }
+    .signature-area { margin-top: 40px; display: flex; justify-content: space-between; }
+    .signature-box { text-align: center; width: 200px; }
+    .signature-box .sig-title { font-size: 11px; font-weight: 700; color: #333; margin-bottom: 50px; }
+    .signature-box .sig-line { border-top: 1px solid #999; padding-top: 4px; font-size: 10px; color: #666; }
+
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-left">
+      <h1>♻️ TechCycle</h1>
+      <p>Nền tảng mua bán & sửa chữa thiết bị điện tử tân trang</p>
+    </div>
+    <div class="header-right">
+      <div class="shop-name">${user?.username || 'Người bán'}</div>
+      <div>Ngày xuất: ${dateStr} lúc ${timeStr}</div>
+      <div>Email: ${user?.email || '-'}</div>
+    </div>
+  </div>
+
+  <h2 style="text-align:center; font-size:16px; color:#1a1a1a; margin-bottom:18px;">BÁO CÁO TỔNG HỢP KINH DOANH</h2>
+
+  <div class="stats-grid">
+    <div class="stat-box revenue">
+      <div class="stat-number">${totalRevenue.toLocaleString('vi-VN')} ₫</div>
+      <div class="stat-label">Doanh thu (Hoàn thành)</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-number">${totalOrders}</div>
+      <div class="stat-label">Tổng đơn hàng</div>
+    </div>
+    <div class="stat-box pending">
+      <div class="stat-number">${pendingOrders}</div>
+      <div class="stat-label">Đang chờ xử lý</div>
+    </div>
+    <div class="stat-box canceled">
+      <div class="stat-number">${canceledOrders}</div>
+      <div class="stat-label">Đã hủy</div>
+    </div>
+  </div>
+
+  <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+    <div class="stat-box">
+      <div class="stat-number">${totalProducts}</div>
+      <div class="stat-label">Tổng sản phẩm</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-number">${activeProducts}</div>
+      <div class="stat-label">Đang bán</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-number">${totalBookings}</div>
+      <div class="stat-label">Lịch hẹn sửa chữa</div>
+    </div>
+  </div>
+
+  <div class="section-title">📦 Danh Sách Sản Phẩm Kho Hàng (${totalProducts} sản phẩm)</div>
+  <table>
+    <thead><tr><th style="width:30px">#</th><th>Tên thiết bị</th><th style="text-align:center">Danh mục</th><th style="text-align:center">Tình trạng</th><th style="text-align:right">Giá bán</th><th style="text-align:center">Trạng thái</th></tr></thead>
+    <tbody>${productRows || '<tr><td colspan="6" style="text-align:center;color:#999">Không có sản phẩm</td></tr>'}</tbody>
+  </table>
+
+  <div class="section-title">🧾 Đơn Hàng Gần Đây (${Math.min(recentOrders.length, 20)} / ${totalOrders} đơn)</div>
+  <table>
+    <thead><tr><th style="width:30px">#</th><th>Mã đơn</th><th style="text-align:right">Tổng tiền</th><th style="text-align:center">Trạng thái</th><th style="text-align:center">Ngày tạo</th></tr></thead>
+    <tbody>${orderRows || '<tr><td colspan="5" style="text-align:center;color:#999">Không có đơn hàng</td></tr>'}</tbody>
+  </table>
+
+  <div class="section-title">🔧 Lịch Hẹn Sửa Chữa Gần Đây (${Math.min(recentBookings.length, 20)} / ${totalBookings} phiếu)</div>
+  <table>
+    <thead><tr><th style="width:30px">#</th><th>Mã phiếu</th><th>Thiết bị</th><th style="text-align:center">Trạng thái</th><th style="text-align:center">Ngày hẹn</th></tr></thead>
+    <tbody>${bookingRows || '<tr><td colspan="5" style="text-align:center;color:#999">Không có lịch hẹn</td></tr>'}</tbody>
+  </table>
+
+  <div class="signature-area">
+    <div class="signature-box">
+      <div class="sig-title">Người lập báo cáo</div>
+      <div class="sig-line">${user?.username || '_______________'}</div>
+    </div>
+    <div class="signature-box">
+      <div class="sig-title">Xác nhận của quản lý</div>
+      <div class="sig-line">_______________</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>TechCycle © ${now.getFullYear()} — Báo cáo tự động</span>
+    <span>Trang 1</span>
+  </div>
+</body>
+</html>`;
+
+    const printWindow = window.open('', '_blank', 'width=900,height=700');
+    if (printWindow) {
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => { printWindow.print(); }, 400);
+    } else {
+      alert('Trình duyệt đã chặn cửa sổ popup. Vui lòng cho phép popup để xuất PDF.');
+    }
+  };
+
   const getStatusLabel = (st) => {
     switch (st) {
       case 'pending': return 'Đang chờ';
@@ -846,6 +1077,10 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
   const totalBookingPages = Math.ceil(bookingsList.length / itemsPerPage) || 1;
   const activeBookingsPage = bookingsPage > totalBookingPages ? totalBookingPages : bookingsPage;
   const currentBookings = bookingsList.slice((activeBookingsPage - 1) * itemsPerPage, activeBookingsPage * itemsPerPage);
+
+  const totalPurchased = ordersList.filter(o => o.status === 'completed').length;
+  const totalPending = ordersList.filter(o => ['pending', 'reserved', 'waiting_payment', 'confirmed'].includes(o.status)).length;
+  const totalCanceled = ordersList.filter(o => ['canceled', 'cancelled'].includes(o.status)).length;
 
   return (
     <div className="dashboard-page admin-dashboard-layout seller-portal-layout animate-fade">
@@ -904,7 +1139,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
             </button>
           </nav>
 
-          <button className="new-report-btn seller-impact-btn" onClick={() => alert("Xuất báo cáo tác động...")}>
+          <button className="new-report-btn seller-impact-btn" onClick={handleExportPDF} title="Xuất báo cáo tác động PDF">
             Xuất báo cáo tác động
           </button>
 
@@ -946,7 +1181,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
             <div style={{ flex: 1 }}></div>
 
             <div className="topbar-actions-profile">
-              <button className="topbar-action-btn theme-toggle" onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')} title="Toggle Light/Dark theme">
+              <button className="topbar-action-btn theme-toggle" onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')} title="Chuyển đổi sáng/tối">
                 {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
               </button>
               <div style={{ position: 'relative' }}>
@@ -957,7 +1192,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                 />
               </div>
               
-              <button className="topbar-action-btn messages" onClick={() => setSubTab('chat')} title="Messages">
+              <button className="topbar-action-btn messages" onClick={() => setSubTab('chat')} title="Tin nhắn">
                 <MessageSquare size={20} />
               </button>
               
@@ -966,7 +1201,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
               <div className="topbar-profile-widget">
                 <div className="profile-info">
                   <h4>Nhân Viên Bán Hàng</h4>
-                  <span>seller</span>
+                  <span>Người bán</span>
                 </div>
                 <img src={getAvatarUrl(user.avatar, user.username)} alt={user.username} className="profile-avatar-circle" />
               </div>
@@ -976,14 +1211,14 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
           {loading && (
             <div className="text-center py-5">
               <div className="spinner-border text-primary" role="status">
-                <span className="visually-hidden">Loading...</span>
+                <span className="visually-hidden">Đang tải...</span>
               </div>
             </div>
           )}
 
           {!loading && subTab === 'settings' && (
             <div className="settings-view animate-fade container py-4">
-              <h2 className="mb-4 text-center" style={{ fontWeight: 800 }}>Account Settings</h2>
+              <h2 className="mb-4 text-center" style={{ fontWeight: 800 }}>Cài Đặt Tài Khoản</h2>
               <ProfileSettings />
             </div>
           )}
@@ -1206,7 +1441,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                       />
                       <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--neutral-medium)' }} />
                     </div>
-                    <button className="icon-btn" onClick={() => alert("Xuất báo cáo...")}>📥</button>
+                    <button className="icon-btn" onClick={handleExportPDF} title="Xuất báo cáo PDF">📥</button>
                   </div>
                 </div>
 
@@ -1549,6 +1784,22 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
               <div className="section-block-wrapper" style={{ marginBottom: '32px', paddingBottom: '24px', borderBottom: '1px dashed var(--border-color)' }}>
                 <h2>Lịch Hẹn Xem Máy (Mua Thiết Bị)</h2>
                 <p className="view-desc">Quản lý danh sách khách hàng đặt lịch hẹn tới xem và kiểm tra máy trực tiếp tại cửa hàng.</p>
+
+                {/* Thống kê lịch hẹn */}
+                <div className="stats-summary-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '24px' }}>
+                  <div className="glass-panel" style={{ padding: '16px', borderRadius: '12px', textAlign: 'center', borderLeft: '4px solid var(--primary)' }}>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--neutral-medium)' }}>Tổng khách đã mua</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary)', marginTop: '4px' }}>{totalPurchased}</div>
+                  </div>
+                  <div className="glass-panel" style={{ padding: '16px', borderRadius: '12px', textAlign: 'center', borderLeft: '4px solid #f59e0b' }}>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--neutral-medium)' }}>Đang chờ xem/Thanh toán</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#f59e0b', marginTop: '4px' }}>{totalPending}</div>
+                  </div>
+                  <div className="glass-panel" style={{ padding: '16px', borderRadius: '12px', textAlign: 'center', borderLeft: '4px solid #ef4444' }}>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--neutral-medium)' }}>Đã hủy lịch/đơn</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#ef4444', marginTop: '4px' }}>{totalCanceled}</div>
+                  </div>
+                </div>
 
                 <div className="table-responsive">
                   <table className="dashboard-table">
@@ -2016,19 +2267,19 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
               </div>
             ) : (
               <div className="customers-view animate-fade">
-                <h2>Customer Registry</h2>
-                <p className="view-desc">Complete register log of retail customers. Shows repair tickets and transaction orders.</p>
+                <h2>Sổ Khách Hàng</h2>
+                <p className="view-desc">Danh sách khách hàng đăng ký. Hiển thị phiếu sửa chữa và đơn hàng.</p>
                 
                 <div className="table-responsive">
                   <table className="dashboard-table">
                     <thead>
                       <tr>
-                        <th>Customer</th>
-                        <th>Email Address</th>
-                        <th>Phone Number</th>
-                        <th>Joined Date</th>
-                        <th>Repair Requests</th>
-                        <th>Orders Placed</th>
+                        <th>Khách hàng</th>
+                        <th>Địa chỉ email</th>
+                        <th>Số điện thoại</th>
+                        <th>Ngày tham gia</th>
+                        <th>Yêu cầu sửa chữa</th>
+                        <th>Đơn hàng đã đặt</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2046,8 +2297,8 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                             <td>{c.email}</td>
                             <td>{c.phone || 'N/A'}</td>
                             <td>{new Date(c.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
-                            <td><span className="count-badge green">{bookingsCount} bookings</span></td>
-                            <td><span className="count-badge blue">{ordersCount} orders</span></td>
+                            <td><span className="count-badge green">{bookingsCount} lịch hẹn</span></td>
+                            <td><span className="count-badge blue">{ordersCount} đơn hàng</span></td>
                           </tr>
                         );
                       })}
@@ -2119,9 +2370,9 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                         />
                       </div>
                       <div className="form-group">
-                        <label className="form-label-sm">HẠN SỬ DỤNG</label>
+                        <label className="form-label-sm">HẠN SỬ DỤNG (NGÀY & GIỜ HẾT HẠN)</label>
                         <input 
-                          type="date" 
+                          type="datetime-local" 
                           className="form-control"
                           value={newPromoExpiry}
                           onChange={e => setNewPromoExpiry(e.target.value)}
@@ -2428,13 +2679,13 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                         value={editProdCategory}
                         onChange={e => setEditProdCategory(e.target.value)}
                       >
-                        <option value="AirConditioner">Air Conditioner</option>
-                        <option value="WashingMachine">Washing Machine</option>
-                        <option value="Refrigerator">Refrigerator</option>
-                        <option value="Microwave">Microwave</option>
-                        <option value="Audio">Audio</option>
+                        <option value="AirConditioner">Điều hòa</option>
+                        <option value="WashingMachine">Máy giặt</option>
+                        <option value="Refrigerator">Tủ lạnh</option>
+                        <option value="Microwave">Lò vi sóng</option>
+                        <option value="Audio">Âm thanh</option>
                         <option value="Laptop">Laptop</option>
-                        <option value="Smartwatch">Smartwatch</option>
+                        <option value="Smartwatch">Đồng hồ thông minh</option>
                       </select>
                     </div>
                     <div className="form-group">
@@ -2444,9 +2695,9 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                         value={editProdCondition}
                         onChange={e => setEditProdCondition(e.target.value)}
                       >
-                        <option value="excellent">Like New (99%)</option>
-                        <option value="good">Very Good (&gt;90%)</option>
-                        <option value="fair">Good (&gt;80%)</option>
+                        <option value="excellent">Như mới (99%)</option>
+                        <option value="good">Rất tốt (&gt;90%)</option>
+                        <option value="fair">Tốt (&gt;80%)</option>
                       </select>
                     </div>
                   </div>
@@ -2469,8 +2720,8 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                         value={editProdStatus}
                         onChange={e => setEditProdStatus(e.target.value)}
                       >
-                        <option value="available">Available</option>
-                        <option value="sold">Sold</option>
+                        <option value="available">Còn hàng</option>
+                        <option value="sold">Đã bán</option>
                       </select>
                     </div>
                   </div>

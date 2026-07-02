@@ -164,7 +164,25 @@ function MainApp() {
         {renderPage()}
       </main>
       {!isConsoleDashboard && <Footer />}
-      {!isConsoleDashboard && <ChatBot />}
+      {!isConsoleDashboard && (
+        <ChatBot 
+          onProductClick={async (productId) => {
+            try {
+              const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || /^(\d{1,3}\.){3}\d{1,3}$/.test(window.location.hostname)) 
+                ? `${window.location.protocol}//${window.location.hostname}:5000` 
+                : '';
+              const res = await fetch(`${API_BASE}/api/products/${productId}`);
+              if (res.ok) {
+                const product = await res.json();
+                setSelectedProduct(product);
+                setActivePage('shop');
+              }
+            } catch (err) {
+              console.error('Error opening product from chatbot:', err);
+            }
+          }}
+        />
+      )}
       
       {/* Global Chat Toasts */}
       <ChatToast 

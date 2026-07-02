@@ -219,7 +219,116 @@ app.post('/api/promocodes/validate', authenticateToken, async (req, res) => {
   if (promo.status !== 'active') {
     return res.status(400).json({ message: 'Mã khuyến mãi đã hết hạn' });
   }
+  if (promo.expiry) {
+    const expiryDate = new Date(promo.expiry);
+    if (expiryDate < new Date()) {
+      return res.status(400).json({ message: 'Mã khuyến mãi đã hết hạn sử dụng' });
+    }
+  }
   res.json({ discount: promo.discount, code: promo.code });
+});
+
+// In-memory claims registry
+let couponClaims = [];
+
+// GET /api/promocodes/my-claimed - Get current active claimed coupon
+app.get('/api/promocodes/my-claimed', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const now = new Date().toISOString();
+    
+    // Find active claim
+    const activeClaim = couponClaims.find(
+      c => String(c.userId) === String(userId) && c.expiresAt > now
+    );
+    
+    if (activeClaim) {
+      const promo = promoCodes.find(p => p.code.toLowerCase() === activeClaim.code.toLowerCase());
+      return res.json({
+        code: activeClaim.code,
+        discount: promo ? promo.discount : 10,
+        expiresAt: activeClaim.expiresAt,
+        claimedAt: activeClaim.claimedAt
+      });
+    }
+    res.json(null);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/promocodes/claim-random - Claim a random active promocode
+app.post('/api/promocodes/claim-random', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const now = new Date();
+    const nowISO = now.toISOString();
+
+    // check if claimed today in local date
+    const todayStr = now.toLocaleDateString('vi-VN');
+    const alreadyClaimedToday = couponClaims.some(c => {
+      if (String(c.userId) !== String(userId)) return false;
+      const claimDate = new Date(c.claimedAt).toLocaleDateString('vi-VN');
+      return claimDate === todayStr;
+    });
+
+    if (alreadyClaimedToday) {
+      return res.status(400).json({ message: 'Bạn đã nhận mã giảm giá cho hôm nay rồi. Vui lòng quay lại vào ngày mai!' });
+    }
+
+    // Filter active promos that are not yet expired
+    const activePromos = promoCodes.filter(p => {
+      if (p.status !== 'active') return false;
+      if (p.expiry) {
+        const expiryDate = new Date(p.expiry);
+        if (expiryDate < now) return false;
+      }
+      return true;
+    });
+
+    if (activePromos.length === 0) {
+      return res.status(400).json({ message: 'Hiện tại hệ thống không có mã giảm giá nào đang hoạt động. Vui lòng quay lại sau!' });
+    }
+
+    // Fisher-Yates shuffle the active list to eliminate any order bias, then pick a random index
+    const shuffledPromos = [...activePromos];
+    for (let i = shuffledPromos.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const temp = shuffledPromos[i];
+      shuffledPromos[i] = shuffledPromos[j];
+      shuffledPromos[j] = temp;
+    }
+
+    const randomIndex = Math.floor(Math.random() * shuffledPromos.length);
+    const selectedPromo = shuffledPromos[randomIndex];
+
+    // Expiry in 24 hours or the promo's own expiry, whichever is sooner
+    let expiresAtTime = Date.now() + 24 * 60 * 60 * 1000;
+    if (selectedPromo.expiry) {
+      const promoExpiryTime = new Date(selectedPromo.expiry).getTime();
+      if (promoExpiryTime < expiresAtTime) {
+        expiresAtTime = promoExpiryTime;
+      }
+    }
+    const expiresAt = new Date(expiresAtTime).toISOString();
+
+    const newClaim = {
+      userId,
+      code: selectedPromo.code,
+      claimedAt: nowISO,
+      expiresAt
+    };
+
+    couponClaims.push(newClaim);
+
+    res.status(201).json({
+      code: selectedPromo.code,
+      discount: selectedPromo.discount,
+      expiresAt
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // --- SOCKET.IO CHAT HANDLING ---
