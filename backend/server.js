@@ -184,11 +184,19 @@ app.post('/api/notifications', authenticateToken, async (req, res) => {
 
 // GET /api/promocodes
 app.get('/api/promocodes', authenticateToken, async (req, res) => {
+  const role = req.user?.role?.toLowerCase();
+  if (role !== 'admin' && role !== 'seller') {
+    return res.status(403).json({ message: 'Không có quyền truy cập.' });
+  }
   res.json(promoCodes);
 });
 
 // POST /api/promocodes
 app.post('/api/promocodes', authenticateToken, async (req, res) => {
+  const role = req.user?.role?.toLowerCase();
+  if (role !== 'admin' && role !== 'seller') {
+    return res.status(403).json({ message: 'Không có quyền truy cập.' });
+  }
   try {
     const { code, discount, expiry, status } = req.body;
     if (!code || !discount) return res.status(400).json({ message: 'Missing code or discount' });
@@ -202,6 +210,10 @@ app.post('/api/promocodes', authenticateToken, async (req, res) => {
 
 // DELETE /api/promocodes/:code
 app.delete('/api/promocodes/:code', authenticateToken, async (req, res) => {
+  const role = req.user?.role?.toLowerCase();
+  if (role !== 'admin' && role !== 'seller') {
+    return res.status(403).json({ message: 'Không có quyền truy cập.' });
+  }
   const codeToDelete = req.params.code;
   promoCodes = promoCodes.filter(p => p.code !== codeToDelete);
   res.json({ message: 'Deleted' });
