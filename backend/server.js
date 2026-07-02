@@ -1,5 +1,5 @@
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '.env') });
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -32,6 +32,20 @@ const io = new Server(server, {
 const PORT = process.env.PORT || 5000;
 
 app.use(cors());
+
+// Proxy requests to chatbot servers BEFORE body parsing to avoid stream consumption issues
+const { createProxyMiddleware } = require('http-proxy-middleware');
+app.use('/api/chatbot1', createProxyMiddleware({ 
+  target: 'http://127.0.0.1:3001', 
+  changeOrigin: true,
+  pathRewrite: { '^/api/chatbot1': '/api' }
+}));
+app.use('/api/chatbot2', createProxyMiddleware({ 
+  target: 'http://127.0.0.1:3002', 
+  changeOrigin: true,
+  pathRewrite: { '^/api/chatbot2': '/api' }
+}));
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 

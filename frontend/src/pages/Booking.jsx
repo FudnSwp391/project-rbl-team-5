@@ -80,7 +80,8 @@ const Booking = ({ setActivePage }) => {
         image: msg.image || undefined
       }));
 
-      const res = await fetch('http://localhost:3002/api/chat', {
+      const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000' : '';
+      const res = await fetch(`${API_BASE}/api/chatbot2/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
