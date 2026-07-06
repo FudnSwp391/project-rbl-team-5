@@ -170,9 +170,7 @@ const User = sequelize.define('User', {
   }
 }, {
   tableName: 'users',
-  timestamps: true,
-  createdAt: 'created_at',
-  updatedAt: 'updated_at'
+  timestamps: false
 });
 
 const Conversation = sequelize.define('Conversation', {
@@ -200,9 +198,7 @@ const Conversation = sequelize.define('Conversation', {
   }
 }, {
   tableName: 'conversations',
-  timestamps: true,
-  createdAt: 'created_at',
-  updatedAt: 'updated_at'
+  timestamps: false
 });
 
 const Message = sequelize.define('Message', {
