@@ -38,12 +38,12 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 app.use('/api/chatbot1', createProxyMiddleware({ 
   target: 'http://127.0.0.1:3001', 
   changeOrigin: true,
-  pathRewrite: { '^/api/chatbot1': '/api' }
+  pathRewrite: { '^/': '/api/' }
 }));
 app.use('/api/chatbot2', createProxyMiddleware({ 
   target: 'http://127.0.0.1:3002', 
   changeOrigin: true,
-  pathRewrite: { '^/api/chatbot2': '/api' }
+  pathRewrite: { '^/': '/api/' }
 }));
 
 app.use(express.json({ limit: '50mb' }));
