@@ -39,11 +39,16 @@
   border: 1px solid var(--primary-light-hover);
 }
 
+.hero-section-fullscreen {
+  height: 85vh;
+  min-height: 550px;
+}
+
 .hero-title {
-  font-size: 3.5rem;
+  font-size: 4rem;
   font-weight: 800;
-  line-height: 1.15;
-  margin-bottom: 24px;
+  line-height: 1.1;
+  margin-bottom: 16px;
   letter-spacing: -0.02em;
 }
 
@@ -51,11 +56,18 @@
   color: var(--secondary);
 }
 
+.hero-title-highlight {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 28px;
+  color: #FFA500;
+}
+
 .hero-subtitle {
   font-size: 1.15rem;
   color: var(--neutral-dark);
   line-height: 1.6;
-  margin-bottom: 36px;
+  margin-bottom: 32px;
 }
 
 .hero-actions {
@@ -435,7 +447,22 @@
 }
 
 @media (max-width: 1024px) {
-  .hero-title { font-size: 2.8rem; }
+  .hero-section-fullscreen {
+    height: 70vh;
+    min-height: 500px;
+  }
+  .hero-title {
+    font-size: 3rem !important;
+    margin-bottom: 12px;
+  }
+  .hero-title-highlight {
+    font-size: 2rem;
+    margin-bottom: 20px;
+  }
+  .hero-subtitle {
+    font-size: 1rem;
+    margin-bottom: 20px;
+  }
   .stats-grid, .services-grid { grid-template-columns: repeat(3, 1fr); gap: 20px; }
   .features-container { padding: 30px; }
   .features-img { height: 300px; }
@@ -453,9 +480,44 @@
   .section-header-inline { flex-direction: column; align-items: center; gap: 16px; text-align: center; }
 }
 
+@media (max-width: 768px) {
+  .hero-section-fullscreen {
+    height: auto;
+    min-height: 480px;
+    padding: 60px 0;
+  }
+  .hero-title {
+    font-size: 2rem !important;
+    margin-bottom: 8px;
+    line-height: 1.2;
+  }
+  .hero-title-highlight {
+    font-size: 1.5rem;
+    margin-bottom: 16px;
+  }
+  .hero-subtitle {
+    font-size: 0.95rem;
+    margin-bottom: 20px;
+    line-height: 1.4;
+  }
+  .hero-actions {
+    flex-direction: column;
+    gap: 12px !important;
+    width: 100%;
+  }
+  .hero-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+  .carousel-controls {
+    display: none !important;
+  }
+  .carousel-indicators {
+    bottom: 12px;
+  }
+}
+
 @media (max-width: 600px) {
-  .hero-title { font-size: 2.2rem; }
-  .hero-actions { flex-direction: column; width: 100%; }
   .products-grid { grid-template-columns: 1fr; }
 }
 
