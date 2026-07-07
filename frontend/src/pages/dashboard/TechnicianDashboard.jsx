@@ -8,7 +8,7 @@ import ProfileSettings from '../../components/ProfileSettings';
 import { 
   LayoutDashboard, ShoppingBag, MessageSquare, Plus,
   Sun, Moon, Bell, Settings, HelpCircle, LogOut,
-  CreditCard, Pencil, Wrench, Package
+  CreditCard, Pencil, Wrench, Package, X, Menu
 } from 'lucide-react';
 
 const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000' : '';
@@ -167,11 +167,22 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
     ]
   };
 
+  const [showMobileSidebar, setShowMobileSidebar] = useState(true);
+
   return (
     <div className="dashboard-page admin-dashboard-layout animate-fade">
       <div className="dashboard-grid-layout">
+        {/* Mobile Toggle Button for Sidebar Nav */}
+        <button 
+          className="dashboard-sidebar-toggle-btn"
+          onClick={() => setShowMobileSidebar(!showMobileSidebar)}
+          title={showMobileSidebar ? "Ẩn thanh công cụ" : "Hiện thanh công cụ"}
+        >
+          {showMobileSidebar ? <X size={20} /> : <Menu size={20} />}
+        </button>
+
         {/* Sidebar Nav */}
-        <aside className="dashboard-sidebar glass-panel">
+        <aside className={`dashboard-sidebar glass-panel ${showMobileSidebar ? 'mobile-show' : 'mobile-hide'}`}>
           <div className="sidebar-brand-logo" onClick={() => setActivePage('home')}>
             <div className="brand-icon-box">
               <LayoutDashboard className="brand-logo-icon" size={24} />

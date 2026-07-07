@@ -5,7 +5,7 @@ import io from 'socket.io-client';
 import { 
   LayoutDashboard, ShoppingBag, Calendar, Plus, Trash2, 
   Users, Sun, Moon, Search, Bell, Settings, HelpCircle, LogOut,
-  MapPin, CreditCard, Pencil, Tag, ArrowLeft, MessageSquare, Send, Image, Paperclip
+  MapPin, CreditCard, Pencil, Tag, ArrowLeft, MessageSquare, Send, Image, Paperclip, X, Menu
 } from 'lucide-react';
 import ProfileSettings from '../../components/ProfileSettings';
 import { getProductImage } from '../../components/ProductCard';
@@ -1082,11 +1082,22 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
   const totalPending = ordersList.filter(o => ['pending', 'reserved', 'waiting_payment', 'confirmed'].includes(o.status)).length;
   const totalCanceled = ordersList.filter(o => ['canceled', 'cancelled'].includes(o.status)).length;
 
+  const [showMobileSidebar, setShowMobileSidebar] = useState(true);
+
   return (
     <div className="dashboard-page admin-dashboard-layout seller-portal-layout animate-fade">
       <div className="dashboard-grid-layout">
+        {/* Mobile Toggle Button for Sidebar Nav */}
+        <button 
+          className="dashboard-sidebar-toggle-btn"
+          onClick={() => setShowMobileSidebar(!showMobileSidebar)}
+          title={showMobileSidebar ? "Ẩn thanh công cụ" : "Hiện thanh công cụ"}
+        >
+          {showMobileSidebar ? <X size={20} /> : <Menu size={20} />}
+        </button>
+
         {/* Sidebar Nav */}
-        <aside className="dashboard-sidebar glass-panel">
+        <aside className={`dashboard-sidebar glass-panel ${showMobileSidebar ? 'mobile-show' : 'mobile-hide'}`}>
           <div className="sidebar-brand-logo" onClick={() => setActivePage('home')}>
             <div className="brand-icon-box">
               <LayoutDashboard className="brand-logo-icon" size={24} />

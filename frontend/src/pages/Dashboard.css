@@ -3950,5 +3950,74 @@ input:checked + .switch-slider:before {
   color: var(--neutral-light, #9ca3af);
 }
 
+/* Floating Mobile Sidebar Toggle Button */
+.dashboard-sidebar-toggle-btn {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .dashboard-sidebar-toggle-btn {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #F59E0B, #D97706);
+    color: white;
+    border: none;
+    box-shadow: 0 4px 20px rgba(245, 158, 11, 0.4);
+    z-index: 1001; /* Must be above fixed sidebar */
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .dashboard-sidebar-toggle-btn:active {
+    transform: scale(0.9);
+  }
+
+  /* Sticky Bottom Sidebar for Mobile (all dashboards using admin-dashboard-layout or dashboard-sidebar) */
+  .dashboard-sidebar,
+  .admin-dashboard-layout .dashboard-sidebar {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: auto !important;
+    width: 100% !important;
+    min-height: auto !important;
+    height: auto !important;
+    z-index: 1000 !important;
+    background: var(--white) !important;
+    box-shadow: 0 -4px 24px rgba(0,0,0,0.08) !important;
+    padding: 12px 16px !important;
+    border: none !important;
+    border-top: 1px solid var(--border-color) !important;
+    border-radius: 20px 20px 0 0 !important;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  }
+
+  /* Show / Hide states */
+  .dashboard-sidebar.mobile-hide,
+  .admin-dashboard-layout .dashboard-sidebar.mobile-hide {
+    transform: translateY(100%) !important;
+    pointer-events: none;
+  }
+
+  .dashboard-sidebar.mobile-show,
+  .admin-dashboard-layout .dashboard-sidebar.mobile-show {
+    transform: translateY(0) !important;
+  }
+
+  /* Padding at the bottom of main content to prevent sidebar covering the bottom page content */
+  .dashboard-main-content,
+  .admin-dashboard-layout .dashboard-main-content {
+    padding-bottom: 140px !important;
+  }
+}
+
 
 

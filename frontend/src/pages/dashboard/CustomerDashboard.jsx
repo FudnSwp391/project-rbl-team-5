@@ -4,7 +4,7 @@ import useConsultationChat from '../../hooks/useConsultationChat';
 import ChatPanel from '../../components/ChatPanel';
 import { 
   LayoutDashboard, ShoppingBag, Calendar, MessageSquare,
-  Sun, Moon, Bell, HelpCircle, LogOut, Settings, Gift, Copy, Check
+  Sun, Moon, Bell, HelpCircle, LogOut, Settings, Gift, Copy, Check, X, Menu
 } from 'lucide-react';
 import ProfileSettings from '../../components/ProfileSettings';
 import { useCart } from '../../context/CartContext';
@@ -326,11 +326,22 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
     }
   };
 
+  const [showMobileSidebar, setShowMobileSidebar] = useState(true);
+
   return (
     <div className="dashboard-page admin-dashboard-layout animate-fade">
       <div className="dashboard-grid-layout">
+        {/* Mobile Toggle Button for Sidebar Nav */}
+        <button 
+          className="dashboard-sidebar-toggle-btn"
+          onClick={() => setShowMobileSidebar(!showMobileSidebar)}
+          title={showMobileSidebar ? "Ẩn thanh công cụ" : "Hiện thanh công cụ"}
+        >
+          {showMobileSidebar ? <X size={20} /> : <Menu size={20} />}
+        </button>
+
         {/* Sidebar Nav */}
-        <aside className="dashboard-sidebar glass-panel">
+        <aside className={`dashboard-sidebar glass-panel ${showMobileSidebar ? 'mobile-show' : 'mobile-hide'}`}>
           <div className="sidebar-brand-logo" onClick={() => setActivePage('home')}>
             <div className="brand-icon-box">
               <LayoutDashboard className="brand-logo-icon" size={24} />
