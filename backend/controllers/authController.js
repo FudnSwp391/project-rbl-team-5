@@ -3,6 +3,13 @@ const bcrypt = require('bcryptjs');
 // Import object db từ file db.js của bạn
 const { db } = require('../db');
 const { sendOtpEmail } = require('../emailService');
+const { OAuth2Client } = require('google-auth-library');
+
+const googleClient = new OAuth2Client(
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET,
+  process.env.GOOGLE_CALLBACK_URL
+);
 
 const JWT_SECRET = process.env.JWT_SECRET || 'techcycle_secret_key_2026';
 
@@ -316,5 +323,104 @@ exports.resetPassword = async (req, res) => {
   } catch (error) {
     console.error('Lỗi đặt lại mật khẩu:', error);
     res.status(500).json({ message: 'Lỗi xử lý đặt lại mật khẩu.' });
+  }
+};
+
+// ===== GOOGLE OAUTH =====
+
+// Bước 1: Tạo URL redirect đến trang đăng nhập Google
+exports.googleLogin = (req, res) => {
+  const scopes = [
+    'https://www.googleapis.com/auth/userinfo.profile',
+    'https://www.googleapis.com/auth/userinfo.email'
+  ];
+
+  const url = googleClient.generateAuthUrl({
+    access_type: 'offline',
+    scope: scopes,
+    prompt: 'select_account'
+  });
+
+  res.redirect(url);
+};
+
+// Bước 2: Google callback - nhận code, đổi lấy tokens, lấy thông tin user
+exports.googleCallback = async (req, res) => {
+  const { code } = req.query;
+  const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5174';
+
+  if (!code) {
+    return res.redirect(`${FRONTEND_URL}/#/auth?error=google_no_code`);
+  }
+
+  try {
+    // Đổi authorization code lấy tokens
+    const { tokens } = await googleClient.getToken(code);
+    googleClient.setCredentials(tokens);
+
+    // Lấy thông tin profile từ Google
+    const ticket = await googleClient.verifyIdToken({
+      idToken: tokens.id_token,
+      audience: process.env.GOOGLE_CLIENT_ID
+    });
+    const payload = ticket.getPayload();
+
+    const { sub: googleId, email, name, picture } = payload;
+
+    if (!email) {
+      return res.redirect(`${FRONTEND_URL}/#/auth?error=google_no_email`);
+    }
+
+    // Tìm user theo email
+    let user = await db.findOne('users', { email });
+
+    if (user) {
+      // User đã tồn tại - kiểm tra trạng thái
+      if (user.status !== 'active') {
+        return res.redirect(`${FRONTEND_URL}/#/auth?error=account_disabled`);
+      }
+    } else {
+      // Tạo tài khoản mới từ Google
+      // Đảm bảo username không trùng lặp
+      let baseUsername = name || email.split('@')[0];
+      let finalUsername = baseUsername;
+      let attempt = 0;
+      while (await db.findOne('users', { username: finalUsername })) {
+        attempt++;
+        finalUsername = `${baseUsername}_${attempt}`;
+      }
+
+      const avatar = picture || `https://api.dicebear.com/7.x/adventurer/svg?seed=${finalUsername}`;
+      // Tạo random password hash (user không thể dùng password này để đăng nhập thông thường)
+      const randomPassword = await bcrypt.hash(`google_oauth_${Date.now()}_${Math.random()}`, 10);
+      // Tạo phone dummy unique vì cột phone NOT NULL UNIQUE trong DB
+      const dummyPhone = `google_${Date.now()}`.substring(0, 15);
+
+      user = await db.insert('users', {
+        role_id: 2, // customer
+        username: finalUsername,
+        email: email,
+        password: randomPassword,
+        full_name: name || finalUsername,
+        phone: dummyPhone,
+        avatar: avatar,
+        status: 'active'
+      });
+    }
+
+    // Tạo JWT token
+    const clientRole = REVERSE_ROLE_MAP[user.role_id] || 'customer';
+    const token = jwt.sign(
+      { id: user.id, role: clientRole, username: user.username },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    // Redirect về frontend kèm token
+    res.redirect(`${FRONTEND_URL}/#/auth?google_token=${token}`);
+
+  } catch (error) {
+    console.error('Lỗi Google OAuth callback:', error);
+    res.redirect(`${FRONTEND_URL}/#/auth?error=google_auth_failed`);
   }
 };

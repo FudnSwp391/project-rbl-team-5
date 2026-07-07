@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import useConsultationChat from '../../hooks/useConsultationChat';
 import ChatPanel from '../../components/ChatPanel';
+import io from 'socket.io-client';
 import { 
   LayoutDashboard, ShoppingBag, Calendar, MessageSquare,
   Sun, Moon, Bell, HelpCircle, LogOut, Settings
@@ -32,6 +33,7 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
   // --- CHAT HOOK ---
   const {
     selectedConversation,
+    setSelectedConversation,
     chatMessages,
     newMessage,
     isUploadingImage,
@@ -53,15 +55,32 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
       });
       const data = await res.json();
       if (res.ok) {
-        alert('Tạo yêu cầu tư vấn thành công! Vui lòng chờ nhân viên hỗ trợ.');
-        fetchData(false);
+        const newConv = data.conversation;
+        // Cập nhật danh sách ngay lập tức (optimistic update) - không chờ fetchData
+        setChatConversations(prev => {
+          // Tránh thêm trùng nếu đã tồn tại
+          if (prev.some(c => c.id === newConv.id)) return prev;
+          return [newConv, ...prev];
+        });
+        // Chuyển sang tab chat TRƯỚC
         setSubTab('chat');
-        handleSelectConversation(data.conversation);
+        // Tự động chọn conversation mới để user thấy ngay
+        setTimeout(() => {
+          handleSelectConversation(newConv);
+        }, 50);
+        // Sau đó mới refresh từ server để đồng bộ
+        fetchData(false);
       } else {
         alert(data.message || 'Lỗi tạo yêu cầu.');
         if (data.conversation) {
+          setChatConversations(prev => {
+            if (prev.some(c => c.id === data.conversation.id)) return prev;
+            return [data.conversation, ...prev];
+          });
           setSubTab('chat');
-          handleSelectConversation(data.conversation);
+          setTimeout(() => {
+            handleSelectConversation(data.conversation);
+          }, 50);
         }
       }
     } catch (err) {
@@ -106,6 +125,39 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
   useEffect(() => {
     fetchData(true);
   }, [user, token]);
+
+  // --- WEBSOCKET LOGIC ---
+  useEffect(() => {
+    if (!user) return;
+    const socket = io(API_BASE);
+    socket.emit('registerUser', user.id);
+
+    socket.on('consultationAccepted', (data) => {
+      // Đảm bảo là báo đúng khách hàng
+      if (String(data.customerId) === String(user.id)) {
+        setChatConversations(prev => prev.map(c => 
+          String(c.id) === String(data.conversationId) 
+            ? { ...c, status: 'active', seller_id: data.sellerId, sellerName: data.sellerName, sellerAvatar: data.sellerAvatar }
+            : c
+        ));
+        
+        // Nếu customer đang chọn đúng hội thoại đó
+        if (selectedConversation && String(selectedConversation.id) === String(data.conversationId)) {
+          setSelectedConversation(prev => ({
+            ...prev,
+            status: 'active',
+            seller_id: data.sellerId,
+            sellerName: data.sellerName,
+            sellerAvatar: data.sellerAvatar
+          }));
+        }
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [user, selectedConversation, setSelectedConversation]);
 
   // Check pending chat selection
   useEffect(() => {

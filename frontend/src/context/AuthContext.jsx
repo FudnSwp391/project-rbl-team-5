@@ -26,6 +26,41 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   }, []);
 
+  // Tự động lấy token từ URL sau khi Google redirect về
+  useEffect(() => {
+    const hash = window.location.hash; // e.g. "#/auth?google_token=xxx"
+    const queryStart = hash.indexOf('?');
+    if (queryStart !== -1) {
+      const queryString = hash.substring(queryStart + 1);
+      const params = new URLSearchParams(queryString);
+      const googleToken = params.get('google_token');
+      const googleError = params.get('error');
+
+      if (googleToken) {
+        localStorage.setItem('techcycle_token', googleToken);
+        setToken(googleToken);
+        window.location.hash = '#/dashboard';
+      } else if (googleError) {
+        const msgs = {
+          google_no_code: 'Đăng nhập Google thất bại: Không nhận được mã xác thực.',
+          google_no_email: 'Đăng nhập Google thất bại: Tài khoản Google không có email.',
+          account_disabled: 'Tài khoản của bạn đã bị vô hiệu hóa.',
+          google_auth_failed: 'Đăng nhập Google thất bại. Vui lòng thử lại.'
+        };
+        setError(msgs[googleError] || 'Đăng nhập Google thất bại.');
+        window.location.hash = '#/auth';
+      }
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Đăng nhập bằng Google - redirect đến Google
+  const loginWithGoogle = () => {
+    const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+      ? 'http://localhost:5000'
+      : '';
+    window.location.href = `${API_BASE}/api/auth/google`;
+  };
+
   useEffect(() => {
     const fetchUser = async () => {
       if (!token) {
@@ -154,7 +189,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, error, login, register, logout, updateAvatar, getAvatarUrl, updateProfile }}>
+    <AuthContext.Provider value={{ user, token, loading, error, login, register, logout, updateAvatar, getAvatarUrl, updateProfile, loginWithGoogle }}>
       {children}
     </AuthContext.Provider>
   );

@@ -11,4 +11,8 @@ router.post('/logout', authenticateToken, authController.logout);
 router.post('/forgot-password', authController.forgotPassword);
 router.post('/reset-password', authController.resetPassword);
 
+// Google OAuth routes
+router.get('/google', authController.googleLogin);
+router.get('/google/callback', authController.googleCallback);
+
 module.exports = router;

@@ -86,7 +86,22 @@ exports.createConversation = async (req, res) => {
       updated_at: new Date().toISOString()
     });
 
-    res.status(201).json({ message: 'Đã tạo yêu cầu tư vấn', conversation: newConv });
+    // Lấy thông tin customer để gửi kèm cho seller hiển thị ngay
+    const customerInfo = await db.findOne('users', { id: customerId });
+    const enrichedConv = {
+      ...newConv,
+      customerName: customerInfo?.username || 'Khách hàng',
+      customerAvatar: customerInfo?.avatar || '',
+      status: 'pending'
+    };
+
+    // Emit socket event để Seller nhận được yêu cầu mới ngay lập tức
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('newConsultationRequest', enrichedConv);
+    }
+
+    res.status(201).json({ message: 'Đã tạo yêu cầu tư vấn', conversation: enrichedConv });
   } catch (err) {
     console.error('Lỗi tạo yêu cầu tư vấn:', err);
     res.status(500).json({ message: 'Lỗi server' });
@@ -113,6 +128,20 @@ exports.acceptConversation = async (req, res) => {
       status: 'active',
       updated_at: new Date().toISOString()
     });
+
+    const sellerInfo = await db.findOne('users', { id: sellerId });
+    const io = req.app.get('io');
+    if (io) {
+      // Gửi event để CustomerDashboard cập nhật ngay
+      io.emit('consultationAccepted', {
+        conversationId: Number(id),
+        sellerId: sellerId,
+        sellerName: sellerInfo?.username || 'Nhân viên tư vấn',
+        sellerAvatar: sellerInfo?.avatar || '',
+        status: 'active',
+        customerId: conv.customer_id
+      });
+    }
 
     res.json({ message: 'Đã nhận tư vấn thành công' });
   } catch (err) {
