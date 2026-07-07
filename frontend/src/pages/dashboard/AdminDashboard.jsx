@@ -9,8 +9,10 @@ import {
   Users, Sun, Moon, Eye, Search, Bell, Settings, HelpCircle, LogOut,
   MapPin, CreditCard, Pencil, Shield, ArrowLeft, MessageSquare, Tag, Send, Image, Paperclip
 } from 'lucide-react';
-import ChatPanel from '../../components/ChatPanel';
-import useBookingChat from '../../hooks/useBookingChat';
+import InternalChatPanel from '../../components/InternalChatPanel';
+import useInternalChat from '../../hooks/useInternalChat';
+import useNotifications from '../../hooks/useNotifications';
+import NotificationBell from '../../components/NotificationBell';
 
 const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || /^(\d{1,3}\.){3}\d{1,3}$/.test(window.location.hostname)) ? `${window.location.protocol}//${window.location.hostname}:5000` : '';
 
@@ -26,11 +28,11 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
   // --- DATA STATES ---
   const [stats, setStats] = useState(null);
   const [usersList, setUsersList] = useState([]);
+  const [newOrderCount, setNewOrderCount] = useState(0);
+  const [newBookingCount, setNewBookingCount] = useState(0);
   const [productsList, setProductsList] = useState([]);
   const [bookingsList, setBookingsList] = useState([]);
   const [ordersList, setOrdersList] = useState([]);
-  const [notifications, setNotifications] = useState([]);
-  const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const [techsList, setTechsList] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -91,28 +93,44 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
 
   // --- CHAT SYSTEM STATES ---
   const {
-    selectedBooking,
+    selectedConversation,
     chatMessages,
     newMessage,
     isUploadingImage,
     isLoading: chatLoading,
     unreadCount,
+    unreadSenders,
     typingUsers,
-    handleSelectConversation,
+    handleSelectStaff,
     handleSendMessage,
     handleImageUpload,
     handleTyping,
     markChatViewActive,
-  } = useBookingChat(user, token);
+  } = useInternalChat(user, token);
 
-  const chatConversations = bookingsList.filter(b => b.status !== 'pending');
-  const socketRef = useRef(null);
+  const internalStaffList = usersList.filter(u => u.role === 'seller' || u.role === 'technician');
 
-  const fetchData = async () => {
+  const handleGlobalEvent = useCallback((eventName, data) => {
+    if (eventName === 'newOrder' || eventName === 'newBooking' || eventName === 'newOrderForSeller' || eventName === 'newBookingForSeller') {
+      if (eventName === 'newOrder') setNewOrderCount(prev => prev + 1);
+      if (eventName === 'newBooking') setNewBookingCount(prev => prev + 1);
+      fetchData();
+    }
+  }, []);
+
+  const { notifications, clearAllNotifications } = useNotifications(user, token, handleGlobalEvent);
+
+  useEffect(() => {
+    markChatViewActive(subTab === 'internal-chat');
+  }, [subTab, markChatViewActive]);
+
+  const fetchData = async (isInitial = false) => {
     if (!user || !token) return;
-    setLoading(true);
-    setOrdersPage(1);
-    setBookingsPage(1);
+    if (isInitial) setLoading(true);
+    if (isInitial) {
+      setOrdersPage(1);
+      setBookingsPage(1);
+    }
     try {
       const resBookings = await fetch(`${API_BASE}/api/bookings`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -187,14 +205,6 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
           })));
         }
       }
-
-      const resNotifs = await fetch(`${API_BASE}/api/notifications`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (resNotifs.ok) {
-        const dataNotifs = await resNotifs.json();
-        setNotifications(dataNotifs);
-      }
     } catch (err) {
       console.error('Lỗi tải dữ liệu bảng điều khiển:', err);
     } finally {
@@ -251,6 +261,25 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
     }
   };
 
+  const handleNotificationClick = async (notif) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/notifications`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ id: notif.id })
+      });
+      if (res.ok) {
+        clearAllNotifications();
+      }
+    } catch (err) {
+      console.error('Lỗi khi click thông báo:', err);
+    }
+    
+    if (notif.type === 'chat') {
+      setSubTab('chat');
+    }
+  };
+
   const handleCreateNotification = async (e) => {
     e.preventDefault();
     if (!notifTitle.trim() || !notifMessage.trim()) {
@@ -289,22 +318,6 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
     }
   };
 
-  const handleNotificationClick = (n) => {
-    setShowNotifDropdown(false);
-    if (n.title?.includes('Lịch hẹn') || n.title?.includes('Đơn hàng') || n.title?.includes('xem máy') || n.title?.includes('sửa chữa')) {
-      setSubTab('bookings');
-    } else if (n.title?.includes('Chat') || n.title?.includes('nhắn') || n.title?.includes('tin nhắn')) {
-      setSubTab('chat');
-    } else if (n.title?.includes('Sản phẩm')) {
-      setSubTab('products');
-    } else if (n.title?.includes('Người dùng') || n.title?.includes('Tài khoản')) {
-      setSubTab('users');
-    } else {
-      setSubTab('stats');
-    }
-  };
-
-
   const handleDeletePromoCode = async (codeToDelete) => {
     if (window.confirm(`Bạn có chắc chắn muốn xóa mã khuyến mãi ${codeToDelete}?`)) {
       try {
@@ -324,7 +337,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
   // --- WEBSOCKET CHAT LOGIC ---
   useEffect(() => {
     if (!user) return;
-    socketRef.current = io(`${API_BASE}`);
+    const socketRef = { current: io(`${API_BASE}`) };
     socketRef.current.emit('registerUser', user.id);
 
     socketRef.current.on('newOrderForSeller', (data) => {
@@ -334,7 +347,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
 
     socketRef.current.on('newBookingForSeller', (data) => {
       alert(`🔔 [HẸN SỬA MÁY MỚI] ${data.message}`);
-      fetchData(); // Reload dashboard and notifications
+      fetchData(false); // Reload dashboard and notifications
     });
 
     return () => {
@@ -342,11 +355,9 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
     };
   }, [user]);
 
-
-
   useEffect(() => {
-    fetchData();
-  }, [user, token, subTab]);
+    fetchData(true);
+  }, [user, token]);
 
   const getTrendData = () => {
     switch (timeRange) {
@@ -907,85 +918,11 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                 {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
               </button>
               <div style={{ position: 'relative' }}>
-                <button 
-                  className="topbar-action-btn notification" 
-                  onClick={() => setShowNotifDropdown(!showNotifDropdown)} 
-                  title="Notifications"
-                >
-                  <Bell size={20} />
-                  {notifications.length > 0 && (
-                    <span style={{
-                      position: 'absolute',
-                      top: '-4px',
-                      right: '-4px',
-                      backgroundColor: 'var(--accent-red)',
-                      color: 'white',
-                      borderRadius: '50%',
-                      width: '18px',
-                      height: '18px',
-                      fontSize: '0.65rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: 700
-                    }}>
-                      {notifications.length}
-                    </span>
-                  )}
-                </button>
-
-                {showNotifDropdown && (
-                  <div 
-                    className="glass-panel" 
-                    style={{
-                      position: 'absolute',
-                      right: 0,
-                      top: '40px',
-                      width: '320px',
-                      maxHeight: '400px',
-                      overflowY: 'auto',
-                      zIndex: 1000,
-                      padding: '16px',
-                      boxShadow: 'var(--shadow-lg)',
-                      borderRadius: 'var(--border-radius-md)',
-                      backgroundColor: 'var(--card-bg, #ffffff)',
-                      border: '1px solid var(--border-color)',
-                      textAlign: 'left'
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
-                      <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700 }}>Thông báo</h4>
-                      <button 
-                        style={{ background: 'none', border: 'none', color: '#006D44', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600 }}
-                        onClick={() => setNotifications([])}
-                      >
-                        Xóa tất cả
-                      </button>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      {notifications.length === 0 ? (
-                        <p style={{ fontSize: '0.8rem', color: 'var(--neutral-medium)', textAlign: 'center', margin: '20px 0' }}>Không có thông báo mới.</p>
-                      ) : (
-                        notifications.map(n => (
-                          <div 
-                            key={n.id} 
-                            onClick={() => handleNotificationClick(n)}
-                            className="notification-item-card"
-                            style={{ padding: '8px', borderRadius: '4px', backgroundColor: 'var(--neutral-lightest)', borderLeft: '3px solid var(--primary)', cursor: 'pointer' }}
-                          >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                              <strong style={{ fontSize: '0.8rem', color: 'var(--neutral-darkest)' }}>{n.title}</strong>
-                              <span style={{ fontSize: '0.65rem', color: 'var(--neutral-medium)' }}>
-                                {new Date(n.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-                              </span>
-                            </div>
-                            <p style={{ margin: '4px 0 0 0', fontSize: '0.75rem', color: 'var(--neutral-dark)' }}>{n.message}</p>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                )}
+                <NotificationBell 
+                  notifications={notifications} 
+                  onClearAll={clearAllNotifications} 
+                  onClickNotification={handleNotificationClick} 
+                />
               </div>
               
               <button className="topbar-action-btn messages" onClick={() => setSubTab('chat')} title="Tin nhắn">
@@ -2556,16 +2493,16 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
 
           {!loading && subTab === 'chat' && (
             <div className="animate-fade" style={{ height: 'calc(100vh - 160px)', minHeight: '520px' }}>
-              <ChatPanel
-                conversations={chatConversations}
-                selectedBooking={selectedBooking}
+              <InternalChatPanel
+                staffList={internalStaffList}
+                selectedConversation={selectedConversation}
                 chatMessages={chatMessages}
                 newMessage={newMessage}
                 isLoading={chatLoading}
                 isUploadingImage={isUploadingImage}
                 typingUsers={typingUsers}
-                userRole="admin"
-                onSelectConversation={handleSelectConversation}
+                unreadSenders={unreadSenders}
+                onSelectStaff={handleSelectStaff}
                 onSendMessage={handleSendMessage}
                 onTyping={handleTyping}
                 onImageUpload={handleImageUpload}

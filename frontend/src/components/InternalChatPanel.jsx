@@ -80,18 +80,13 @@ const InternalChatPanel = ({
             </div>
           ) : (
             staffList.map(staff => {
-              const isActive = selectedConversation &&
-                (Number(selectedConversation.seller_id) === Number(staff.id) ||
-                  Number(selectedConversation.customer_id) === Number(staff.id));
-
+              const isActive = selectedConversation && 
+                (Number(selectedConversation.seller_id) === Number(staff.id) || 
+                 Number(selectedConversation.customer_id) === Number(staff.id));
+              
               const partnerName = staff.username || staff.full_name;
               const partnerAvatar = staff.avatar;
-              const roleMap = {
-                admin: 'Admin',
-                seller: 'Seller',
-                technician: 'Thợ sửa chữa'
-              };
-              const roleText = roleMap[staff.role?.toLowerCase()] || staff.role || 'Nhân viên';
+              const roleText = staff.role === 'seller' ? 'Seller' : 'Thợ sửa chữa';
 
               return (
                 <div

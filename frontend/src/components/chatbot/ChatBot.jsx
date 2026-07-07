@@ -19,7 +19,8 @@ const ChatBot = ({ onProductClick }) => {
         };
 
         try {
-            const response = await axios.post("http://localhost:3001/api/chat", {
+            const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000' : '';
+            const response = await axios.post(`${API_BASE}/api/chatbot1/chat`, {
                 history,
             });
             updateHistory(response.data.reply);
