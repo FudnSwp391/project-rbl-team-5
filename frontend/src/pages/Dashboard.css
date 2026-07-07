@@ -3956,6 +3956,11 @@ input:checked + .switch-slider:before {
 }
 
 @media (max-width: 768px) {
+  /* Hide the redundant dashboard topbar on mobile viewports */
+  .dashboard-top-bar {
+    display: none !important;
+  }
+
   .dashboard-sidebar-toggle-btn {
     display: flex !important;
     align-items: center;
@@ -3982,7 +3987,7 @@ input:checked + .switch-slider:before {
   /* Sticky Top Sidebar for Mobile (all dashboards using admin-dashboard-layout or dashboard-sidebar) */
   .dashboard-sidebar,
   .admin-dashboard-layout .dashboard-sidebar {
-    position: fixed !important;
+    position: sticky !important;
     top: var(--header-height, 80px) !important;
     bottom: auto !important;
     left: 0 !important;
@@ -3992,31 +3997,30 @@ input:checked + .switch-slider:before {
     height: auto !important;
     z-index: 90 !important; /* Below main navbar (100) */
     background: var(--white) !important;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.06) !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important;
     padding: 12px 16px !important;
     border: none !important;
     border-bottom: 1px solid var(--border-color) !important;
     border-radius: 0 0 16px 16px !important;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    transition: all 0.2s ease !important;
   }
 
-  /* Show / Hide states (sliding behind the main header) */
+  /* Show / Hide states (sticky pushes content naturally, no overlapping) */
   .dashboard-sidebar.mobile-hide,
   .admin-dashboard-layout .dashboard-sidebar.mobile-hide {
-    transform: translateY(-200%) !important;
-    pointer-events: none;
+    display: none !important;
   }
 
   .dashboard-sidebar.mobile-show,
   .admin-dashboard-layout .dashboard-sidebar.mobile-show {
-    transform: translateY(0) !important;
+    display: flex !important;
   }
 
   /* Content area adjustments on mobile */
   .dashboard-main-content,
   .admin-dashboard-layout .dashboard-main-content {
     padding-bottom: 40px !important;
-    padding-top: 20px !important;
+    padding-top: 10px !important;
   }
 }
 
