@@ -3970,7 +3970,7 @@ input:checked + .switch-slider:before {
     color: white;
     border: none;
     box-shadow: 0 4px 20px rgba(245, 158, 11, 0.4);
-    z-index: 1001; /* Must be above fixed sidebar */
+    z-index: 101; /* Must be above navbar and sidebar */
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
@@ -3979,31 +3979,31 @@ input:checked + .switch-slider:before {
     transform: scale(0.9);
   }
 
-  /* Sticky Bottom Sidebar for Mobile (all dashboards using admin-dashboard-layout or dashboard-sidebar) */
+  /* Sticky Top Sidebar for Mobile (all dashboards using admin-dashboard-layout or dashboard-sidebar) */
   .dashboard-sidebar,
   .admin-dashboard-layout .dashboard-sidebar {
     position: fixed !important;
-    bottom: 0 !important;
+    top: var(--header-height, 80px) !important;
+    bottom: auto !important;
     left: 0 !important;
     right: 0 !important;
-    top: auto !important;
     width: 100% !important;
     min-height: auto !important;
     height: auto !important;
-    z-index: 1000 !important;
+    z-index: 90 !important; /* Below main navbar (100) */
     background: var(--white) !important;
-    box-shadow: 0 -4px 24px rgba(0,0,0,0.08) !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06) !important;
     padding: 12px 16px !important;
     border: none !important;
-    border-top: 1px solid var(--border-color) !important;
-    border-radius: 20px 20px 0 0 !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    border-radius: 0 0 16px 16px !important;
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   }
 
-  /* Show / Hide states */
+  /* Show / Hide states (sliding behind the main header) */
   .dashboard-sidebar.mobile-hide,
   .admin-dashboard-layout .dashboard-sidebar.mobile-hide {
-    transform: translateY(100%) !important;
+    transform: translateY(-200%) !important;
     pointer-events: none;
   }
 
@@ -4012,10 +4012,11 @@ input:checked + .switch-slider:before {
     transform: translateY(0) !important;
   }
 
-  /* Padding at the bottom of main content to prevent sidebar covering the bottom page content */
+  /* Content area adjustments on mobile */
   .dashboard-main-content,
   .admin-dashboard-layout .dashboard-main-content {
-    padding-bottom: 140px !important;
+    padding-bottom: 40px !important;
+    padding-top: 20px !important;
   }
 }
 
