@@ -1292,8 +1292,10 @@
 }
 
 @media (max-width: 1024px) {
-  .dashboard-grid-layout { 
-    grid-template-columns: 1fr;
+  .dashboard-grid-layout,
+  .admin-dashboard-layout .dashboard-grid-layout { 
+    grid-template-columns: 1fr !important;
+    min-height: auto !important;
   }
   
   .dashboard-sidebar { 
@@ -1309,6 +1311,9 @@
     width: 100%;
     min-height: auto;
     padding-bottom: 20px;
+    border-radius: 0;
+    border: none;
+    border-bottom: 1px solid var(--border-color);
   }
   
   .bookings-cards-grid { grid-template-columns: 1fr; }
@@ -1339,6 +1344,42 @@
   
   .dashboard-page {
     padding: 24px 16px;
+  }
+
+  /* Optimize dashboard sidebar on mobile viewports to prevent squeezing content */
+  .admin-dashboard-layout .dashboard-sidebar {
+    padding: 16px 12px !important;
+  }
+  
+  .admin-dashboard-layout .sidebar-brand-logo {
+    display: none !important;
+  }
+  
+  .admin-dashboard-layout .sidebar-nav-menu,
+  .admin-dashboard-layout .sidebar-bottom-nav {
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    justify-content: center !important;
+  }
+  
+  .admin-dashboard-layout .sidebar-nav-btn {
+    padding: 8px 12px !important;
+    font-size: 0.82rem !important;
+    justify-content: center !important;
+    flex: 1 1 auto !important;
+    min-width: 110px !important;
+    text-align: center !important;
+  }
+  
+  .admin-dashboard-layout .sidebar-bottom-nav {
+    margin-top: 12px !important;
+    padding-top: 12px !important;
+    border-top: 1px solid var(--border-color) !important;
+  }
+  
+  .admin-dashboard-layout .sidebar-copyright-text {
+    display: none !important;
   }
 }
 
