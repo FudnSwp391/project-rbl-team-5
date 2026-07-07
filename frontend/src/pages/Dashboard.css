@@ -1350,8 +1350,13 @@
     padding: 20px 16px;
   }
   
+  .dashboard-page,
+  .admin-dashboard-layout {
+    padding-top: 0 !important;
+  }
+
   .dashboard-page {
-    padding: 24px 16px;
+    padding: 0 16px 24px 16px !important;
   }
 
   /* Optimize dashboard sidebar on mobile viewports to prevent squeezing content */
@@ -3994,26 +3999,39 @@ input:checked + .switch-slider:before {
     right: 0 !important;
     width: 100% !important;
     min-height: auto !important;
-    height: auto !important;
     z-index: 90 !important; /* Below main navbar (100) */
     background: var(--white) !important;
     box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important;
-    padding: 12px 16px !important;
     border: none !important;
     border-bottom: 1px solid var(--border-color) !important;
     border-radius: 0 0 16px 16px !important;
-    transition: all 0.2s ease !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+                padding 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+                opacity 0.2s ease !important;
   }
 
   /* Show / Hide states (sticky pushes content naturally, no overlapping) */
   .dashboard-sidebar.mobile-hide,
   .admin-dashboard-layout .dashboard-sidebar.mobile-hide {
-    display: none !important;
+    display: flex !important; /* Keep flex display to allow max-height transition */
+    max-height: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    opacity: 0 !important;
+    border-bottom-width: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none;
   }
 
   .dashboard-sidebar.mobile-show,
   .admin-dashboard-layout .dashboard-sidebar.mobile-show {
     display: flex !important;
+    max-height: 250px !important;
+    padding: 16px 12px !important;
+    opacity: 1 !important;
+    visibility: visible !important;
   }
 
   /* Content area adjustments on mobile */
