@@ -3960,7 +3960,7 @@ input:checked + .switch-slider:before {
   display: none;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   /* Hide the redundant dashboard topbar on mobile viewports */
   .dashboard-top-bar {
     display: none !important;
