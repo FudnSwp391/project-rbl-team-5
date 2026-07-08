@@ -326,7 +326,12 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
     }
   };
 
-  const [showMobileSidebar, setShowMobileSidebar] = useState(true);
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false); // Default to false on mobile viewports
+
+  const handleNavClick = (tab) => {
+    setSubTab(tab);
+    setShowMobileSidebar(false);
+  };
 
   return (
     <div className="dashboard-page admin-dashboard-layout animate-fade">
@@ -353,19 +358,19 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
           </div>
           
           <nav className="sidebar-nav-menu">
-            <button className={`sidebar-nav-btn ${subTab === 'overview' ? 'active' : ''}`} onClick={() => setSubTab('overview')}>
+            <button className={`sidebar-nav-btn ${subTab === 'overview' ? 'active' : ''}`} onClick={() => handleNavClick('overview')}>
               <LayoutDashboard size={18} />
               Tổng quan
             </button>
-            <button className={`sidebar-nav-btn ${subTab === 'bookings' ? 'active' : ''}`} onClick={() => setSubTab('bookings')}>
+            <button className={`sidebar-nav-btn ${subTab === 'bookings' ? 'active' : ''}`} onClick={() => handleNavClick('bookings')}>
               <Calendar size={18} />
               Trạng thái sửa chữa
             </button>
-            <button className={`sidebar-nav-btn ${subTab === 'orders' ? 'active' : ''}`} onClick={() => setSubTab('orders')}>
+            <button className={`sidebar-nav-btn ${subTab === 'orders' ? 'active' : ''}`} onClick={() => handleNavClick('orders')}>
               <ShoppingBag size={18} />
               Lịch sử đơn hàng
             </button>
-            <button className={`sidebar-nav-btn ${subTab === 'chat' ? 'active' : ''}`} onClick={() => setSubTab('chat')} style={{ position: 'relative' }}>
+            <button className={`sidebar-nav-btn ${subTab === 'chat' ? 'active' : ''}`} onClick={() => handleNavClick('chat')} style={{ position: 'relative' }}>
               <MessageSquare size={18} />
               Hỗ trợ & Tư vấn
               {unreadCount > 0 && (
@@ -381,15 +386,15 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
           </nav>
 
           <div className="sidebar-bottom-nav">
-            <button className={`sidebar-nav-btn bottom-btn ${subTab === 'settings' ? 'active' : ''}`} onClick={() => setSubTab('settings')}>
+            <button className={`sidebar-nav-btn bottom-btn ${subTab === 'settings' ? 'active' : ''}`} onClick={() => handleNavClick('settings')}>
               <Settings size={18} />
               Cài đặt
             </button>
-            <button className={`sidebar-nav-btn bottom-btn ${subTab === 'help' ? 'active' : ''}`} onClick={() => setSubTab('help')}>
+            <button className={`sidebar-nav-btn bottom-btn ${subTab === 'help' ? 'active' : ''}`} onClick={() => handleNavClick('help')}>
               <HelpCircle size={18} />
               Hỗ trợ
             </button>
-            <button className="sidebar-nav-btn bottom-btn logout" onClick={handleLogout}>
+            <button className="sidebar-nav-btn bottom-btn logout" onClick={() => { handleLogout(); setShowMobileSidebar(false); }}>
               <LogOut size={18} />
               Đăng xuất
             </button>

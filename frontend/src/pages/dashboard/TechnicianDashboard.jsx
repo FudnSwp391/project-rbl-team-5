@@ -167,7 +167,12 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
     ]
   };
 
-  const [showMobileSidebar, setShowMobileSidebar] = useState(true);
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false); // Default to false on mobile viewports
+
+  const handleNavClick = (tab) => {
+    setSubTab(tab);
+    setShowMobileSidebar(false);
+  };
 
   return (
     <div className="dashboard-page admin-dashboard-layout animate-fade">
@@ -194,23 +199,23 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
           </div>
           
           <nav className="sidebar-nav-menu">
-            <button className="sidebar-nav-btn" onClick={() => setActivePage('shop')}>
+            <button className="sidebar-nav-btn" onClick={() => { setActivePage('shop'); setShowMobileSidebar(false); }}>
               <ShoppingBag size={18} />
               Chợ thiết bị
             </button>
-            <button className={`sidebar-nav-btn ${subTab === 'repairs' ? 'active' : ''}`} onClick={() => setSubTab('repairs')}>
+            <button className={`sidebar-nav-btn ${subTab === 'repairs' ? 'active' : ''}`} onClick={() => handleNavClick('repairs')}>
               <Wrench size={18} />
               Sửa chữa
             </button>
-            <button className={`sidebar-nav-btn ${subTab === 'overview' || subTab === '' ? 'active' : ''}`} onClick={() => setSubTab('overview')}>
+            <button className={`sidebar-nav-btn ${subTab === 'overview' || subTab === '' ? 'active' : ''}`} onClick={() => handleNavClick('overview')}>
               <LayoutDashboard size={18} />
               Bảng điều khiển
             </button>
-            <button className={`sidebar-nav-btn ${subTab === 'inventory' ? 'active' : ''}`} onClick={() => setSubTab('inventory')}>
+            <button className={`sidebar-nav-btn ${subTab === 'inventory' ? 'active' : ''}`} onClick={() => handleNavClick('inventory')}>
               <Package size={18} />
               Kho linh kiện
             </button>
-            <button className={`sidebar-nav-btn ${subTab === 'internal-chat' ? 'active' : ''}`} onClick={() => setSubTab('internal-chat')} style={{ position: 'relative' }}>
+            <button className={`sidebar-nav-btn ${subTab === 'internal-chat' ? 'active' : ''}`} onClick={() => handleNavClick('internal-chat')} style={{ position: 'relative' }}>
               <MessageSquare size={18} />
               Tin nhắn
               {internalUnreadCount > 0 && (
@@ -225,20 +230,20 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
             </button>
           </nav>
 
-          <button className="new-report-btn tech-book-btn" onClick={() => setActivePage('booking')}>
+          <button className="new-report-btn tech-book-btn" onClick={() => { setActivePage('booking'); setShowMobileSidebar(false); }}>
             <Plus size={16} /> Đặt lịch sửa chữa
           </button>
 
           <div className="sidebar-bottom-nav">
-            <button className={`sidebar-nav-btn bottom-btn ${subTab === 'settings' ? 'active' : ''}`} onClick={() => setSubTab('settings')}>
+            <button className={`sidebar-nav-btn bottom-btn ${subTab === 'settings' ? 'active' : ''}`} onClick={() => handleNavClick('settings')}>
               <Settings size={18} />
               Cài đặt
             </button>
-            <button className="sidebar-nav-btn bottom-btn" onClick={() => alert("Liên hệ hỗ trợ TechCycle tại support@techcycle.vn")}>
+            <button className="sidebar-nav-btn bottom-btn" onClick={() => { alert("Liên hệ hỗ trợ TechCycle tại support@techcycle.vn"); setShowMobileSidebar(false); }}>
               <HelpCircle size={18} />
               Hỗ trợ
             </button>
-            <button className="sidebar-nav-btn bottom-btn logout" onClick={handleLogout}>
+            <button className="sidebar-nav-btn bottom-btn logout" onClick={() => { handleLogout(); setShowMobileSidebar(false); }}>
               <LogOut size={18} />
               Đăng xuất
             </button>

@@ -848,7 +848,12 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
   const totalPending = ordersList.filter(o => ['pending', 'reserved', 'waiting_payment', 'confirmed'].includes(o.status)).length;
   const totalCanceled = ordersList.filter(o => ['canceled', 'cancelled'].includes(o.status)).length;
 
-  const [showMobileSidebar, setShowMobileSidebar] = useState(true);
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false); // Default to false on mobile viewports
+
+  const handleNavClick = (tab) => {
+    setSubTab(tab);
+    setShowMobileSidebar(false);
+  };
 
   return (
     <div className="dashboard-page admin-dashboard-layout animate-fade">
@@ -875,27 +880,27 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
           </div>
           
           <nav className="sidebar-nav-menu">
-            <button className={`sidebar-nav-btn ${subTab === 'stats' ? 'active' : ''}`} onClick={() => setSubTab('stats')}>
+            <button className={`sidebar-nav-btn ${subTab === 'stats' ? 'active' : ''}`} onClick={() => handleNavClick('stats')}>
               <LayoutDashboard size={18} />
               Bảng điều khiển
             </button>
-            <button className={`sidebar-nav-btn ${subTab === 'bookings' ? 'active' : ''}`} onClick={() => setSubTab('bookings')}>
+            <button className={`sidebar-nav-btn ${subTab === 'bookings' ? 'active' : ''}`} onClick={() => handleNavClick('bookings')}>
               <Calendar size={18} />
               Phân tích
             </button>
-            <button className={`sidebar-nav-btn ${subTab === 'products' ? 'active' : ''}`} onClick={() => setSubTab('products')}>
+            <button className={`sidebar-nav-btn ${subTab === 'products' ? 'active' : ''}`} onClick={() => handleNavClick('products')}>
               <ShoppingBag size={18} />
               Tài sản
             </button>
-            <button className={`sidebar-nav-btn ${subTab === 'customers' ? 'active' : ''}`} onClick={() => setSubTab('customers')}>
+            <button className={`sidebar-nav-btn ${subTab === 'customers' ? 'active' : ''}`} onClick={() => handleNavClick('customers')}>
               <Users size={18} />
               Báo cáo
             </button>
-            <button className={`sidebar-nav-btn ${subTab === 'users' ? 'active' : ''}`} onClick={() => setSubTab('users')}>
+            <button className={`sidebar-nav-btn ${subTab === 'users' ? 'active' : ''}`} onClick={() => handleNavClick('users')}>
               <Users size={18} />
               Nhóm
             </button>
-            <button className={`sidebar-nav-btn ${subTab === 'marketing' ? 'active' : ''}`} onClick={() => setSubTab('marketing')}>
+            <button className={`sidebar-nav-btn ${subTab === 'marketing' ? 'active' : ''}`} onClick={() => handleNavClick('marketing')}>
               <Tag size={18} />
               Tiếp thị
             </button>

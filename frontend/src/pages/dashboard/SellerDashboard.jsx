@@ -1069,20 +1069,12 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
   ];
 
   combinedItems.sort((a, b) => new Date(b.date) - new Date(a.date));
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false); // Default to false on mobile viewports
 
-  const totalOrderPages = Math.ceil(ordersList.length / itemsPerPage) || 1;
-  const activeOrdersPage = ordersPage > totalOrderPages ? totalOrderPages : ordersPage;
-  const currentOrders = ordersList.slice((activeOrdersPage - 1) * itemsPerPage, activeOrdersPage * itemsPerPage);
-
-  const totalBookingPages = Math.ceil(bookingsList.length / itemsPerPage) || 1;
-  const activeBookingsPage = bookingsPage > totalBookingPages ? totalBookingPages : bookingsPage;
-  const currentBookings = bookingsList.slice((activeBookingsPage - 1) * itemsPerPage, activeBookingsPage * itemsPerPage);
-
-  const totalPurchased = ordersList.filter(o => o.status === 'completed').length;
-  const totalPending = ordersList.filter(o => ['pending', 'reserved', 'waiting_payment', 'confirmed'].includes(o.status)).length;
-  const totalCanceled = ordersList.filter(o => ['canceled', 'cancelled'].includes(o.status)).length;
-
-  const [showMobileSidebar, setShowMobileSidebar] = useState(true);
+  const handleNavClick = (tab) => {
+    setSubTab(tab);
+    setShowMobileSidebar(false);
+  };
 
   return (
     <div className="dashboard-page admin-dashboard-layout seller-portal-layout animate-fade">
@@ -1109,29 +1101,29 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
           </div>
           
           <nav className="sidebar-nav-menu">
-            <button className={`sidebar-nav-btn ${subTab === 'stats' ? 'active' : ''}`} onClick={() => setSubTab('stats')}>
+            <button className={`sidebar-nav-btn ${subTab === 'stats' ? 'active' : ''}`} onClick={() => handleNavClick('stats')}>
               <LayoutDashboard size={18} />
               Bảng điều khiển
             </button>
-            <button className={`sidebar-nav-btn ${subTab === 'products' ? 'active' : ''}`} onClick={() => setSubTab('products')}>
+            <button className={`sidebar-nav-btn ${subTab === 'products' ? 'active' : ''}`} onClick={() => handleNavClick('products')}>
               <ShoppingBag size={18} />
               Danh sách sản phẩm
             </button>
-            <button className={`sidebar-nav-btn ${subTab === 'add-product' ? 'active' : ''}`} onClick={() => setSubTab('add-product')}>
+            <button className={`sidebar-nav-btn ${subTab === 'add-product' ? 'active' : ''}`} onClick={() => handleNavClick('add-product')}>
               <Plus size={18} />
               Thêm sản phẩm
             </button>
-            <button className={`sidebar-nav-btn ${subTab === 'chat' ? 'active' : ''}`} onClick={() => setSubTab('chat')}>
+            <button className={`sidebar-nav-btn ${subTab === 'chat' ? 'active' : ''}`} onClick={() => handleNavClick('chat')}>
               <MessageSquare size={20} />
               <span>Hỗ trợ Tư vấn</span>
               {unreadCount > 0 && <span className="nav-badge" style={{ background: '#ef4444', color: 'white', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold' }}>{unreadCount}</span>}
             </button>
-            <button className={`sidebar-nav-btn ${subTab === 'internal-chat' ? 'active' : ''}`} onClick={() => setSubTab('internal-chat')}>
+            <button className={`sidebar-nav-btn ${subTab === 'internal-chat' ? 'active' : ''}`} onClick={() => handleNavClick('internal-chat')}>
               <MessageSquare size={20} />
               <span>Tin nhắn nội bộ</span>
               {internalUnreadCount > 0 && <span className="nav-badge" style={{ background: '#3b82f6', color: 'white', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold' }}>{internalUnreadCount}</span>}
             </button>
-            <button className={`sidebar-nav-btn ${subTab === 'bookings' ? 'active' : ''}`} onClick={() => { setSubTab('bookings'); setNewOrderCount(0); setNewBookingCount(0); }}>
+            <button className={`sidebar-nav-btn ${subTab === 'bookings' ? 'active' : ''}`} onClick={() => { handleNavClick('bookings'); setNewOrderCount(0); setNewBookingCount(0); }}>
               <Calendar size={18} />
               <span>Đơn hàng & Đặt lịch</span>
               {(newOrderCount + newBookingCount) > 0 && (
@@ -1140,30 +1132,30 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                 </span>
               )}
             </button>
-            <button className={`sidebar-nav-btn ${subTab === 'customers' ? 'active' : ''}`} onClick={() => setSubTab('customers')}>
+            <button className={`sidebar-nav-btn ${subTab === 'customers' ? 'active' : ''}`} onClick={() => handleNavClick('customers')}>
               <Users size={18} />
               Khách hàng
             </button>
-            <button className={`sidebar-nav-btn ${subTab === 'marketing' ? 'active' : ''}`} onClick={() => setSubTab('marketing')}>
+            <button className={`sidebar-nav-btn ${subTab === 'marketing' ? 'active' : ''}`} onClick={() => handleNavClick('marketing')}>
               <Tag size={18} />
               Mã giảm giá
             </button>
           </nav>
 
-          <button className="new-report-btn seller-impact-btn" onClick={handleExportPDF} title="Xuất báo cáo tác động PDF">
+          <button className="new-report-btn seller-impact-btn" onClick={() => { handleExportPDF(); setShowMobileSidebar(false); }} title="Xuất báo cáo tác động PDF">
             Xuất báo cáo tác động
           </button>
 
           <div className="sidebar-bottom-nav">
-            <button className={`sidebar-nav-btn bottom-btn ${subTab === 'settings' ? 'active' : ''}`} onClick={() => setSubTab('settings')}>
+            <button className={`sidebar-nav-btn bottom-btn ${subTab === 'settings' ? 'active' : ''}`} onClick={() => handleNavClick('settings')}>
               <Settings size={18} />
               Cài đặt
             </button>
-            <button className="sidebar-nav-btn bottom-btn" onClick={() => alert("Liên hệ hỗ trợ TechCycle tại support@techcycle.vn")}>
+            <button className="sidebar-nav-btn bottom-btn" onClick={() => { alert("Liên hệ hỗ trợ TechCycle tại support@techcycle.vn"); setShowMobileSidebar(false); }}>
               <HelpCircle size={18} />
               Trung tâm hỗ trợ
             </button>
-            <button className="sidebar-nav-btn bottom-btn logout" onClick={handleLogout}>
+            <button className="sidebar-nav-btn bottom-btn logout" onClick={() => { handleLogout(); setShowMobileSidebar(false); }}>
               <LogOut size={18} />
               Đăng xuất
             </button>

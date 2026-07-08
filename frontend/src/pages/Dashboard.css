@@ -3992,16 +3992,16 @@ input:checked + .switch-slider:before {
   /* Sticky Top Sidebar for Mobile (all dashboards using admin-dashboard-layout or dashboard-sidebar) */
   .dashboard-sidebar,
   .admin-dashboard-layout .dashboard-sidebar {
-    position: sticky !important;
+    position: fixed !important;
     top: var(--header-height, 80px) !important;
     bottom: auto !important;
     left: 0 !important;
     right: 0 !important;
     width: 100% !important;
     min-height: auto !important;
-    z-index: 90 !important; /* Below main navbar (100) */
+    z-index: 95 !important; /* Below main navbar (100) but floats over content */
     background: var(--white) !important;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.08) !important;
     border: none !important;
     border-bottom: 1px solid var(--border-color) !important;
     border-radius: 0 0 16px 16px !important;
