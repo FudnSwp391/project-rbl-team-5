@@ -336,14 +336,6 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
   return (
     <div className="dashboard-page admin-dashboard-layout animate-fade">
       <div className="dashboard-grid-layout">
-        {/* Mobile Toggle Button for Sidebar Nav */}
-        <button 
-          className="dashboard-sidebar-toggle-btn"
-          onClick={() => setShowMobileSidebar(!showMobileSidebar)}
-          title={showMobileSidebar ? "Ẩn thanh công cụ" : "Hiện thanh công cụ"}
-        >
-          {showMobileSidebar ? <X size={20} /> : <Menu size={20} />}
-        </button>
 
         {/* Sidebar Nav */}
         <aside className={`dashboard-sidebar glass-panel ${showMobileSidebar ? 'mobile-show' : 'mobile-hide'}`}>
@@ -407,7 +399,22 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
 
         {/* Dashboard Main Content Area */}
         <main className="dashboard-main-content">
-          <header className="dashboard-top-bar glass-panel" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <header className="dashboard-top-bar glass-panel" style={{ display: 'flex', alignItems: 'center' }}>
+            {/* Mobile Toggle Button for Sidebar Nav */}
+            <button 
+              className="dashboard-sidebar-toggle-btn-mobile"
+              onClick={() => setShowMobileSidebar(!showMobileSidebar)}
+              title={showMobileSidebar ? "Ẩn thanh công cụ" : "Hiện thanh công cụ"}
+              style={{ background: 'none', border: 'none', color: 'var(--neutral-darkest)', cursor: 'pointer', padding: '8px', marginRight: '12px' }}
+            >
+              {showMobileSidebar ? <X size={22} /> : <Menu size={22} />}
+            </button>
+
+            <div className="topbar-mobile-brand">
+              <h3>My Dashboard</h3>
+            </div>
+
+            <div style={{ flex: 1 }}></div>
             <div className="topbar-actions-profile">
               <button className="topbar-action-btn theme-toggle" onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')} title="Chuyển đổi sáng/tối">
                 {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
