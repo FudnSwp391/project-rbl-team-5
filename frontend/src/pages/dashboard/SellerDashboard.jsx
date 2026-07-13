@@ -301,6 +301,16 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
       fetchData(); 
     });
 
+    // Lắng nghe yêu cầu tư vấn mới từ Customer → cập nhật list ngay lập tức
+    socketRefObj.current.on('newConsultationRequest', (newConv) => {
+      setChatConversations(prev => {
+        // Tránh trùng lặp
+        if (prev.some(c => c.id === newConv.id)) return prev;
+        // Thêm vào đầu danh sách (mới nhất trước)
+        return [newConv, ...prev];
+      });
+    });
+
     return () => {
       if (socketRefObj.current) socketRefObj.current.disconnect();
     };

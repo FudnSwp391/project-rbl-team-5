@@ -109,6 +109,13 @@ function MainApp() {
     }
   }, [activePage, dashboardSubTab]);
 
+  // Nếu đã đăng nhập mà vẫn đang ở trang auth → redirect về dashboard
+  useEffect(() => {
+    if (user && activePage === 'auth') {
+      setActivePage('dashboard');
+    }
+  }, [user, activePage]);
+
   // Sync state changes back to hash
   useEffect(() => {
     const current = parseHash();

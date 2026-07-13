@@ -31,6 +31,9 @@ const io = new Server(server, {
 
 const PORT = process.env.PORT || 5000;
 
+// Share socket.io instance with controllers via app
+app.set('io', io);
+
 app.use(cors());
 
 // Proxy requests to chatbot servers BEFORE body parsing to avoid stream consumption issues

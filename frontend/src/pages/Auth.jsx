@@ -5,7 +5,7 @@ import './Auth.css';
 
 const Auth = ({ setActivePage }) => {
   const [isLogin, setIsLogin] = useState(true);
-  const { login, register, error: authError } = useAuth();
+  const { login, register, error: authError, loginWithGoogle } = useAuth();
   const [formError, setFormError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -475,7 +475,7 @@ const Auth = ({ setActivePage }) => {
           <button 
             type="button" 
             className="btn btn-outline google-auth-btn" 
-            onClick={() => alert('Đăng nhập Google hiện chưa khả dụng. Vui lòng sử dụng tài khoản dùng thử nhanh bên dưới.')}
+            onClick={loginWithGoogle}
           >
             <svg viewBox="0 0 24 24" width="18" height="18" className="google-svg">
               <path fill="#EA4335" d="M12 5.04c1.66 0 3.2.57 4.38 1.69l3.27-3.27C17.67 1.47 14.99 1 12 1 7.35 1 3.37 3.68 1.41 7.56l3.85 2.99c.9-2.69 3.42-4.51 6.74-4.51z"/>
