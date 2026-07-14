@@ -2,8 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../../context/AuthContext';
 import io from 'socket.io-client';
-import { 
-  LayoutDashboard, ShoppingBag, Calendar, Plus, Trash2, 
+import {
+  LayoutDashboard, ShoppingBag, Calendar, Plus, Trash2,
   Users, Sun, Moon, Search, Bell, Settings, HelpCircle, LogOut,
   MapPin, CreditCard, Pencil, Tag, ArrowLeft, MessageSquare, Send, Image, Paperclip, X, Menu
 } from 'lucide-react';
@@ -98,12 +98,12 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
         alert('Đã nhận tư vấn thành công!');
         fetchData();
         if (selectedConversation && selectedConversation.id === conversationId) {
-          setSelectedConversation({ 
-            ...selectedConversation, 
-            status: 'active', 
-            seller_id: user.id, 
-            sellerName: user.username, 
-            sellerAvatar: user.avatar 
+          setSelectedConversation({
+            ...selectedConversation,
+            status: 'active',
+            seller_id: user.id,
+            sellerName: user.username,
+            sellerAvatar: user.avatar
           });
         }
       } else {
@@ -262,11 +262,11 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
       ]);
       const dataPending = await resPending.json();
       const dataMyConvs = await resMyConvs.json();
-      
+
       let allConvs = [];
       if (Array.isArray(dataPending)) allConvs = [...allConvs, ...dataPending];
       if (Array.isArray(dataMyConvs)) allConvs = [...allConvs, ...dataMyConvs];
-      
+
       // Deduplicate by ID just in case
       const uniqueConvs = Array.from(new Map(allConvs.map(item => [item.id, item])).values());
       // Sort: pending first, then by updated
@@ -275,7 +275,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
         if (a.status !== 'pending' && b.status === 'pending') return 1;
         return new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at);
       });
-      
+
       setChatConversations(uniqueConvs);
 
     } catch (err) {
@@ -293,12 +293,12 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
 
     socketRefObj.current.on('newOrderForSeller', (data) => {
       alert(`🔔 [ĐƠN HÀNG MỚI] ${data.message}`);
-      fetchData(); 
+      fetchData();
     });
 
     socketRefObj.current.on('newBookingForSeller', (data) => {
       alert(`🔔 [LỊCH HẸN MỚI] ${data.message}`);
-      fetchData(); 
+      fetchData();
     });
 
     // Lắng nghe yêu cầu tư vấn mới từ Customer → cập nhật list ngay lập tức
@@ -348,8 +348,8 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
 
     const multiplier =
       valuationCondition.includes('Grade A') || valuationCondition.includes('Cấp A') ? 1.0
-      : valuationCondition.includes('Grade B') || valuationCondition.includes('Cấp B') ? 0.85
-      : 0.7;
+        : valuationCondition.includes('Grade B') || valuationCondition.includes('Cấp B') ? 0.85
+          : 0.7;
 
     let capacityAdd = 0;
     if (valuationCapacity.includes("256")) capacityAdd = 1500000;
@@ -372,18 +372,18 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
       alert("Vui lòng nhập cả mã và tỷ lệ phần trăm giảm giá.");
       return;
     }
-    
+
     const discountNum = parseInt(newPromoDiscount);
     if (isNaN(discountNum) || discountNum <= 0 || discountNum >= 100) {
       alert("Phần trăm giảm giá phải từ 1% đến 99%!");
       return;
     }
-    
+
     let formattedExpiry = '2026-12-31';
     if (newPromoExpiry) {
       formattedExpiry = newPromoExpiry;
     }
-    
+
     try {
       const res = await fetch(`${API_BASE}/api/promocodes`, {
         method: 'POST',
@@ -398,7 +398,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
           status: newPromoActive ? 'active' : 'expired'
         })
       });
-      
+
       if (res.ok) {
         const newCode = await res.json();
         setPromoCodes(prev => [newCode, ...prev]);
@@ -421,15 +421,15 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
       alert("Vui lòng điền đầy đủ tiêu đề và nội dung thông báo.");
       return;
     }
-    
+
     let imageUrl = notifImage;
-    
+
     // If user uploaded a file, upload it first
     if (notifImageFile) {
       try {
         const formData = new FormData();
         formData.append('image', notifImageFile);
-        
+
         const uploadRes = await fetch(`${API_BASE}/api/upload`, {
           method: 'POST',
           headers: {
@@ -437,7 +437,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
           },
           body: formData
         });
-        
+
         if (uploadRes.ok) {
           const uploadData = await uploadRes.json();
           imageUrl = uploadData.imageUrl || uploadData.url;
@@ -451,7 +451,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
         return;
       }
     }
-    
+
     try {
       const res = await fetch(`${API_BASE}/api/notifications`, {
         method: 'POST',
@@ -459,8 +459,8 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ 
-          title: notifTitle, 
+        body: JSON.stringify({
+          title: notifTitle,
           message: notifMessage,
           image: imageUrl
         })
@@ -494,7 +494,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
     } catch (err) {
       console.error('Lỗi click thông báo:', err);
     }
-    
+
     if (notif.type === 'chat') {
       setSubTab('internal-chat');
     }
@@ -534,7 +534,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
         alert("Bạn chỉ có thể tải lên tối đa 10 hình ảnh.");
         return;
       }
-      
+
       const promises = files.map(file => {
         return new Promise((resolve, reject) => {
           const reader = new FileReader();
@@ -543,7 +543,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
           reader.readAsDataURL(file);
         });
       });
-      
+
       Promise.all(promises).then(base64s => {
         setSelectedImageFiles(prev => [...prev, ...base64s]);
       }).catch(err => {
@@ -830,7 +830,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
     const totalBookings = bookingsList.length;
 
     const getCategoryVN = (cat) => {
-      switch(cat) {
+      switch (cat) {
         case 'AirConditioner': return 'Máy lạnh';
         case 'WashingMachine': return 'Máy giặt';
         case 'Refrigerator': return 'Tủ lạnh';
@@ -842,7 +842,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
     };
 
     const getCondVN = (cond) => {
-      switch(cond) {
+      switch (cond) {
         case 'excellent': return 'Như mới';
         case 'good': return 'Rất tốt';
         case 'fair': return 'Khá tốt';
@@ -851,7 +851,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
     };
 
     const getStatusVN = (st) => {
-      switch(st) {
+      switch (st) {
         case 'pending': return 'Đang chờ';
         case 'completed': return 'Hoàn thành';
         case 'canceled': case 'cancelled': return 'Đã hủy';
@@ -1086,6 +1086,21 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
     setShowMobileSidebar(false);
   };
 
+  const activeOrdersPage = ordersPage;
+  const activeBookingsPage = bookingsPage;
+  const totalOrderPages = Math.ceil(ordersList.length / itemsPerPage) || 1;
+  const totalBookingPages = Math.ceil(bookingsList.length / itemsPerPage) || 1;
+
+  const ordersStartIdx = (activeOrdersPage - 1) * itemsPerPage;
+  const currentOrders = ordersList.slice(ordersStartIdx, ordersStartIdx + itemsPerPage);
+
+  const bookingsStartIdx = (activeBookingsPage - 1) * itemsPerPage;
+  const currentBookings = bookingsList.slice(bookingsStartIdx, bookingsStartIdx + itemsPerPage);
+
+  const totalPurchased = ordersList.filter(o => o.status === 'completed').length;
+  const totalPending = ordersList.filter(o => ['pending', 'reserved', 'waiting_payment'].includes(o.status)).length;
+  const totalCanceled = ordersList.filter(o => o.status === 'canceled' || o.status === 'cancelled').length;
+
   return (
     <div className="dashboard-page admin-dashboard-layout seller-portal-layout animate-fade">
       <div className="dashboard-grid-layout">
@@ -1101,7 +1116,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
               <span>Kênh Người Bán</span>
             </div>
           </div>
-          
+
           <nav className="sidebar-nav-menu">
             <button className={`sidebar-nav-btn ${subTab === 'stats' ? 'active' : ''}`} onClick={() => handleNavClick('stats')}>
               <LayoutDashboard size={18} />
@@ -1172,7 +1187,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
         <main className="dashboard-main-content">
           <header className="dashboard-top-bar glass-panel">
             {/* Mobile Toggle Button for Sidebar Nav */}
-            <button 
+            <button
               className="dashboard-sidebar-toggle-btn-mobile"
               onClick={() => setShowMobileSidebar(!showMobileSidebar)}
               title={showMobileSidebar ? "Ẩn thanh công cụ" : "Hiện thanh công cụ"}
@@ -1185,15 +1200,15 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
             </div>
 
             <h2 className="topbar-page-title">
-              {subTab === 'stats' ? 'Bảng điều khiển' : 
-               subTab === 'products' ? 'Danh sách sản phẩm' : 
-               subTab === 'add-product' ? 'Thêm sản phẩm mới' : 
-               subTab === 'bookings' ? 'Quản lý đơn hàng' : 
-               subTab === 'customers' ? 'Quản lý khách hàng' : 
-               subTab === 'marketing' ? 'Chương trình khuyến mãi' : 
-               subTab === 'chat' ? 'Tin nhắn hỗ trợ' : 
-               subTab === 'internal-chat' ? 'Tin nhắn nội bộ' : 
-               subTab === 'settings' ? 'Cài đặt tài khoản' : 'Bảng điều khiển'}
+              {subTab === 'stats' ? 'Bảng điều khiển' :
+                subTab === 'products' ? 'Danh sách sản phẩm' :
+                  subTab === 'add-product' ? 'Thêm sản phẩm mới' :
+                    subTab === 'bookings' ? 'Quản lý đơn hàng' :
+                      subTab === 'customers' ? 'Quản lý khách hàng' :
+                        subTab === 'marketing' ? 'Chương trình khuyến mãi' :
+                          subTab === 'chat' ? 'Tin nhắn hỗ trợ' :
+                            subTab === 'internal-chat' ? 'Tin nhắn nội bộ' :
+                              subTab === 'settings' ? 'Cài đặt tài khoản' : 'Bảng điều khiển'}
             </h2>
 
             <div style={{ flex: 1 }}></div>
@@ -1203,17 +1218,17 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                 {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
               </button>
               <div style={{ position: 'relative' }}>
-                <NotificationBell 
-                  notifications={notifications} 
-                  onClearAll={clearAllNotifications} 
-                  onClickNotification={handleNotificationClick} 
+                <NotificationBell
+                  notifications={notifications}
+                  onClearAll={clearAllNotifications}
+                  onClickNotification={handleNotificationClick}
                 />
               </div>
-              
+
               <button className="topbar-action-btn messages" onClick={() => setSubTab('chat')} title="Tin nhắn">
                 <MessageSquare size={20} />
               </button>
-              
+
               <div className="topbar-divider"></div>
 
               <div className="topbar-profile-widget">
@@ -1287,14 +1302,14 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                       <h3>Đánh Giá Thiết Bị Cũ</h3>
                       <span className="details-text-link" onClick={() => alert("Chuyển hướng đến trang định giá...")}>Xem lịch sử &gt;</span>
                     </div>
-                    
+
                     <div className="valuation-card-split">
                       <form onSubmit={handleEstimateValue} className="valuation-form">
                         <div className="form-group">
                           <label className="form-label-sm">TÊN THIẾT BỊ</label>
-                          <input 
-                            type="text" 
-                            className="form-control form-control-sm" 
+                          <input
+                            type="text"
+                            className="form-control form-control-sm"
                             placeholder="Ví dụ: iPhone 13 Pro Max"
                             value={valuationName}
                             onChange={e => setValuationName(e.target.value)}
@@ -1304,7 +1319,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                         <div className="form-row-grid">
                           <div className="form-group">
                             <label className="form-label-sm">TÌNH TRẠNG</label>
-                            <select 
+                            <select
                               className="form-control form-control-sm"
                               value={valuationCondition}
                               onChange={e => setValuationCondition(e.target.value)}
@@ -1316,7 +1331,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                           </div>
                           <div className="form-group">
                             <label className="form-label-sm">DUNG LƯỢNG</label>
-                            <select 
+                            <select
                               className="form-control form-control-sm"
                               value={valuationCapacity}
                               onChange={e => setValuationCapacity(e.target.value)}
@@ -1341,11 +1356,11 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                       </form>
 
                       <div className="valuation-upload-area">
-                        <input 
-                          type="file" 
-                          ref={fileInputRef} 
-                          style={{ display: 'none' }} 
-                          onChange={handleFileChange} 
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          style={{ display: 'none' }}
+                          onChange={handleFileChange}
                           accept="image/*"
                         />
                         <div className="upload-box-border" onClick={() => fileInputRef.current.click()} style={{ cursor: 'pointer' }}>
@@ -1388,29 +1403,29 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                               <div className="order-info-text">
                                 <strong>{item.title}</strong>
                                 <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: 'var(--neutral-medium)' }}>
-                                  {item.type === 'order' 
-                                    ? `${(item.amount || 0).toLocaleString('vi-VN')} VND • ${getStatusLabel(item.status)}` 
+                                  {item.type === 'order'
+                                    ? `${(item.amount || 0).toLocaleString('vi-VN')} VND • ${getStatusLabel(item.status)}`
                                     : `${item.deviceType} • ${getStatusLabel(item.status)}`
                                   }
                                 </p>
                               </div>
                             </div>
-                            
+
                             {/* Actions on the right */}
                             <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
                               {item.type === 'order' && (item.status === 'pending' || item.status === 'reserved') && (
-                                <button 
-                                  className="btn btn-primary btn-sm confirm-now-btn" 
-                                  style={{ padding: '6px 12px', fontSize: '0.75rem', backgroundColor: '#006D44', border: 'none', borderRadius: '4px', color: '#fff', cursor: 'pointer' }} 
+                                <button
+                                  className="btn btn-primary btn-sm confirm-now-btn"
+                                  style={{ padding: '6px 12px', fontSize: '0.75rem', backgroundColor: '#006D44', border: 'none', borderRadius: '4px', color: '#fff', cursor: 'pointer' }}
                                   onClick={() => handleConfirmOrderVisit(item.id)}
                                 >
                                   XÁC NHẬN
                                 </button>
                               )}
-                              
+
                               {item.type === 'order' && (item.status === 'pending' || item.status === 'confirmed' || item.status === 'reserved') && (
-                                <button 
-                                  className="btn btn-outline-danger btn-sm" 
+                                <button
+                                  className="btn btn-outline-danger btn-sm"
                                   style={{ padding: '6px 12px', fontSize: '0.75rem', borderColor: 'var(--accent-red)', color: 'var(--accent-red)', background: 'transparent', borderRadius: '4px', cursor: 'pointer' }}
                                   onClick={() => handleCancelOrder(item.id)}
                                 >
@@ -1419,8 +1434,8 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                               )}
 
                               {item.type === 'booking' && (item.status === 'pending' || item.status === 'confirmed') && (
-                                <button 
-                                  className="btn btn-outline-danger btn-sm" 
+                                <button
+                                  className="btn btn-outline-danger btn-sm"
                                   style={{ padding: '6px 12px', fontSize: '0.75rem', borderColor: 'var(--accent-red)', color: 'var(--accent-red)', background: 'transparent', borderRadius: '4px', cursor: 'pointer' }}
                                   onClick={() => handleCancelBooking(item.id)}
                                 >
@@ -1442,9 +1457,9 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                   <h3>Quản Lý Kho Hàng</h3>
                   <div className="d-flex align-items-center gap-2" style={{ marginLeft: 'auto' }}>
                     <div className="search-input-wrapper" style={{ position: 'relative' }}>
-                      <input 
-                        type="text" 
-                        placeholder="Tìm kiếm..." 
+                      <input
+                        type="text"
+                        placeholder="Tìm kiếm..."
                         value={inventorySearch}
                         onChange={(e) => setInventorySearch(e.target.value)}
                         style={{
@@ -1477,7 +1492,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                     </thead>
                     <tbody>
                       {(() => {
-                        const filtered = productsList.filter(prod => 
+                        const filtered = productsList.filter(prod =>
                           prod.name.toLowerCase().includes(inventorySearch.toLowerCase()) ||
                           (prod.category || '').toLowerCase().includes(inventorySearch.toLowerCase())
                         );
@@ -1489,13 +1504,13 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                                 <strong>{prod.name}</strong>
                               </td>
                               <td>
-                                {prod.category === 'AirConditioner' ? 'Máy lạnh' : 
-                                 prod.category === 'WashingMachine' ? 'Máy giặt' : 
-                                 prod.category === 'Refrigerator' ? 'Tủ lạnh' : 
-                                 prod.category === 'Audio' ? 'Tai nghe' : 
-                                 prod.category === 'Laptop' ? 'Laptop' : 
-                                 prod.category === 'Smartwatch' ? 'Đồng hồ' : 
-                                 prod.category || 'Gia dụng'}
+                                {prod.category === 'AirConditioner' ? 'Máy lạnh' :
+                                  prod.category === 'WashingMachine' ? 'Máy giặt' :
+                                    prod.category === 'Refrigerator' ? 'Tủ lạnh' :
+                                      prod.category === 'Audio' ? 'Tai nghe' :
+                                        prod.category === 'Laptop' ? 'Laptop' :
+                                          prod.category === 'Smartwatch' ? 'Đồng hồ' :
+                                            prod.category || 'Gia dụng'}
                               </td>
                               <td>{idx === 0 ? '12' : idx === 1 ? '03' : '05'} chiếc</td>
                               <td>{prod.price.toLocaleString('en-US')} VND</td>
@@ -1537,14 +1552,14 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
               <form onSubmit={handleAddProduct} className="add-product-form glass-panel form-inline-custom">
                 <h3>Thông Tin Thiết Bị Đăng Bán</h3>
                 {productSuccess && <div className="success-banner-alert">{productSuccess}</div>}
-                
+
                 <div className="form-row-grid">
                   <div className="form-group">
                     <label className="form-label">Tên thiết bị</label>
-                    <input 
-                      type="text" 
-                      className="form-control" 
-                      placeholder="Ví dụ: Máy giặt Toshiba Inverter 9kg" 
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="Ví dụ: Máy giặt Toshiba Inverter 9kg"
                       value={newProdName}
                       onChange={e => setNewProdName(e.target.value)}
                       required
@@ -1552,10 +1567,10 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                   </div>
                   <div className="form-group">
                     <label className="form-label">Giá bán (VND)</label>
-                    <input 
-                      type="number" 
-                      className="form-control" 
-                      placeholder="Ví dụ: 6500000" 
+                    <input
+                      type="number"
+                      className="form-control"
+                      placeholder="Ví dụ: 6500000"
                       value={newProdPrice}
                       onChange={e => setNewProdPrice(e.target.value)}
                       required
@@ -1566,7 +1581,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                 <div className="form-row-grid">
                   <div className="form-group">
                     <label className="form-label">Danh mục</label>
-                    <select 
+                    <select
                       className="form-control"
                       value={newProdCategory}
                       onChange={e => setNewProdCategory(e.target.value)}
@@ -1582,7 +1597,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                   </div>
                   <div className="form-group">
                     <label className="form-label">Tình trạng kiểm định</label>
-                    <select 
+                    <select
                       className="form-control"
                       value={newProdCondition}
                       onChange={e => setNewProdCondition(e.target.value)}
@@ -1597,20 +1612,20 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                 <div className="form-row-grid">
                   <div className="form-group">
                     <label className="form-label">Đường dẫn ảnh trực tuyến (Image URL)</label>
-                    <input 
-                      type="url" 
-                      className="form-control" 
-                      placeholder="https://images.unsplash.com/..." 
+                    <input
+                      type="url"
+                      className="form-control"
+                      placeholder="https://images.unsplash.com/..."
                       value={newProdImage}
                       onChange={e => setNewProdImage(e.target.value)}
                     />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Hoặc tải lên từ máy tính (Tối đa 10 ảnh)</label>
-                    <input 
-                      type="file" 
-                      className="form-control" 
-                      multiple 
+                    <input
+                      type="file"
+                      className="form-control"
+                      multiple
                       accept="image/*"
                       onChange={handleImageFilesChange}
                     />
@@ -1624,9 +1639,9 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                       {selectedImageFiles.map((base64, idx) => (
                         <div key={idx} style={{ position: 'relative', width: '70px', height: '70px', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
                           <img src={base64} alt={`Selected ${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          <button 
-                            type="button" 
-                            onClick={() => handleRemoveSelectedImage(idx)} 
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveSelectedImage(idx)}
                             style={{ position: 'absolute', top: '2px', right: '2px', background: 'rgba(239, 68, 68, 0.85)', color: '#fff', border: 'none', borderRadius: '50%', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', cursor: 'pointer', fontWeight: 'bold' }}
                           >
                             ×
@@ -1639,9 +1654,9 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
 
                 <div className="form-group">
                   <label className="form-label">Mô tả chi tiết</label>
-                  <textarea 
-                    className="form-control" 
-                    rows="3" 
+                  <textarea
+                    className="form-control"
+                    rows="3"
                     placeholder="Nhập thông tin chi tiết về sản phẩm, các hao mòn, chế độ bảo hành..."
                     value={newProdDesc}
                     onChange={e => setNewProdDesc(e.target.value)}
@@ -1663,9 +1678,9 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
               <div className="d-flex align-items-center justify-content-between" style={{ marginTop: '20px', marginBottom: '15px', flexWrap: 'wrap', gap: '10px' }}>
                 <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>Danh Sách Thiết Bị Đang Bán</h3>
                 <div className="search-input-wrapper" style={{ position: 'relative' }}>
-                  <input 
-                    type="text" 
-                    placeholder="Tìm kiếm sản phẩm..." 
+                  <input
+                    type="text"
+                    placeholder="Tìm kiếm sản phẩm..."
                     value={productsSearch}
                     onChange={(e) => setProductsSearch(e.target.value)}
                     style={{
@@ -1697,7 +1712,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                   </thead>
                   <tbody>
                     {(() => {
-                      const filtered = productsList.filter(prod => 
+                      const filtered = productsList.filter(prod =>
                         prod.name.toLowerCase().includes(productsSearch.toLowerCase()) ||
                         (prod.category || '').toLowerCase().includes(productsSearch.toLowerCase())
                       );
@@ -1707,89 +1722,89 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                             <td>
                               <img src={getProductImage(prod)} alt={prod.name} className="tbl-prod-thumb" />
                             </td>
-                        <td>
-                          <strong>{prod.name}</strong>
-                          <div className="tbl-subtext" style={{ maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{prod.description}</div>
-                        </td>
-                        <td>
-                          {prod.category === 'AirConditioner' ? 'Máy lạnh' : 
-                           prod.category === 'WashingMachine' ? 'Máy giặt' : 
-                           prod.category === 'Refrigerator' ? 'Tủ lạnh' : 
-                           prod.category === 'Microwave' ? 'Lò vi sóng' : 
-                           prod.category === 'Audio' ? 'Tai nghe' : 
-                           prod.category === 'Laptop' ? 'Laptop' : 
-                           prod.category === 'Smartwatch' ? 'Đồng hồ' : 
-                           prod.category || 'Gia dụng'}
-                        </td>
-                        <td>{prod.price.toLocaleString('en-US')} VND</td>
-                        <td>
-                          <span className={`badge badge-${prod.condition}`}>
-                            {getConditionLabel(prod.condition)}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={`status-dot ${prod.status}`}></span>
-                          {prod.status === 'available' ? 'Còn hàng' : 'Đã bán'}
-                        </td>
-                        <td>
-                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            <button 
-                              className="edit-item-btn"
-                              onClick={() => {
-                                setEditingProduct(prod);
-                                setEditProdName(prod.name || '');
-                                setEditProdPrice(prod.price || '');
-                                setEditProdCategory(prod.category || 'AirConditioner');
-                                setEditProdCondition(prod.condition || 'excellent');
-                                setEditProdImage(prod.image || '');
-                                setEditProdDesc(prod.description || '');
-                                setEditProdStatus(prod.status || 'available');
-                              }}
-                              title="Chỉnh sửa sản phẩm"
-                              style={{
-                                background: 'none',
-                                border: '1px solid var(--primary-light)',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
-                                padding: '6px 8px',
-                                color: 'var(--primary-dark)',
-                                transition: 'all 0.2s',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                              }}
-                            >
-                              <Pencil size={16} />
-                            </button>
-                            <button 
-                              className="delete-item-btn"
-                              onClick={() => handleDeleteProduct(prod.id)}
-                              title="Xóa sản phẩm"
-                              style={{
-                                background: 'none',
-                                border: '1px solid rgba(239, 68, 68, 0.2)',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
-                                padding: '6px 8px',
-                                color: '#ef4444',
-                                transition: 'all 0.2s',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                              }}
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>Không tìm thấy sản phẩm nào.</td>
-                      </tr>
-                    );
-                  })()}
+                            <td>
+                              <strong>{prod.name}</strong>
+                              <div className="tbl-subtext" style={{ maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{prod.description}</div>
+                            </td>
+                            <td>
+                              {prod.category === 'AirConditioner' ? 'Máy lạnh' :
+                                prod.category === 'WashingMachine' ? 'Máy giặt' :
+                                  prod.category === 'Refrigerator' ? 'Tủ lạnh' :
+                                    prod.category === 'Microwave' ? 'Lò vi sóng' :
+                                      prod.category === 'Audio' ? 'Tai nghe' :
+                                        prod.category === 'Laptop' ? 'Laptop' :
+                                          prod.category === 'Smartwatch' ? 'Đồng hồ' :
+                                            prod.category || 'Gia dụng'}
+                            </td>
+                            <td>{prod.price.toLocaleString('en-US')} VND</td>
+                            <td>
+                              <span className={`badge badge-${prod.condition}`}>
+                                {getConditionLabel(prod.condition)}
+                              </span>
+                            </td>
+                            <td>
+                              <span className={`status-dot ${prod.status}`}></span>
+                              {prod.status === 'available' ? 'Còn hàng' : 'Đã bán'}
+                            </td>
+                            <td>
+                              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                <button
+                                  className="edit-item-btn"
+                                  onClick={() => {
+                                    setEditingProduct(prod);
+                                    setEditProdName(prod.name || '');
+                                    setEditProdPrice(prod.price || '');
+                                    setEditProdCategory(prod.category || 'AirConditioner');
+                                    setEditProdCondition(prod.condition || 'excellent');
+                                    setEditProdImage(prod.image || '');
+                                    setEditProdDesc(prod.description || '');
+                                    setEditProdStatus(prod.status || 'available');
+                                  }}
+                                  title="Chỉnh sửa sản phẩm"
+                                  style={{
+                                    background: 'none',
+                                    border: '1px solid var(--primary-light)',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    padding: '6px 8px',
+                                    color: 'var(--primary-dark)',
+                                    transition: 'all 0.2s',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                  }}
+                                >
+                                  <Pencil size={16} />
+                                </button>
+                                <button
+                                  className="delete-item-btn"
+                                  onClick={() => handleDeleteProduct(prod.id)}
+                                  title="Xóa sản phẩm"
+                                  style={{
+                                    background: 'none',
+                                    border: '1px solid rgba(239, 68, 68, 0.2)',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    padding: '6px 8px',
+                                    color: '#ef4444',
+                                    transition: 'all 0.2s',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                  }}
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>Không tìm thấy sản phẩm nào.</td>
+                        </tr>
+                      );
+                    })()}
                   </tbody>
                 </table>
               </div>
@@ -1863,30 +1878,30 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                             </td>
                             <td>
                               <span className={`badge badge-${o.status}`}>
-                                {o.status === 'pending' ? 'Chờ xem máy' : 
-                                 o.status === 'confirmed' ? 'Đã xác nhận' : 
-                                 o.status === 'completed' ? 'Khách đã tới (Đã bán)' : 
-                                 o.status === 'cancelled' || o.status === 'cancelled' || o.status === 'canceled' ? 'Đã hủy' : 
-                                 o.status === 'reserved' ? 'Đã giữ máy' : 
-                                 o.status === 'waiting_payment' ? 'Chờ thanh toán (Đang giữ máy)' : o.status}
+                                {o.status === 'pending' ? 'Chờ xem máy' :
+                                  o.status === 'confirmed' ? 'Đã xác nhận' :
+                                    o.status === 'completed' ? 'Khách đã tới (Đã bán)' :
+                                      o.status === 'cancelled' || o.status === 'cancelled' || o.status === 'canceled' ? 'Đã hủy' :
+                                        o.status === 'reserved' ? 'Đã giữ máy' :
+                                          o.status === 'waiting_payment' ? 'Chờ thanh toán (Đang giữ máy)' : o.status}
                               </span>
                             </td>
                             <td>
                               {editingOrderId === o.id ? (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '180px', padding: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px' }}>
                                   <label style={{ fontSize: '0.75rem', color: 'var(--neutral-medium)', margin: 0 }}>Ngày hẹn mới:</label>
-                                  <input 
-                                    type="date" 
-                                    value={newDate} 
-                                    onChange={e => setNewDate(e.target.value)} 
-                                    className="form-control" 
-                                    style={{ fontSize: '0.8rem', padding: '4px', background: 'var(--background)', color: 'var(--text)', border: '1px solid var(--border-color)', borderRadius: '4px' }} 
+                                  <input
+                                    type="date"
+                                    value={newDate}
+                                    onChange={e => setNewDate(e.target.value)}
+                                    className="form-control"
+                                    style={{ fontSize: '0.8rem', padding: '4px', background: 'var(--background)', color: 'var(--text)', border: '1px solid var(--border-color)', borderRadius: '4px' }}
                                   />
                                   <label style={{ fontSize: '0.75rem', color: 'var(--neutral-medium)', margin: 0 }}>Giờ hẹn:</label>
-                                  <select 
-                                    value={newTime} 
-                                    onChange={e => setNewTime(e.target.value)} 
-                                    className="form-control" 
+                                  <select
+                                    value={newTime}
+                                    onChange={e => setNewTime(e.target.value)}
+                                    className="form-control"
                                     style={{ fontSize: '0.8rem', padding: '4px', background: 'var(--background)', color: 'var(--text)', border: '1px solid var(--border-color)', borderRadius: '4px' }}
                                   >
                                     <option value="09:00 AM">09:00 AM</option>
@@ -1905,16 +1920,16 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                               ) : (
                                 (o.status === 'pending' || o.status === 'confirmed' || o.status === 'reserved' || o.status === 'waiting_payment') ? (
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                    <button 
-                                      className="btn btn-secondary btn-sm" 
+                                    <button
+                                      className="btn btn-secondary btn-sm"
                                       onClick={() => handleConfirmOrderVisit(o.id)}
                                       style={{ padding: '6px 12px', fontSize: '0.85rem', backgroundColor: 'var(--primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
                                     >
                                       Xác nhận khách đã tới
                                     </button>
                                     <div style={{ display: 'flex', gap: '6px' }}>
-                                      <button 
-                                        className="btn btn-outline-info btn-sm" 
+                                      <button
+                                        className="btn btn-outline-info btn-sm"
                                         onClick={() => {
                                           setEditingOrderId(o.id);
                                           setNewDate(o.appointmentInfo?.appointmentDate || '');
@@ -1924,8 +1939,8 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                                       >
                                         Đổi lịch
                                       </button>
-                                      <button 
-                                        className="btn btn-outline-danger btn-sm" 
+                                      <button
+                                        className="btn btn-outline-danger btn-sm"
                                         onClick={() => handleCancelOrder(o.id)}
                                         style={{ padding: '4px 8px', fontSize: '0.8rem', flex: 1, borderColor: 'var(--accent-red)', color: 'var(--accent-red)', background: 'transparent', borderRadius: '4px', cursor: 'pointer' }}
                                       >
@@ -1947,8 +1962,8 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
 
                 {totalOrderPages > 1 && (
                   <div className="pagination-wrapper">
-                    <button 
-                      disabled={activeOrdersPage === 1} 
+                    <button
+                      disabled={activeOrdersPage === 1}
                       onClick={() => setOrdersPage(activeOrdersPage - 1)}
                       className="pagination-btn"
                     >
@@ -1963,8 +1978,8 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                         {page}
                       </button>
                     ))}
-                    <button 
-                      disabled={activeOrdersPage === totalOrderPages} 
+                    <button
+                      disabled={activeOrdersPage === totalOrderPages}
                       onClick={() => setOrdersPage(activeOrdersPage + 1)}
                       className="pagination-btn"
                     >
@@ -2013,7 +2028,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                               <div className="tbl-subtext">{bk.notes && bk.notes.includes('Khung giờ:') ? bk.notes : 'Khung giờ: Sáng'}</div>
                             </td>
                             <td>
-                              <select 
+                              <select
                                 className="form-control"
                                 value={bk.technicianId || ''}
                                 onChange={(e) => {
@@ -2029,7 +2044,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                               </select>
                             </td>
                             <td>
-                              <select 
+                              <select
                                 className="form-control"
                                 value={bk.status}
                                 onChange={(e) => {
@@ -2047,16 +2062,16 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                             </td>
                             <td>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '150px' }}>
-                                <input 
-                                  type="number" 
-                                  className="form-control" 
+                                <input
+                                  type="number"
+                                  className="form-control"
                                   defaultValue={bk.cost || 0}
                                   onBlur={(e) => handleUpdateBookingDetails(bk.id, { cost: Number(e.target.value) })}
                                   placeholder="Chi phí (VND)"
                                   style={{ padding: '4px 8px', fontSize: '0.85rem' }}
                                 />
-                                <input 
-                                  type="text" 
+                                <input
+                                  type="text"
                                   className="form-control"
                                   defaultValue={bk.notes && !bk.notes.includes('Khung giờ:') ? bk.notes : ''}
                                   onBlur={(e) => handleUpdateBookingDetails(bk.id, { notes: e.target.value })}
@@ -2065,8 +2080,8 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                                 />
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '4px' }}>
                                   <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--neutral-medium)' }}>Chốt ngày nhận máy:</label>
-                                  <input 
-                                    type="date" 
+                                  <input
+                                    type="date"
                                     className="form-control"
                                     defaultValue={bk.pickup_date ? bk.pickup_date.split('T')[0] : ''}
                                     onChange={(e) => handleUpdateBookingDetails(bk.id, { pickupDate: e.target.value })}
@@ -2104,8 +2119,8 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
 
                 {totalBookingPages > 1 && (
                   <div className="pagination-wrapper">
-                    <button 
-                      disabled={activeBookingsPage === 1} 
+                    <button
+                      disabled={activeBookingsPage === 1}
                       onClick={() => setBookingsPage(activeBookingsPage - 1)}
                       className="pagination-btn"
                     >
@@ -2120,8 +2135,8 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                         {page}
                       </button>
                     ))}
-                    <button 
-                      disabled={activeBookingsPage === totalBookingPages} 
+                    <button
+                      disabled={activeBookingsPage === totalBookingPages}
                       onClick={() => setBookingsPage(activeBookingsPage + 1)}
                       className="pagination-btn"
                     >
@@ -2148,10 +2163,10 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                     <div className="profile-card-widget glass-panel h-100">
                       <div className="profile-card-body">
                         <div className="profile-avatar-container">
-                          <img 
-                            src={getAvatarUrl(viewingUser.avatar, viewingUser.username)} 
-                            alt={viewingUser.username} 
-                            className="detail-avatar" 
+                          <img
+                            src={getAvatarUrl(viewingUser.avatar, viewingUser.username)}
+                            alt={viewingUser.username}
+                            className="detail-avatar"
                           />
                           <span className="member-badge">🌟 THÀNH VIÊN VÀNG</span>
                         </div>
@@ -2287,7 +2302,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
               <div className="customers-view animate-fade">
                 <h2>Sổ Khách Hàng</h2>
                 <p className="view-desc">Danh sách khách hàng đăng ký. Hiển thị phiếu sửa chữa và đơn hàng.</p>
-                
+
                 <div className="table-responsive">
                   <table className="dashboard-table">
                     <thead>
@@ -2331,7 +2346,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
             <div className="seller-marketing-view animate-fade">
               <h2>Quản Lý Chiến Dịch & Khuyến Mãi</h2>
               <p className="view-desc">Tạo mã giảm giá và quản lý các chương trình tiếp thị thu hút khách hàng.</p>
-              
+
               <div className="seller-main-layout-grid" style={{ gridTemplateColumns: '1fr', display: 'grid', gap: '28px' }}>
                 {/* Left Column - List of active coupons */}
                 <div className="layout-col-left" style={{ width: '100%' }}>
@@ -2359,7 +2374,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Right Column - Create Promo Code + Notification */}
                 <div className="layout-col-right" style={{ width: '100%', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '28px' }}>
                   <div className="stats-card-widget glass-panel">
@@ -2367,9 +2382,9 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                     <form onSubmit={handleCreatePromoCode} className="quick-code-form" style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                       <div className="form-group">
                         <label className="form-label-sm">MÃ GIẢM GIÁ (VIẾT LIỀN KHÔNG DẤU)</label>
-                        <input 
-                          type="text" 
-                          className="form-control" 
+                        <input
+                          type="text"
+                          className="form-control"
                           placeholder="VÍ DỤ: TECHCYCLE10"
                           value={newPromoCode}
                           onChange={e => setNewPromoCode(e.target.value)}
@@ -2377,9 +2392,9 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                       </div>
                       <div className="form-group">
                         <label className="form-label-sm">PHẦN TRĂM GIẢM GIÁ (%)</label>
-                        <input 
-                          type="number" 
-                          className="form-control" 
+                        <input
+                          type="number"
+                          className="form-control"
                           placeholder="10"
                           min="1"
                           max="99"
@@ -2389,8 +2404,8 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                       </div>
                       <div className="form-group">
                         <label className="form-label-sm">HẠN SỬ DỤNG (NGÀY & GIỜ HẾT HẠN)</label>
-                        <input 
-                          type="datetime-local" 
+                        <input
+                          type="datetime-local"
                           className="form-control"
                           value={newPromoExpiry}
                           onChange={e => setNewPromoExpiry(e.target.value)}
@@ -2399,9 +2414,9 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                       <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <span className="form-label-sm" style={{ margin: 0 }}>TRẠNG THÁI HOẠT ĐỘNG</span>
                         <label className="switch-container" style={{ position: 'relative', display: 'inline-block', width: '46px', height: '24px' }}>
-                          <input 
-                            type="checkbox" 
-                            style={{ opacity: 0, width: 0, height: 0 }} 
+                          <input
+                            type="checkbox"
+                            style={{ opacity: 0, width: 0, height: 0 }}
                             checked={newPromoActive}
                             onChange={e => setNewPromoActive(e.target.checked)}
                           />
@@ -2419,9 +2434,9 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                     <form onSubmit={handleCreateNotification} className="quick-code-form" style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                       <div className="form-group">
                         <label className="form-label-sm">TIÊU ĐỀ THÔNG BÁO</label>
-                        <input 
-                          type="text" 
-                          className="form-control" 
+                        <input
+                          type="text"
+                          className="form-control"
                           placeholder="Tiêu đề thông báo..."
                           value={notifTitle}
                           onChange={e => setNotifTitle(e.target.value)}
@@ -2430,8 +2445,8 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                       </div>
                       <div className="form-group">
                         <label className="form-label-sm">NỘI DUNG CHI TIẾT</label>
-                        <textarea 
-                          className="form-control" 
+                        <textarea
+                          className="form-control"
                           rows="4"
                           placeholder="Nội dung gửi đến toàn bộ người dùng..."
                           value={notifMessage}
@@ -2441,9 +2456,9 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                       </div>
                       <div className="form-group">
                         <label className="form-label-sm">ẢNH MINH HỌA</label>
-                        <input 
-                          type="file" 
-                          className="form-control" 
+                        <input
+                          type="file"
+                          className="form-control"
                           accept="image/*"
                           onChange={handleImageFileChange}
                           style={{ padding: '8px' }}
@@ -2451,9 +2466,9 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                         <small style={{ fontSize: '0.75rem', color: 'var(--neutral-medium)', marginTop: '4px', display: 'block' }}>
                           Hoặc nhập URL ảnh bên dưới
                         </small>
-                        <input 
-                          type="text" 
-                          className="form-control" 
+                        <input
+                          type="text"
+                          className="form-control"
                           placeholder="https://example.com/image.jpg"
                           value={notifImageFile ? '' : notifImage}
                           onChange={e => setNotifImage(e.target.value)}
@@ -2463,7 +2478,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                         {notifImage && (
                           <div style={{ marginTop: '12px', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-color)', position: 'relative' }}>
                             <img src={notifImage} alt="Preview" style={{ width: '100%', height: 'auto', maxHeight: '200px', objectFit: 'cover' }} onError={(e) => { e.target.style.display = 'none'; }} />
-                            <button 
+                            <button
                               type="button"
                               onClick={() => { setNotifImage(''); setNotifImageFile(null); }}
                               style={{ position: 'absolute', top: '8px', right: '8px', background: 'rgba(239, 68, 68, 0.9)', color: 'white', border: 'none', borderRadius: '50%', width: '28px', height: '28px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}
@@ -2538,7 +2553,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                 {/* Left column: Image preview & File upload button */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
                   <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', alignSelf: 'flex-start', margin: 0 }}>Ảnh thiết bị</label>
-                  <div 
+                  <div
                     onClick={() => {
                       const input = document.createElement('input');
                       input.type = 'file';
@@ -2557,15 +2572,15 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                     }}
                     onMouseEnter={() => setIsEditImageHovered(true)}
                     onMouseLeave={() => setIsEditImageHovered(false)}
-                    style={{ 
-                      width: '100%', 
-                      height: '180px', 
-                      borderRadius: '12px', 
-                      border: `2px dashed ${isEditImageHovered ? '#006D44' : 'var(--border-color)'}`, 
-                      display: 'flex', 
+                    style={{
+                      width: '100%',
+                      height: '180px',
+                      borderRadius: '12px',
+                      border: `2px dashed ${isEditImageHovered ? '#006D44' : 'var(--border-color)'}`,
+                      display: 'flex',
                       flexDirection: 'column',
-                      alignItems: 'center', 
-                      justifyContent: 'center', 
+                      alignItems: 'center',
+                      justifyContent: 'center',
                       overflow: 'hidden',
                       position: 'relative',
                       background: isEditImageHovered ? 'rgba(0, 109, 68, 0.03)' : 'rgba(255, 255, 255, 0.03)',
@@ -2576,12 +2591,12 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                   >
                     {editProdImage ? (
                       <>
-                        <img 
-                          src={editProdImage} 
-                          alt="Preview" 
-                          style={{ 
-                            width: '100%', 
-                            height: '100%', 
+                        <img
+                          src={editProdImage}
+                          alt="Preview"
+                          style={{
+                            width: '100%',
+                            height: '100%',
                             objectFit: 'contain',
                             objectPosition: 'center',
                             background: 'rgba(0,0,0,0.15)',
@@ -2590,7 +2605,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                           onError={(e) => {
                             e.target.style.display = 'none';
                             e.target.nextSibling && (e.target.nextSibling.style.display = 'none');
-                            e.target.parentElement.querySelector('.img-error-placeholder') && 
+                            e.target.parentElement.querySelector('.img-error-placeholder') &&
                               (e.target.parentElement.querySelector('.img-error-placeholder').style.display = 'flex');
                           }}
                         />
@@ -2624,7 +2639,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                       </div>
                     )}
                   </div>
-                  
+
                   <button
                     type="button"
                     className="btn btn-outline btn-sm"
@@ -2669,9 +2684,9 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                   <div className="form-row-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                     <div className="form-group">
                       <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>Tên thiết bị</label>
-                      <input 
-                        type="text" 
-                        className="form-control" 
+                      <input
+                        type="text"
+                        className="form-control"
                         value={editProdName}
                         onChange={e => setEditProdName(e.target.value)}
                         required
@@ -2679,9 +2694,9 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                     </div>
                     <div className="form-group">
                       <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>Giá bán (VND)</label>
-                      <input 
-                        type="number" 
-                        className="form-control" 
+                      <input
+                        type="number"
+                        className="form-control"
                         value={editProdPrice}
                         onChange={e => setEditProdPrice(e.target.value)}
                         required
@@ -2692,7 +2707,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                   <div className="form-row-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                     <div className="form-group">
                       <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>Danh mục</label>
-                      <select 
+                      <select
                         className="form-control"
                         value={editProdCategory}
                         onChange={e => setEditProdCategory(e.target.value)}
@@ -2708,7 +2723,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                     </div>
                     <div className="form-group">
                       <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>Chất lượng kiểm định</label>
-                      <select 
+                      <select
                         className="form-control"
                         value={editProdCondition}
                         onChange={e => setEditProdCondition(e.target.value)}
@@ -2723,9 +2738,9 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                   <div className="form-row-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                     <div className="form-group">
                       <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>Đường dẫn ảnh (Image URL)</label>
-                      <input 
-                        type="text" 
-                        className="form-control" 
+                      <input
+                        type="text"
+                        className="form-control"
                         value={editProdImage && editProdImage.startsWith('data:image/') ? '[Tải lên từ file]' : editProdImage}
                         onChange={e => setEditProdImage(e.target.value)}
                         placeholder="Nhập đường dẫn ảnh..."
@@ -2733,7 +2748,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                     </div>
                     <div className="form-group">
                       <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>Trạng thái</label>
-                      <select 
+                      <select
                         className="form-control"
                         value={editProdStatus}
                         onChange={e => setEditProdStatus(e.target.value)}
@@ -2746,9 +2761,9 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
 
                   <div className="form-group">
                     <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>Mô tả chi tiết</label>
-                    <textarea 
-                      className="form-control" 
-                      rows="3" 
+                    <textarea
+                      className="form-control"
+                      rows="3"
                       value={editProdDesc}
                       onChange={e => setEditProdDesc(e.target.value)}
                       required

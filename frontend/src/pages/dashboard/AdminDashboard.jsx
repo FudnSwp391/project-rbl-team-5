@@ -4,8 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import io from 'socket.io-client';
 import { getProductImage } from '../../components/ProductCard';
 import ProfileSettings from '../../components/ProfileSettings';
-import { 
-  LayoutDashboard, ShoppingBag, Calendar, Plus, Trash2, 
+import {
+  LayoutDashboard, ShoppingBag, Calendar, Plus, Trash2,
   Users, Sun, Moon, Eye, Search, Bell, Settings, HelpCircle, LogOut,
   MapPin, CreditCard, Pencil, Shield, ArrowLeft, MessageSquare, Tag, Send, Image, Paperclip, X, Menu
 } from 'lucide-react';
@@ -75,7 +75,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
   const [notifImage, setNotifImage] = useState('');
   const [notifTargetRole, setNotifTargetRole] = useState('all');
   const [notifLink, setNotifLink] = useState('');
-  
+
   // --- HERO BANNER MANAGEMENT ---
   const [heroBanners, setHeroBanners] = useState([]);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
@@ -218,18 +218,18 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
       alert("Vui lòng nhập cả mã và tỷ lệ phần trăm giảm giá.");
       return;
     }
-    
+
     const discountNum = parseInt(newPromoDiscount);
     if (isNaN(discountNum) || discountNum <= 0 || discountNum >= 100) {
       alert("Phần trăm giảm giá phải từ 1% đến 99%!");
       return;
     }
-    
+
     let formattedExpiry = '2026-12-31';
     if (newPromoExpiry) {
       formattedExpiry = newPromoExpiry;
     }
-    
+
     try {
       const res = await fetch(`${API_BASE}/api/promocodes`, {
         method: 'POST',
@@ -244,7 +244,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
           status: newPromoActive ? 'active' : 'expired'
         })
       });
-      
+
       if (res.ok) {
         const newCode = await res.json();
         setPromoCodes(prev => [newCode, ...prev]);
@@ -274,7 +274,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
     } catch (err) {
       console.error('Lỗi khi click thông báo:', err);
     }
-    
+
     if (notif.type === 'chat') {
       setSubTab('chat');
     }
@@ -293,16 +293,16 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ 
-          title: notifTitle, 
+        body: JSON.stringify({
+          title: notifTitle,
           message: notifMessage,
           image: notifImage,
           targetRole: notifTargetRole
         })
       });
       if (res.ok) {
-        const targetText = notifTargetRole === 'all' ? 'toàn bộ người dùng' : 
-                          notifTargetRole === 'technician' ? 'các thợ kỹ thuật' : 'các seller';
+        const targetText = notifTargetRole === 'all' ? 'toàn bộ người dùng' :
+          notifTargetRole === 'technician' ? 'các thợ kỹ thuật' : 'các seller';
         alert(`Thông báo đã được gửi thành công đến ${targetText}!`);
         setNotifTitle('');
         setNotifMessage('');
@@ -372,8 +372,8 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
           areaPath: "M 40 180 L 113.33 160 L 186.66 170 L 260.00 130 L 333.33 140 L 406.66 90 L 480.00 70 L 480 180 L 40 180 Z",
           linePath: "M 40 180 L 113.33 160 L 186.66 170 L 260.00 130 L 333.33 140 L 406.66 90 L 480.00 70",
           dots: [
-            {cx: 40, cy: 180}, {cx: 113.33, cy: 160}, {cx: 186.66, cy: 170}, 
-            {cx: 260.00, cy: 130}, {cx: 333.33, cy: 140}, {cx: 406.66, cy: 90}, {cx: 480.00, cy: 70}
+            { cx: 40, cy: 180 }, { cx: 113.33, cy: 160 }, { cx: 186.66, cy: 170 },
+            { cx: 260.00, cy: 130 }, { cx: 333.33, cy: 140 }, { cx: 406.66, cy: 90 }, { cx: 480.00, cy: 70 }
           ],
           repairShare: "32,780,000 VND (44%)",
           salesShare: "41,720,000 VND (56%)",
@@ -391,8 +391,8 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
           areaPath: "M 40 170 L 113.33 140 L 186.66 150 L 260.00 110 L 333.33 120 L 406.66 75 L 480.00 50 L 480 180 L 40 180 Z",
           linePath: "M 40 170 L 113.33 140 L 186.66 150 L 260.00 110 L 333.33 120 L 406.66 75 L 480.00 50",
           dots: [
-            {cx: 40, cy: 170}, {cx: 113.33, cy: 140}, {cx: 186.66, cy: 150}, 
-            {cx: 260.00, cy: 110}, {cx: 333.33, cy: 120}, {cx: 406.66, cy: 75}, {cx: 480.00, cy: 50}
+            { cx: 40, cy: 170 }, { cx: 113.33, cy: 140 }, { cx: 186.66, cy: 150 },
+            { cx: 260.00, cy: 110 }, { cx: 333.33, cy: 120 }, { cx: 406.66, cy: 75 }, { cx: 480.00, cy: 50 }
           ],
           repairShare: "140,800,000 VND (44%)",
           salesShare: "179,200,000 VND (56%)",
@@ -411,9 +411,9 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
           areaPath: "M 40 180 L 80 150 L 120 165 L 160 120 L 200 135 L 240 100 L 280 115 L 320 80 L 360 95 L 400 65 L 440 78 L 480 50 L 480 180 L 40 180 Z",
           linePath: "M 40 180 L 80 150 L 120 165 L 160 120 L 200 135 L 240 100 L 280 115 L 320 80 L 360 95 L 400 65 L 440 78 L 480 50",
           dots: [
-            {cx: 40, cy: 180}, {cx: 80, cy: 150}, {cx: 120, cy: 165}, {cx: 160, cy: 120}, 
-            {cx: 200, cy: 135}, {cx: 240, cy: 100}, {cx: 280, cy: 115}, {cx: 320, cy: 80}, 
-            {cx: 360, cy: 95}, {cx: 400, cy: 65}, {cx: 440, cy: 78}, {cx: 480, cy: 50}
+            { cx: 40, cy: 180 }, { cx: 80, cy: 150 }, { cx: 120, cy: 165 }, { cx: 160, cy: 120 },
+            { cx: 200, cy: 135 }, { cx: 240, cy: 100 }, { cx: 280, cy: 115 }, { cx: 320, cy: 80 },
+            { cx: 360, cy: 95 }, { cx: 400, cy: 65 }, { cx: 440, cy: 78 }, { cx: 480, cy: 50 }
           ],
           repairShare: "1,250,000,000 VND (44%)",
           salesShare: "1,590,000,000 VND (56%)",
@@ -575,7 +575,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
         alert("Bạn chỉ có thể tải lên tối đa 10 hình ảnh.");
         return;
       }
-      
+
       const promises = files.map(file => {
         return new Promise((resolve, reject) => {
           const reader = new FileReader();
@@ -584,7 +584,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
           reader.readAsDataURL(file);
         });
       });
-      
+
       Promise.all(promises).then(base64s => {
         setSelectedImageFiles(prev => [...prev, ...base64s]);
       }).catch(err => {
@@ -870,7 +870,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
               <span>#TRUNG TÂM PHÂN TÍCH</span>
             </div>
           </div>
-          
+
           <nav className="sidebar-nav-menu">
             <button className={`sidebar-nav-btn ${subTab === 'stats' ? 'active' : ''}`} onClick={() => handleNavClick('stats')}>
               <LayoutDashboard size={18} />
@@ -920,7 +920,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
         <main className="dashboard-main-content">
           <header className="dashboard-top-bar glass-panel">
             {/* Mobile Toggle Button for Sidebar Nav */}
-            <button 
+            <button
               className="dashboard-sidebar-toggle-btn-mobile"
               onClick={() => setShowMobileSidebar(!showMobileSidebar)}
               title={showMobileSidebar ? "Ẩn thanh công cụ" : "Hiện thanh công cụ"}
@@ -939,25 +939,25 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                 {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
               </button>
               <div style={{ position: 'relative' }}>
-                <NotificationBell 
-                  notifications={notifications} 
-                  onClearAll={clearAllNotifications} 
-                  onClickNotification={handleNotificationClick} 
+                <NotificationBell
+                  notifications={notifications}
+                  onClearAll={clearAllNotifications}
+                  onClickNotification={handleNotificationClick}
                 />
               </div>
-              
+
               <button className="topbar-action-btn messages" onClick={() => setSubTab('chat')} title="Tin nhắn">
                 <MessageSquare size={20} />
               </button>
-              
+
               <button className={`topbar-action-btn settings ${subTab === 'settings' ? 'active' : ''}`} onClick={() => setSubTab('settings')} title="Cài đặt">
                 <Settings size={20} />
               </button>
-              
+
               <div className="topbar-divider"></div>
 
-              <div 
-                className="topbar-profile-widget" 
+              <div
+                className="topbar-profile-widget"
                 style={{ cursor: 'pointer' }}
                 onClick={() => {
                   setCustomAvatarUrl(user.avatar || '');
@@ -969,7 +969,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                   <h4>{user.username === 'admin' ? 'Admin TechCycle' : user.username}</h4>
                   <span>Quản trị viên</span>
                 </div>
-                 <img src={getAvatarUrl(user.avatar, user.username)} alt={user.username} className="profile-avatar-circle" />
+                <img src={getAvatarUrl(user.avatar, user.username)} alt={user.username} className="profile-avatar-circle" />
               </div>
             </div>
           </header>
@@ -1013,7 +1013,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                     <line x1="40" y1="80" x2="480" y2="80" stroke="var(--border-color)" strokeWidth="1" strokeDasharray="3 3" />
                     <line x1="40" y1="130" x2="480" y2="130" stroke="var(--border-color)" strokeWidth="1" strokeDasharray="3 3" />
                     <line x1="40" y1="180" x2="480" y2="180" stroke="var(--border-color)" strokeWidth="1" strokeDasharray="3 3" />
-                    
+
                     <text x="15" y="34" fontSize="9" fill="var(--neutral-medium)" fontWeight={600}>{trend.yAxis[0]}</text>
                     <text x="15" y="84" fontSize="9" fill="var(--neutral-medium)" fontWeight={600}>{trend.yAxis[1]}</text>
                     <text x="15" y="134" fontSize="9" fill="var(--neutral-medium)" fontWeight={600}>{trend.yAxis[2]}</text>
@@ -1027,11 +1027,11 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                     </defs>
                     <path d={trend.areaPath} fill="url(#chart-grad-emerald)" />
 
-                    <path 
-                      d={trend.linePath} 
-                      fill="none" 
-                      stroke="#006D44" 
-                      strokeWidth="3.5" 
+                    <path
+                      d={trend.linePath}
+                      fill="none"
+                      stroke="#006D44"
+                      strokeWidth="3.5"
                       strokeLinecap="round"
                       strokeLinejoin="round"
                     />
@@ -1277,26 +1277,26 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                             </td>
                             <td>
                               <span className={`badge badge-${o.status}`}>
-                                {o.status === 'pending' ? 'Chờ xem máy' : 
-                                 o.status === 'confirmed' ? 'Đã xác nhận' : 
-                                 o.status === 'completed' ? 'Khách đã tới (Đã bán)' : 
-                                 o.status === 'cancelled' || o.status === 'canceled' ? 'Đã hủy' : 
-                                 o.status === 'reserved' ? 'Đã giữ máy' : 
-                                 o.status === 'waiting_payment' ? 'Chờ thanh toán (Đang giữ máy)' : o.status}
+                                {o.status === 'pending' ? 'Chờ xem máy' :
+                                  o.status === 'confirmed' ? 'Đã xác nhận' :
+                                    o.status === 'completed' ? 'Khách đã tới (Đã bán)' :
+                                      o.status === 'cancelled' || o.status === 'canceled' ? 'Đã hủy' :
+                                        o.status === 'reserved' ? 'Đã giữ máy' :
+                                          o.status === 'waiting_payment' ? 'Chờ thanh toán (Đang giữ máy)' : o.status}
                               </span>
                             </td>
                             <td>
                               {(o.status === 'pending' || o.status === 'confirmed' || o.status === 'reserved' || o.status === 'waiting_payment') ? (
                                 <div style={{ display: 'flex', gap: '8px' }}>
-                                  <button 
-                                    className="btn btn-secondary btn-sm" 
+                                  <button
+                                    className="btn btn-secondary btn-sm"
                                     onClick={() => handleConfirmOrderVisit(o.id)}
                                     style={{ padding: '6px 12px', fontSize: '0.85rem', backgroundColor: 'var(--primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
                                   >
                                     Xác nhận khách đã tới
                                   </button>
-                                  <button 
-                                    className="btn btn-outline-danger btn-sm" 
+                                  <button
+                                    className="btn btn-outline-danger btn-sm"
                                     onClick={() => handleCancelOrder(o.id)}
                                     style={{ padding: '6px 12px', fontSize: '0.85rem', borderColor: 'var(--accent-red)', color: 'var(--accent-red)', background: 'transparent', borderRadius: '4px', cursor: 'pointer' }}
                                   >
@@ -1316,8 +1316,8 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
 
                 {totalOrderPages > 1 && (
                   <div className="pagination-wrapper">
-                    <button 
-                      disabled={activeOrdersPage === 1} 
+                    <button
+                      disabled={activeOrdersPage === 1}
                       onClick={() => setOrdersPage(activeOrdersPage - 1)}
                       className="pagination-btn"
                     >
@@ -1332,8 +1332,8 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                         {page}
                       </button>
                     ))}
-                    <button 
-                      disabled={activeOrdersPage === totalOrderPages} 
+                    <button
+                      disabled={activeOrdersPage === totalOrderPages}
                       onClick={() => setOrdersPage(activeOrdersPage + 1)}
                       className="pagination-btn"
                     >
@@ -1382,7 +1382,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                               <div className="tbl-subtext">{bk.notes && bk.notes.includes('Khung giờ:') ? bk.notes : 'Khung giờ: Sáng'}</div>
                             </td>
                             <td>
-                              <select 
+                              <select
                                 className="form-control"
                                 value={bk.technicianId || ''}
                                 onChange={(e) => {
@@ -1398,7 +1398,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                               </select>
                             </td>
                             <td>
-                              <select 
+                              <select
                                 className="form-control"
                                 value={bk.status}
                                 onChange={(e) => {
@@ -1416,16 +1416,16 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                             </td>
                             <td>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '150px' }}>
-                                <input 
-                                  type="number" 
-                                  className="form-control" 
+                                <input
+                                  type="number"
+                                  className="form-control"
                                   defaultValue={bk.cost || 0}
                                   onBlur={(e) => handleUpdateBookingDetails(bk.id, { cost: Number(e.target.value) })}
                                   placeholder="Chi phí (VND)"
                                   style={{ padding: '4px 8px', fontSize: '0.85rem' }}
                                 />
-                                <input 
-                                  type="text" 
+                                <input
+                                  type="text"
                                   className="form-control"
                                   defaultValue={bk.notes && !bk.notes.includes('Khung giờ:') ? bk.notes : ''}
                                   onBlur={(e) => handleUpdateBookingDetails(bk.id, { notes: e.target.value })}
@@ -1434,8 +1434,8 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                                 />
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '4px' }}>
                                   <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--neutral-medium)' }}>Chốt ngày nhận máy:</label>
-                                  <input 
-                                    type="date" 
+                                  <input
+                                    type="date"
                                     className="form-control"
                                     defaultValue={bk.pickup_date ? bk.pickup_date.split('T')[0] : ''}
                                     onChange={(e) => handleUpdateBookingDetails(bk.id, { pickupDate: e.target.value })}
@@ -1473,8 +1473,8 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
 
                 {totalBookingPages > 1 && (
                   <div className="pagination-wrapper">
-                    <button 
-                      disabled={activeBookingsPage === 1} 
+                    <button
+                      disabled={activeBookingsPage === 1}
                       onClick={() => setBookingsPage(activeBookingsPage - 1)}
                       className="pagination-btn"
                     >
@@ -1489,8 +1489,8 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                         {page}
                       </button>
                     ))}
-                    <button 
-                      disabled={activeBookingsPage === totalBookingPages} 
+                    <button
+                      disabled={activeBookingsPage === totalBookingPages}
                       onClick={() => setBookingsPage(activeBookingsPage + 1)}
                       className="pagination-btn"
                     >
@@ -1511,14 +1511,14 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
               <form onSubmit={handleAddProduct} className="add-product-form glass-panel form-inline-custom">
                 <h3>Đăng Bán Thiết Bị Đã Tân Trang</h3>
                 {productSuccess && <div className="success-banner-alert">{productSuccess}</div>}
-                
+
                 <div className="form-row-grid">
                   <div className="form-group">
                     <label className="form-label">Tên thiết bị</label>
-                    <input 
-                      type="text" 
-                      className="form-control" 
-                      placeholder="Ví dụ: Tủ lạnh Samsung Inverter 488L" 
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="Ví dụ: Tủ lạnh Samsung Inverter 488L"
                       value={newProdName}
                       onChange={e => setNewProdName(e.target.value)}
                       required
@@ -1526,10 +1526,10 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                   </div>
                   <div className="form-group">
                     <label className="form-label">Giá bán (VND)</label>
-                    <input 
-                      type="number" 
-                      className="form-control" 
-                      placeholder="Ví dụ: 15000000" 
+                    <input
+                      type="number"
+                      className="form-control"
+                      placeholder="Ví dụ: 15000000"
                       value={newProdPrice}
                       onChange={e => setNewProdPrice(e.target.value)}
                       required
@@ -1540,7 +1540,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                 <div className="form-row-grid">
                   <div className="form-group">
                     <label className="form-label">Danh mục</label>
-                    <select 
+                    <select
                       className="form-control"
                       value={newProdCategory}
                       onChange={e => setNewProdCategory(e.target.value)}
@@ -1556,7 +1556,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                   </div>
                   <div className="form-group">
                     <label className="form-label">Chất lượng kiểm định</label>
-                    <select 
+                    <select
                       className="form-control"
                       value={newProdCondition}
                       onChange={e => setNewProdCondition(e.target.value)}
@@ -1571,20 +1571,20 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                 <div className="form-row-grid">
                   <div className="form-group">
                     <label className="form-label">Hoặc nhập link hình ảnh</label>
-                    <input 
-                      type="url" 
-                      className="form-control" 
-                      placeholder="https://images.unsplash.com/..." 
+                    <input
+                      type="url"
+                      className="form-control"
+                      placeholder="https://images.unsplash.com/..."
                       value={newProdImage}
                       onChange={e => setNewProdImage(e.target.value)}
                     />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Tải lên từ máy tính (Chọn nhiều ảnh, tối đa 10)</label>
-                    <input 
-                      type="file" 
-                      className="form-control" 
-                      multiple 
+                    <input
+                      type="file"
+                      className="form-control"
+                      multiple
                       accept="image/*"
                       onChange={handleImageFilesChange}
                     />
@@ -1598,9 +1598,9 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                       {selectedImageFiles.map((base64, idx) => (
                         <div key={idx} style={{ position: 'relative', width: '70px', height: '70px', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
                           <img src={base64} alt={`Uploaded ${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          <button 
-                            type="button" 
-                            onClick={() => handleRemoveSelectedImage(idx)} 
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveSelectedImage(idx)}
                             style={{ position: 'absolute', top: '2px', right: '2px', background: 'rgba(239, 68, 68, 0.85)', color: '#fff', border: 'none', borderRadius: '50%', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', cursor: 'pointer', fontWeight: 'bold' }}
                           >
                             ×
@@ -1613,9 +1613,9 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
 
                 <div className="form-group">
                   <label className="form-label">Mô tả chi tiết</label>
-                  <textarea 
-                    className="form-control" 
-                    rows="3" 
+                  <textarea
+                    className="form-control"
+                    rows="3"
                     placeholder="Nhập chi tiết về pin, ngoại quan, tình trạng hao mòn, chi tiết bảo hành..."
                     value={newProdDesc}
                     onChange={e => setNewProdDesc(e.target.value)}
@@ -1665,7 +1665,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                         </td>
                         <td>
                           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            <button 
+                            <button
                               className="edit-item-btn"
                               onClick={() => {
                                 setEditingProduct(prod);
@@ -1693,7 +1693,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                             >
                               <Pencil size={16} />
                             </button>
-                            <button 
+                            <button
                               className="delete-item-btn"
                               onClick={() => handleDeleteProduct(prod.id)}
                               title="Xóa sản phẩm"
@@ -1726,7 +1726,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
             <div className="users-manager animate-fade">
               <h2>Danh Sách Đăng Ký Tài Khoản & Nhân Viên</h2>
               <p className="view-desc">Giám sát các tài khoản, kiểm tra thông tin chi tiết và xóa thông tin xác thực chưa được ủy quyền khỏi cơ sở dữ liệu.</p>
-              
+
               <div className="table-responsive">
                 <table className="dashboard-table">
                   <thead>
@@ -1744,7 +1744,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                       <tr key={u.id}>
                         <td>
                           <div className="tbl-user-cell">
-                             <img src={getAvatarUrl(u.avatar, u.username)} alt={u.username} className="tbl-avatar-circle" />
+                            <img src={getAvatarUrl(u.avatar, u.username)} alt={u.username} className="tbl-avatar-circle" />
                             <strong>{u.username}</strong>
                           </div>
                         </td>
@@ -1778,7 +1778,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                         <td>{new Date(u.createdAt).toLocaleDateString('vi-VN', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
                         <td>
                           <div className="action-buttons-wrap">
-                            <button 
+                            <button
                               className="view-item-btn"
                               onClick={() => setViewingUser(u)}
                               title="Xem hồ sơ tài khoản"
@@ -1786,7 +1786,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                               <Eye size={16} />
                             </button>
                             {u.id !== user.id && u.role !== 'admin' && (
-                              <button 
+                              <button
                                 className="delete-item-btn"
                                 onClick={() => handleDeleteUser(u.id)}
                                 title="Xóa tài khoản người dùng"
@@ -1819,10 +1819,10 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                     <div className="profile-card-widget glass-panel h-100">
                       <div className="profile-card-body">
                         <div className="profile-avatar-container">
-                          <img 
-                            src={getAvatarUrl(viewingUser.avatar, viewingUser.username)} 
-                            alt={viewingUser.username} 
-                            className="detail-avatar" 
+                          <img
+                            src={getAvatarUrl(viewingUser.avatar, viewingUser.username)}
+                            alt={viewingUser.username}
+                            className="detail-avatar"
                           />
                           <span className="member-badge">🌟 THÀNH VIÊN VÀNG</span>
                         </div>
@@ -1958,7 +1958,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
               <div className="customers-view animate-fade">
                 <h2>Sổ Khách Hàng</h2>
                 <p className="view-desc">Danh sách khách hàng đăng ký. Hiển thị phiếu sửa chữa và đơn hàng.</p>
-                
+
                 <div className="table-responsive">
                   <table className="dashboard-table">
                     <thead>
@@ -1979,7 +1979,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                           <tr key={c.id} onClick={() => setViewingUser(c)} style={{ cursor: 'pointer' }} className="customer-row-hover">
                             <td>
                               <div className="tbl-user-cell">
-                                 <img src={getAvatarUrl(c.avatar, c.username)} alt={c.username} className="tbl-avatar-circle" />
+                                <img src={getAvatarUrl(c.avatar, c.username)} alt={c.username} className="tbl-avatar-circle" />
                                 <strong>{c.username}</strong>
                               </div>
                             </td>
@@ -2002,13 +2002,13 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
             <div className="seller-marketing-view animate-fade">
               <h2>Quản Lý Chiến Dịch & Khuyến Mãi</h2>
               <p className="view-desc">Tạo mã giảm giá và quản lý các chương trình tiếp thị thu hút khách hàng.</p>
-              
+
               {/* Hero Banner Upload Section */}
               <div className="stats-card-widget glass-panel" style={{ marginBottom: '28px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                   <h3 style={{ margin: 0 }}>🎨 Quản Lý Banner Carousel Trang Chủ</h3>
-                  <button 
-                    className="btn btn-primary" 
+                  <button
+                    className="btn btn-primary"
                     style={{ background: '#F59E0B', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.9rem' }}
                     onClick={() => {
                       const newBanner = {
@@ -2029,7 +2029,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                     ➕ Thêm Banner Mới
                   </button>
                 </div>
-                
+
                 {/* Current Banners Preview */}
                 {heroBanners.length > 0 && (
                   <div style={{ marginBottom: '24px', padding: '16px', background: 'var(--neutral-lightest)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
@@ -2043,9 +2043,9 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                           <div style={{ position: 'absolute', top: '8px', left: '8px', background: 'rgba(0,0,0,0.7)', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold' }}>
                             #{idx + 1}
                           </div>
-                          <button 
-                            onClick={(e) => { 
-                              e.stopPropagation(); 
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
                               const updated = heroBanners.filter(b => b.id !== banner.id);
                               setHeroBanners(updated);
                               if (currentBannerIndex >= updated.length) {
@@ -2059,7 +2059,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                     </div>
                   </div>
                 )}
-                
+
                 <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
                   <div className="hero-upload-area" style={{ border: '2px dashed var(--border-color)', borderRadius: '12px', padding: '32px', background: 'var(--neutral-lightest)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '300px', cursor: heroBanners[currentBannerIndex] ? 'pointer' : 'not-allowed', transition: 'all 0.3s', opacity: heroBanners[currentBannerIndex] ? 1 : 0.6 }}
                     onDragOver={(e) => e.preventDefault()}
@@ -2092,7 +2092,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                     {heroBanners[currentBannerIndex]?.image ? (
                       <div style={{ width: '100%', height: '100%', position: 'relative' }}>
                         <img src={heroBanners[currentBannerIndex].image} alt="Hero Banner" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} />
-                        <button 
+                        <button
                           onClick={(e) => { e.stopPropagation(); updateCurrentBanner('image', ''); }}
                           style={{ position: 'absolute', top: '12px', right: '12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                         >×</button>
@@ -2108,13 +2108,13 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                       </>
                     )}
                   </div>
-                  
+
                   <div className="hero-settings" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     <div className="form-group">
                       <label className="form-label-sm">NHÃN NHỎ (BADGE)</label>
-                      <input 
-                        type="text" 
-                        className="form-control" 
+                      <input
+                        type="text"
+                        className="form-control"
                         placeholder="BADGE..."
                         disabled={!heroBanners[currentBannerIndex]}
                         value={heroBanners[currentBannerIndex]?.badge || ''}
@@ -2123,9 +2123,9 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                     </div>
                     <div className="form-group">
                       <label className="form-label-sm">TIÊU ĐỀ BANNER</label>
-                      <input 
-                        type="text" 
-                        className="form-control" 
+                      <input
+                        type="text"
+                        className="form-control"
                         placeholder="Tái sinh thiết bị của bạn..."
                         disabled={!heroBanners[currentBannerIndex]}
                         value={heroBanners[currentBannerIndex]?.title || ''}
@@ -2134,9 +2134,9 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                     </div>
                     <div className="form-group">
                       <label className="form-label-sm">CHỮ NỔI BẬT</label>
-                      <input 
-                        type="text" 
-                        className="form-control" 
+                      <input
+                        type="text"
+                        className="form-control"
                         placeholder="với Trí tuệ Nhân tạo..."
                         disabled={!heroBanners[currentBannerIndex]}
                         value={heroBanners[currentBannerIndex]?.titleHighlight || ''}
@@ -2145,8 +2145,8 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                     </div>
                     <div className="form-group">
                       <label className="form-label-sm">MÔ TẢ NGẮN</label>
-                      <textarea 
-                        className="form-control" 
+                      <textarea
+                        className="form-control"
                         rows="3"
                         placeholder="Hệ thống chẩn đoán lỗi bằng AI..."
                         disabled={!heroBanners[currentBannerIndex]}
@@ -2156,18 +2156,18 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                     </div>
                     <div className="form-group">
                       <label className="form-label-sm">LINK HÀNH ĐỘNG</label>
-                      <input 
-                        type="text" 
-                        className="form-control" 
+                      <input
+                        type="text"
+                        className="form-control"
                         placeholder="/booking hoặc URL đầy đủ"
                         disabled={!heroBanners[currentBannerIndex]}
                         value={heroBanners[currentBannerIndex]?.actionLink || ''}
                         onChange={e => updateCurrentBanner('actionLink', e.target.value)}
                       />
                     </div>
-                    <button 
-                      type="button" 
-                      className="btn btn-primary" 
+                    <button
+                      type="button"
+                      className="btn btn-primary"
                       style={{ background: '#10B981', border: 'none', padding: '12px', borderRadius: '8px', fontWeight: 'bold', marginTop: 'auto' }}
                       onClick={handleSaveBanners}
                       disabled={heroBanners.length === 0}
@@ -2177,13 +2177,13 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                   </div>
                 </div>
               </div>
-              
+
               {/* Features Section Editor */}
               <div className="stats-card-widget glass-panel" style={{ marginBottom: '28px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                   <h3 style={{ margin: 0 }}>📝 Chỉnh Sửa Section "Vì sao TechCycle"</h3>
-                  <button 
-                    className="btn btn-primary" 
+                  <button
+                    className="btn btn-primary"
                     style={{ background: '#F59E0B', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.9rem' }}
                     onClick={() => {
                       setFeatureItems(prev => [...prev, {
@@ -2201,9 +2201,9 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
                   <div className="form-group">
                     <label className="form-label-sm">TIÊU ĐỀ PHỤ (SUBTITLE)</label>
-                    <input 
-                      type="text" 
-                      className="form-control" 
+                    <input
+                      type="text"
+                      className="form-control"
                       placeholder="Lựa chọn bền vững"
                       value={featureSectionSubtitle}
                       onChange={e => setFeatureSectionSubtitle(e.target.value)}
@@ -2211,9 +2211,9 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                   </div>
                   <div className="form-group">
                     <label className="form-label-sm">TIÊU ĐỀ CHÍNH</label>
-                    <input 
-                      type="text" 
-                      className="form-control" 
+                    <input
+                      type="text"
+                      className="form-control"
                       placeholder="Vì sao TechCycle là lựa chọn hàng đầu?"
                       value={featureSectionTitle}
                       onChange={e => setFeatureSectionTitle(e.target.value)}
@@ -2222,8 +2222,8 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                 </div>
                 <div className="form-group" style={{ marginBottom: '20px' }}>
                   <label className="form-label-sm">MÔ TẢ SECTION</label>
-                  <textarea 
-                    className="form-control" 
+                  <textarea
+                    className="form-control"
                     rows="2"
                     placeholder="Chúng tôi hướng đến xây dựng..."
                     value={featureSectionDesc}
@@ -2234,8 +2234,8 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                 <div className="form-group" style={{ marginBottom: '20px' }}>
                   <label className="form-label-sm">HÌNH ẢNH MINH HỌA SECTION (BÊN PHẢI)</label>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                    <div 
-                      className="hero-upload-area" 
+                    <div
+                      className="hero-upload-area"
                       style={{ border: '2px dashed var(--border-color)', borderRadius: '12px', padding: '24px', background: 'var(--neutral-lightest)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '200px', cursor: 'pointer', transition: 'all 0.3s' }}
                       onDragOver={(e) => e.preventDefault()}
                       onDrop={(e) => {
@@ -2265,7 +2265,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                       {featureSectionImage ? (
                         <div style={{ width: '100%', height: '100%', position: 'relative', textAlign: 'center' }}>
                           <img src={featureSectionImage} alt="Features Section Visual" style={{ maxHeight: '180px', maxWidth: '100%', objectFit: 'contain', borderRadius: '8px' }} />
-                          <button 
+                          <button
                             onClick={(e) => { e.stopPropagation(); setFeatureSectionImage(''); }}
                             style={{ position: 'absolute', top: '4px', right: '4px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '50%', width: '28px', height: '28px', cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                           >×</button>
@@ -2281,11 +2281,11 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                         </>
                       )}
                     </div>
-                    
+
                     <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                       <label className="form-label-sm" style={{ marginBottom: '8px' }}>ĐƯỜNG DẪN ẢNH (HOẶC BASE64)</label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         className="form-control"
                         placeholder="Nhập đường dẫn ảnh Unsplash hoặc Base64..."
                         value={featureSectionImage || ''}
@@ -2304,7 +2304,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                     <div key={idx} style={{ padding: '16px', background: 'var(--neutral-lightest)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                         <span style={{ fontWeight: 'bold', fontSize: '0.9rem', color: 'var(--neutral-dark)' }}>Tính năng #{idx + 1}</span>
-                        <button 
+                        <button
                           onClick={() => setFeatureItems(prev => prev.filter((_, i) => i !== idx))}
                           style={{ background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', padding: '4px 12px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold' }}
                         >🗑️ Xóa</button>
@@ -2312,7 +2312,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '12px' }}>
                         <div className="form-group">
                           <label className="form-label-sm">ICON</label>
-                          <select 
+                          <select
                             className="form-control"
                             value={item.featureIcon}
                             onChange={e => {
@@ -2330,8 +2330,8 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                         </div>
                         <div className="form-group">
                           <label className="form-label-sm">TIÊU ĐỀ TÍNH NĂNG</label>
-                          <input 
-                            type="text" 
+                          <input
+                            type="text"
                             className="form-control"
                             value={item.featureTitle}
                             onChange={e => {
@@ -2344,8 +2344,8 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                       </div>
                       <div className="form-group" style={{ marginTop: '8px' }}>
                         <label className="form-label-sm">MÔ TẢ</label>
-                        <textarea 
-                          className="form-control" 
+                        <textarea
+                          className="form-control"
                           rows="2"
                           value={item.featureDesc}
                           onChange={e => {
@@ -2359,9 +2359,9 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                   ))}
                 </div>
 
-                <button 
-                  type="button" 
-                  className="btn btn-primary" 
+                <button
+                  type="button"
+                  className="btn btn-primary"
                   style={{ background: '#10B981', border: 'none', padding: '12px 24px', borderRadius: '8px', fontWeight: 'bold' }}
                   onClick={handleSaveFeatures}
                   disabled={featureItems.length === 0}
@@ -2396,16 +2396,16 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="layout-col-right" style={{ width: '100%', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '28px' }}>
                   <div className="stats-card-widget glass-panel">
                     <h3>Tạo Mã Khuyến Mãi Mới</h3>
                     <form onSubmit={handleCreatePromoCode} className="quick-code-form" style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                       <div className="form-group">
                         <label className="form-label-sm">MÃ GIẢM GIÁ (VIẾT LIỀN KHÔNG DẤU)</label>
-                        <input 
-                          type="text" 
-                          className="form-control" 
+                        <input
+                          type="text"
+                          className="form-control"
                           placeholder="VÍ DỤ: TECHCYCLE10"
                           value={newPromoCode}
                           onChange={e => setNewPromoCode(e.target.value)}
@@ -2413,9 +2413,9 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                       </div>
                       <div className="form-group">
                         <label className="form-label-sm">PHẦN TRĂM GIẢM GIÁ (%)</label>
-                        <input 
-                          type="number" 
-                          className="form-control" 
+                        <input
+                          type="number"
+                          className="form-control"
                           placeholder="10"
                           min="1"
                           max="99"
@@ -2425,8 +2425,8 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                       </div>
                       <div className="form-group">
                         <label className="form-label-sm">HẠN SỬ DỤNG (NGÀY & GIỜ HẾT HẠN)</label>
-                        <input 
-                          type="datetime-local" 
+                        <input
+                          type="datetime-local"
                           className="form-control"
                           value={newPromoExpiry}
                           onChange={e => setNewPromoExpiry(e.target.value)}
@@ -2435,9 +2435,9 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                       <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <span className="form-label-sm" style={{ margin: 0 }}>TRẠNG THÁI HOẠT ĐỘNG</span>
                         <label className="switch-container" style={{ position: 'relative', display: 'inline-block', width: '46px', height: '24px' }}>
-                          <input 
-                            type="checkbox" 
-                            style={{ opacity: 0, width: 0, height: 0 }} 
+                          <input
+                            type="checkbox"
+                            style={{ opacity: 0, width: 0, height: 0 }}
                             checked={newPromoActive}
                             onChange={e => setNewPromoActive(e.target.checked)}
                           />
@@ -2455,7 +2455,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                     <form onSubmit={handleCreateNotification} className="quick-code-form" style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                       <div className="form-group">
                         <label className="form-label-sm">ĐỐI TƯỢNG NHẬN</label>
-                        <select 
+                        <select
                           className="form-control"
                           value={notifTargetRole}
                           onChange={e => setNotifTargetRole(e.target.value)}
@@ -2467,9 +2467,9 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                       </div>
                       <div className="form-group">
                         <label className="form-label-sm">TIÊU ĐỀ THÔNG BÁO</label>
-                        <input 
-                          type="text" 
-                          className="form-control" 
+                        <input
+                          type="text"
+                          className="form-control"
                           placeholder="Tiêu đề thông báo..."
                           value={notifTitle}
                           onChange={e => setNotifTitle(e.target.value)}
@@ -2478,8 +2478,8 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                       </div>
                       <div className="form-group">
                         <label className="form-label-sm">NỘI DUNG CHI TIẾT</label>
-                        <textarea 
-                          className="form-control" 
+                        <textarea
+                          className="form-control"
                           rows="4"
                           placeholder="Nội dung gửi đến người dùng..."
                           value={notifMessage}
@@ -2489,9 +2489,9 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                       </div>
                       <div className="form-group">
                         <label className="form-label-sm">ẢNH MINH HỌA (URL)</label>
-                        <input 
-                          type="text" 
-                          className="form-control" 
+                        <input
+                          type="text"
+                          className="form-control"
                           placeholder="https://example.com/image.jpg (tùy chọn)"
                           value={notifImage}
                           onChange={e => setNotifImage(e.target.value)}
@@ -2542,7 +2542,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
             </div>
             <div className="modal-body">
               <div className="user-profile-summary">
-                 <img src={getAvatarUrl(viewingUser.avatar, viewingUser.username)} alt={viewingUser.username} className="modal-avatar" />
+                <img src={getAvatarUrl(viewingUser.avatar, viewingUser.username)} alt={viewingUser.username} className="modal-avatar" />
                 <div className="profile-details-wrap">
                   <h4>{viewingUser.username}</h4>
                   <span className={`user-role-tag role-${viewingUser.role}`}>{viewingUser.role.toUpperCase()}</span>
@@ -2581,7 +2581,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                 {/* Left column: Image preview & File upload button */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
                   <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', alignSelf: 'flex-start', margin: 0 }}>Ảnh thiết bị</label>
-                  <div 
+                  <div
                     onClick={() => {
                       const input = document.createElement('input');
                       input.type = 'file';
@@ -2600,15 +2600,15 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                     }}
                     onMouseEnter={() => setIsEditImageHovered(true)}
                     onMouseLeave={() => setIsEditImageHovered(false)}
-                    style={{ 
-                      width: '100%', 
-                      height: '180px', 
-                      borderRadius: '12px', 
-                      border: `2px dashed ${isEditImageHovered ? '#006D44' : 'var(--border-color)'}`, 
-                      display: 'flex', 
+                    style={{
+                      width: '100%',
+                      height: '180px',
+                      borderRadius: '12px',
+                      border: `2px dashed ${isEditImageHovered ? '#006D44' : 'var(--border-color)'}`,
+                      display: 'flex',
                       flexDirection: 'column',
-                      alignItems: 'center', 
-                      justifyContent: 'center', 
+                      alignItems: 'center',
+                      justifyContent: 'center',
                       overflow: 'hidden',
                       position: 'relative',
                       background: isEditImageHovered ? 'rgba(0, 109, 68, 0.03)' : 'rgba(255, 255, 255, 0.03)',
@@ -2619,12 +2619,12 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                   >
                     {editProdImage ? (
                       <>
-                        <img 
-                          src={editProdImage} 
-                          alt="Preview" 
-                          style={{ 
-                            width: '100%', 
-                            height: '100%', 
+                        <img
+                          src={editProdImage}
+                          alt="Preview"
+                          style={{
+                            width: '100%',
+                            height: '100%',
                             objectFit: 'contain',
                             objectPosition: 'center',
                             background: 'rgba(0,0,0,0.15)',
@@ -2633,7 +2633,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                           onError={(e) => {
                             e.target.style.display = 'none';
                             e.target.nextSibling && (e.target.nextSibling.style.display = 'none');
-                            e.target.parentElement.querySelector('.img-error-placeholder') && 
+                            e.target.parentElement.querySelector('.img-error-placeholder') &&
                               (e.target.parentElement.querySelector('.img-error-placeholder').style.display = 'flex');
                           }}
                         />
@@ -2667,7 +2667,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                       </div>
                     )}
                   </div>
-                  
+
                   <button
                     type="button"
                     className="btn btn-outline btn-sm"
@@ -2712,9 +2712,9 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                   <div className="form-row-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                     <div className="form-group">
                       <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>Tên thiết bị</label>
-                      <input 
-                        type="text" 
-                        className="form-control" 
+                      <input
+                        type="text"
+                        className="form-control"
                         value={editProdName}
                         onChange={e => setEditProdName(e.target.value)}
                         required
@@ -2722,9 +2722,9 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                     </div>
                     <div className="form-group">
                       <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>Giá bán (VND)</label>
-                      <input 
-                        type="number" 
-                        className="form-control" 
+                      <input
+                        type="number"
+                        className="form-control"
                         value={editProdPrice}
                         onChange={e => setEditProdPrice(e.target.value)}
                         required
@@ -2735,7 +2735,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                   <div className="form-row-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                     <div className="form-group">
                       <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>Danh mục</label>
-                      <select 
+                      <select
                         className="form-control"
                         value={editProdCategory}
                         onChange={e => setEditProdCategory(e.target.value)}
@@ -2751,7 +2751,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                     </div>
                     <div className="form-group">
                       <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>Chất lượng kiểm định</label>
-                      <select 
+                      <select
                         className="form-control"
                         value={editProdCondition}
                         onChange={e => setEditProdCondition(e.target.value)}
@@ -2766,9 +2766,9 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                   <div className="form-row-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                     <div className="form-group">
                       <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>Đường dẫn ảnh (Image URL)</label>
-                      <input 
-                        type="text" 
-                        className="form-control" 
+                      <input
+                        type="text"
+                        className="form-control"
                         value={editProdImage && editProdImage.startsWith('data:image/') ? '[Tải lên từ file]' : editProdImage}
                         onChange={e => setEditProdImage(e.target.value)}
                         placeholder="Nhập đường dẫn ảnh..."
@@ -2776,7 +2776,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                     </div>
                     <div className="form-group">
                       <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>Trạng thái</label>
-                      <select 
+                      <select
                         className="form-control"
                         value={editProdStatus}
                         onChange={e => setEditProdStatus(e.target.value)}
@@ -2789,9 +2789,9 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
 
                   <div className="form-group">
                     <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', display: 'block' }}>Mô tả chi tiết</label>
-                    <textarea 
-                      className="form-control" 
-                      rows="3" 
+                    <textarea
+                      className="form-control"
+                      rows="3"
                       value={editProdDesc}
                       onChange={e => setEditProdDesc(e.target.value)}
                       required
@@ -2814,17 +2814,17 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
           <div className="modal-content glass-panel" onClick={e => e.stopPropagation()} style={{ width: '450px', padding: '24px' }}>
             <div className="modal-header" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Thay đổi ảnh đại diện</h3>
-              <button 
-                onClick={() => setShowAvatarModal(false)} 
+              <button
+                onClick={() => setShowAvatarModal(false)}
                 style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-color)' }}
               >&times;</button>
             </div>
-            
+
             <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px' }}>
-                <img 
-                  src={customAvatarUrl || 'https://api.dicebear.com/7.x/adventurer/svg?seed=placeholder'} 
-                  alt="Preview" 
+                <img
+                  src={customAvatarUrl || 'https://api.dicebear.com/7.x/adventurer/svg?seed=placeholder'}
+                  alt="Preview"
                   style={{ width: '90px', height: '90px', borderRadius: '50%', objectFit: 'cover', border: '3px solid #006D44' }}
                 />
               </div>
@@ -2857,9 +2857,9 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
 
               <div className="form-group">
                 <label className="form-label" style={{ fontWeight: '600', fontSize: '0.8rem', display: 'block', marginBottom: '6px' }}>ĐƯỜNG DẪN ẢNH ĐẠI DIỆN (URL)</label>
-                <input 
-                  type="text" 
-                  className="form-control" 
+                <input
+                  type="text"
+                  className="form-control"
                   placeholder="Dán link ảnh (https://images.unsplash.com/...)"
                   value={customAvatarUrl}
                   onChange={e => setCustomAvatarUrl(e.target.value)}
@@ -2877,16 +2877,16 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                     'https://api.dicebear.com/7.x/adventurer/svg?seed=Jack',
                     'https://api.dicebear.com/7.x/adventurer/svg?seed=Shadow'
                   ].map((p, idx) => (
-                    <img 
+                    <img
                       key={idx}
-                      src={p} 
-                      alt={`Preset ${idx}`} 
+                      src={p}
+                      alt={`Preset ${idx}`}
                       onClick={() => setCustomAvatarUrl(p)}
-                      style={{ 
-                        width: '50px', 
-                        height: '50px', 
-                        borderRadius: '50%', 
-                        cursor: 'pointer', 
+                      style={{
+                        width: '50px',
+                        height: '50px',
+                        borderRadius: '50%',
+                        cursor: 'pointer',
                         border: customAvatarUrl === p ? '3px solid #006D44' : '2px solid transparent',
                         transition: '0.2s',
                         background: '#f3f4f6'
@@ -2898,15 +2898,15 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
             </div>
 
             <div className="modal-footer" style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
-              <button 
-                type="button" 
-                className="btn btn-outline btn-sm" 
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
                 onClick={() => setShowAvatarModal(false)}
                 style={{ padding: '8px 16px', borderRadius: '6px', border: '1px solid var(--border-color)', cursor: 'pointer', background: 'none' }}
               >Hủy</button>
-              <button 
-                type="button" 
-                className="btn btn-primary btn-sm" 
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
                 onClick={() => {
                   if (updateAvatar && customAvatarUrl.trim() !== '') {
                     updateAvatar(customAvatarUrl);
