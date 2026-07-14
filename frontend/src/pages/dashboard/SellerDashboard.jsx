@@ -1088,18 +1088,20 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
 
   const activeOrdersPage = ordersPage;
   const activeBookingsPage = bookingsPage;
-  const totalOrderPages = Math.ceil(ordersList.length / itemsPerPage) || 1;
-  const totalBookingPages = Math.ceil(bookingsList.length / itemsPerPage) || 1;
+  const safeOrdersList = Array.isArray(ordersList) ? ordersList : [];
+  const safeBookingsList = Array.isArray(bookingsList) ? bookingsList : [];
+  const totalOrderPages = Math.ceil(safeOrdersList.length / itemsPerPage) || 1;
+  const totalBookingPages = Math.ceil(safeBookingsList.length / itemsPerPage) || 1;
 
   const ordersStartIdx = (activeOrdersPage - 1) * itemsPerPage;
-  const currentOrders = ordersList.slice(ordersStartIdx, ordersStartIdx + itemsPerPage);
+  const currentOrders = safeOrdersList.slice(ordersStartIdx, ordersStartIdx + itemsPerPage);
 
   const bookingsStartIdx = (activeBookingsPage - 1) * itemsPerPage;
-  const currentBookings = bookingsList.slice(bookingsStartIdx, bookingsStartIdx + itemsPerPage);
+  const currentBookings = safeBookingsList.slice(bookingsStartIdx, bookingsStartIdx + itemsPerPage);
 
-  const totalPurchased = ordersList.filter(o => o.status === 'completed').length;
-  const totalPending = ordersList.filter(o => ['pending', 'reserved', 'waiting_payment'].includes(o.status)).length;
-  const totalCanceled = ordersList.filter(o => o.status === 'canceled' || o.status === 'cancelled').length;
+  const totalPurchased = safeOrdersList.filter(o => o && o.status === 'completed').length;
+  const totalPending = safeOrdersList.filter(o => o && ['pending', 'reserved', 'waiting_payment'].includes(o.status)).length;
+  const totalCanceled = safeOrdersList.filter(o => o && (o.status === 'canceled' || o.status === 'cancelled')).length;
 
   return (
     <div className="dashboard-page admin-dashboard-layout seller-portal-layout animate-fade">
@@ -1848,21 +1850,25 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                       </tr>
                     </thead>
                     <tbody>
-                      {ordersList.length === 0 ? (
+                      {safeOrdersList.length === 0 ? (
                         <tr>
                           <td colSpan="7" style={{ textAlign: 'center', padding: '20px', color: 'var(--neutral-medium)' }}>Chưa có lịch hẹn xem máy nào.</td>
                         </tr>
                       ) : (
-                        currentOrders.map(o => (
+                        currentOrders.filter(o => o && o.id).map(o => (
                           <tr key={o.id}>
                             <td>
                               <strong>{o.appointmentInfo?.fullName || o.shippingInfo?.fullName || 'Khách hàng'}</strong>
                               <div className="tbl-subtext">{o.appointmentInfo?.phone || o.shippingInfo?.phone || ''}</div>
                             </td>
                             <td>
-                              {o.items?.map((item, idx) => (
-                                <div key={idx} style={{ fontSize: '0.85rem' }}>• {item.name}</div>
-                              ))}
+                              {Array.isArray(o.items) && o.items.length > 0 ? (
+                                o.items.map((item, idx) => (
+                                  <div key={idx} style={{ fontSize: '0.85rem' }}>• {item?.name || 'Sản phẩm'}</div>
+                                ))
+                              ) : (
+                                <div style={{ fontSize: '0.85rem', color: 'var(--neutral-medium)' }}>Không có sản phẩm</div>
+                              )}
                             </td>
                             <td>
                               <strong>{o.appointmentInfo?.appointmentDate || o.shippingInfo?.appointmentDate || 'Chưa hẹn ngày'}</strong>
@@ -2008,12 +2014,12 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                       </tr>
                     </thead>
                     <tbody>
-                      {bookingsList.length === 0 ? (
+                      {safeBookingsList.length === 0 ? (
                         <tr>
                           <td colSpan="7" style={{ textAlign: 'center', padding: '20px', color: 'var(--neutral-medium)' }}>Chưa có phiếu hẹn sửa chữa nào.</td>
                         </tr>
                       ) : (
-                        currentBookings.map(bk => (
+                        currentBookings.filter(bk => bk && bk.id).map(bk => (
                           <tr key={bk.id}>
                             <td>
                               <strong>{bk.customerName}</strong>
@@ -2038,8 +2044,8 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                                 style={{ padding: '6px', fontSize: '0.85rem', width: '100%', minWidth: '120px', borderRadius: '4px', border: '1px solid var(--border-color)' }}
                               >
                                 <option value="">Chưa phân công</option>
-                                {techsList.map(t => (
-                                  <option key={t.id} value={t.id}>{t.full_name || t.username}</option>
+                                {Array.isArray(techsList) && techsList.filter(t => t && t.id).map(t => (
+                                  <option key={t.id} value={t.id}>{t.full_name || t.username || 'Kỹ thuật viên'}</option>
                                 ))}
                               </select>
                             </td>
