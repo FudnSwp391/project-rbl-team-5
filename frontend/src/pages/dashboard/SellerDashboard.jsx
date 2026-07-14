@@ -2025,7 +2025,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                             </td>
                             <td>
                               <strong>{bk.preferred_date || 'Chưa hẹn ngày'}</strong>
-                              <div className="tbl-subtext">{bk.notes && bk.notes.includes('Khung giờ:') ? bk.notes : 'Khung giờ: Sáng'}</div>
+                              <div className="tbl-subtext">{typeof bk.notes === 'string' && bk.notes.includes('Khung giờ:') ? bk.notes : 'Khung giờ: Sáng'}</div>
                             </td>
                             <td>
                               <select
@@ -2073,7 +2073,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                                 <input
                                   type="text"
                                   className="form-control"
-                                  defaultValue={bk.notes && !bk.notes.includes('Khung giờ:') ? bk.notes : ''}
+                                  defaultValue={typeof bk.notes === 'string' && !bk.notes.includes('Khung giờ:') ? bk.notes : ''}
                                   onBlur={(e) => handleUpdateBookingDetails(bk.id, { notes: e.target.value })}
                                   placeholder="Ghi chú kỹ thuật..."
                                   style={{ padding: '4px 8px', fontSize: '0.85rem' }}
@@ -2083,7 +2083,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                                   <input
                                     type="date"
                                     className="form-control"
-                                    defaultValue={bk.pickup_date ? bk.pickup_date.split('T')[0] : ''}
+                                    defaultValue={typeof bk.pickup_date === 'string' ? bk.pickup_date.split('T')[0] : ''}
                                     onChange={(e) => handleUpdateBookingDetails(bk.id, { pickupDate: e.target.value })}
                                     style={{ padding: '4px', fontSize: '0.8rem' }}
                                   />
