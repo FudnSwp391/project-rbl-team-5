@@ -81,9 +81,7 @@ exports.createConversation = async (req, res) => {
     const newConv = await db.insert('conversations', {
       customer_id: customerId,
       product_id: productId || null,
-      status: 'pending',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      status: 'pending'
     });
 
     // Lấy thông tin customer để gửi kèm cho seller hiển thị ngay
@@ -204,9 +202,7 @@ exports.getOrCreateInternalConversation = async (req, res) => {
       customer_id: adminId,
       seller_id: targetUserId,
       product_id: null,
-      status: 'internal',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      status: 'internal'
     });
 
     // Lấy thông tin người nhận để frontend hiển thị đúng

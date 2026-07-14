@@ -25,6 +25,9 @@ exports.getOrders = async (req, res) => {
       let appointmentDate = null;
       let appointmentTime = null;
       
+      let promoCode = '';
+      let discountPercent = 0;
+      
       if (ord.notes) {
         const parts = ord.notes.split('|');
         parts.forEach(part => {
@@ -32,6 +35,10 @@ exports.getOrders = async (req, res) => {
             paymentMethod = part.replace('payment:', '');
           } else if (part.startsWith('invoice:')) {
             invoiceNumber = part.replace('invoice:', '');
+          } else if (part.startsWith('promo:')) {
+            promoCode = part.replace('promo:', '');
+          } else if (part.startsWith('discount:')) {
+            discountPercent = Number(part.replace('discount:', '')) || 0;
           }
         });
       }
@@ -76,7 +83,9 @@ exports.getOrders = async (req, res) => {
         items: enrichedItems,
         appointmentInfo,
         // Backward compat
-        shippingInfo: appointmentInfo
+        shippingInfo: appointmentInfo,
+        promoCode,
+        discountPercent
       };
     }));
 
@@ -89,7 +98,7 @@ exports.getOrders = async (req, res) => {
 
 // POST /api/orders - Tạo đơn hàng mới (Đặt lịch tới xem máy)
 exports.createOrder = async (req, res) => {
-  const { items, appointmentInfo, shippingInfo, paymentMethod, totalAmount } = req.body;
+  const { items, appointmentInfo, shippingInfo, paymentMethod, totalAmount, promoCode, discountPercent } = req.body;
   
   // Support both old (shippingInfo) and new (appointmentInfo) format
   const info = appointmentInfo || shippingInfo;
@@ -126,15 +135,35 @@ exports.createOrder = async (req, res) => {
 
     // 3. Chèn đơn hàng vào bảng orders
     const orderStatus = paymentMethod === 'bank_transfer' ? 'waiting_payment' : 'pending';
+    
+    let notesStr = `payment:${paymentMethod}|invoice:${invoiceNumber}`;
+    if (promoCode) notesStr += `|promo:${promoCode}`;
+    if (discountPercent) notesStr += `|discount:${discountPercent}`;
+
     const newOrder = await db.insert('orders', {
       customer_id: customerProfile.id,
       total_amount: totalAmount,
       shipping_address: typeof info === 'object' ? JSON.stringify(info) : info,
       status: orderStatus,
-      notes: `payment:${paymentMethod}|invoice:${invoiceNumber}`,
+      notes: notesStr,
       created_at: now,
       updated_at: now
     });
+
+    // 3b. Mark claimed coupon as used if applied
+    if (promoCode) {
+      const couponClaims = req.app.get('couponClaims');
+      if (couponClaims) {
+        const claim = couponClaims.find(
+          c => String(c.userId) === String(req.user.id) &&
+               c.code.toLowerCase() === promoCode.toLowerCase() &&
+               !c.used
+        );
+        if (claim) {
+          claim.used = true;
+        }
+      }
+    }
 
     // 4. Cập nhật sản phẩm sang 'reserved' (giữ chỗ) và chèn vào order_items
     for (let item of items) {
@@ -290,6 +319,8 @@ exports.createOrder = async (req, res) => {
       items,
       paymentMethod,
       totalAmount,
+      promoCode,
+      discountPercent,
       redirectUrl: vnpayUrl
     });
   } catch (err) {
@@ -318,13 +349,36 @@ exports.updateOrderStatus = async (req, res) => {
       }
     }
 
-    // Nếu hủy đơn → trả sản phẩm về active
+    // Nếu hủy đơn → trả sản phẩm về active và phục hồi mã giảm giá
     if (status === 'canceled' || status === 'cancelled') {
       await db.query(`
         UPDATE products 
         SET status = 'active' 
         WHERE id IN (SELECT product_id FROM order_items WHERE order_id = @orderId)
       `, [{ name: 'orderId', value: orderId }]);
+
+      // Restore coupon claim to active (used = false)
+      if (order.notes) {
+        const parts = order.notes.split('|');
+        const promoPart = parts.find(p => p.startsWith('promo:'));
+        if (promoPart) {
+          const promoCode = promoPart.replace('promo:', '');
+          const couponClaims = req.app.get('couponClaims');
+          if (couponClaims) {
+            const customerProfile = await db.findOne('customer_profiles', { id: order.customer_id });
+            if (customerProfile) {
+              const claim = couponClaims.find(
+                c => String(c.userId) === String(customerProfile.user_id) &&
+                     c.code.toLowerCase() === promoCode.toLowerCase() &&
+                     c.used
+              );
+              if (claim) {
+                claim.used = false;
+              }
+            }
+          }
+        }
+      }
     }
     
     await db.update('orders', 'id', orderId, { status, updated_at: new Date().toISOString() });
@@ -434,6 +488,29 @@ exports.cancelOrder = async (req, res) => {
       status: 'cancelled',
       updated_at: new Date().toISOString()
     });
+
+    // Restore coupon claim to active (used = false)
+    if (order.notes) {
+      const parts = order.notes.split('|');
+      const promoPart = parts.find(p => p.startsWith('promo:'));
+      if (promoPart) {
+        const promoCode = promoPart.replace('promo:', '');
+        const couponClaims = req.app.get('couponClaims');
+        if (couponClaims) {
+          const customerProfile = await db.findOne('customer_profiles', { id: order.customer_id });
+          if (customerProfile) {
+            const claim = couponClaims.find(
+              c => String(c.userId) === String(customerProfile.user_id) &&
+                   c.code.toLowerCase() === promoCode.toLowerCase() &&
+                   c.used
+            );
+            if (claim) {
+              claim.used = false;
+            }
+          }
+        }
+      }
+    }
 
     // Restore products to 'active' status
     await db.query(`

@@ -364,7 +364,9 @@ const Checkout = ({ setActivePage }) => {
         notes
       },
       paymentMethod,
-      totalAmount: finalTotal
+      totalAmount: finalTotal,
+      promoCode: appliedPromo ? appliedPromo.code : undefined,
+      discountPercent: appliedPromo ? appliedPromo.discount : undefined
     };
 
     try {
@@ -731,25 +733,37 @@ const Checkout = ({ setActivePage }) => {
                 </tbody>
               </table>
 
-              <div className="invoice-totals">
-                <div className="totals-row">
-                  <span>Tạm tính:</span>
-                  <span>{completedOrder.totalAmount.toLocaleString('en-US')} <span className="currency">VND</span></span>
-                </div>
-                <div className="totals-row">
-                  <span>VAT (0% - Thiết bị cũ tái chế):</span>
-                  <span>0 <span className="currency">VND</span></span>
-                </div>
-                <div className="totals-row">
-                  <span>Vận chuyển:</span>
-                  <span>Miễn phí</span>
-                </div>
-                <hr />
-                <div className="totals-row final-row">
-                  <span>Tổng thanh toán:</span>
-                  <span>{completedOrder.totalAmount.toLocaleString('en-US')} <span className="currency">VND</span></span>
-                </div>
-              </div>
+              {(() => {
+                const originalTotal = completedOrder.items.reduce((sum, item) => sum + (item.price || 0), 0);
+                const discountAmount = completedOrder.promoCode ? Math.round((originalTotal * completedOrder.discountPercent) / 100) : 0;
+                return (
+                  <div className="invoice-totals">
+                    <div className="totals-row">
+                      <span>Tạm tính:</span>
+                      <span>{originalTotal.toLocaleString('en-US')} <span className="currency">VND</span></span>
+                    </div>
+                    {completedOrder.promoCode && (
+                      <div className="totals-row" style={{ color: '#4CAF50' }}>
+                        <span>Giảm giá (Mã: {completedOrder.promoCode} -{completedOrder.discountPercent}%):</span>
+                        <span>-{discountAmount.toLocaleString('en-US')} <span className="currency">VND</span></span>
+                      </div>
+                    )}
+                    <div className="totals-row">
+                      <span>VAT (0% - Thiết bị cũ tái chế):</span>
+                      <span>0 <span className="currency">VND</span></span>
+                    </div>
+                    <div className="totals-row">
+                      <span>Vận chuyển:</span>
+                      <span>Miễn phí</span>
+                    </div>
+                    <hr />
+                    <div className="totals-row final-row">
+                      <span>Tổng thanh toán:</span>
+                      <span>{completedOrder.totalAmount.toLocaleString('en-US')} <span className="currency">VND</span></span>
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div className="invoice-footer">
                 <div className="payment-status-badge">

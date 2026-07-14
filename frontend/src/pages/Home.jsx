@@ -227,19 +227,12 @@ const Home = ({ setActivePage, setSelectedProduct }) => {
                 <Cpu size={14} /> {heroSlides[currentSlide].badge}
               </span>
               <h1 className="hero-title text-white" key={`title-${currentSlide}`} style={{
-                fontSize: '4rem',
-                fontWeight: 800,
-                lineHeight: 1.1,
-                marginBottom: '24px',
                 textShadow: '2px 2px 20px rgba(0,0,0,0.8)',
                 animation: 'fadeIn 0.8s ease-in-out'
               }}>
                 {heroSlides[currentSlide].title}
               </h1>
-              <h2 className="text-white" style={{
-                fontSize: '2.5rem',
-                fontWeight: 700,
-                marginBottom: '32px',
+              <h2 className="hero-title-highlight text-white" style={{
                 color: '#FFA500',
                 textShadow: '2px 2px 15px rgba(0,0,0,0.7)',
                 animation: 'fadeIn 1s ease-in-out'
@@ -247,8 +240,6 @@ const Home = ({ setActivePage, setSelectedProduct }) => {
                 {heroSlides[currentSlide].titleHighlight}
               </h2>
               <p className="hero-subtitle text-white mb-4" key={`subtitle-${currentSlide}`} style={{
-                fontSize: '1.15rem',
-                lineHeight: 1.6,
                 maxWidth: '600px',
                 textShadow: '1px 1px 10px rgba(0,0,0,0.8)',
                 animation: 'fadeIn 1.2s ease-in-out'
@@ -260,7 +251,10 @@ const Home = ({ setActivePage, setSelectedProduct }) => {
                   background: '#10B981',
                   border: 'none',
                   fontWeight: 'bold',
-                  boxShadow: '0 4px 20px rgba(16,185,129,0.4)'
+                  boxShadow: '0 4px 20px rgba(16,185,129,0.4)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px'
                 }}>
                   Chi tiết dịch vụ
                   <ArrowRight size={18} />

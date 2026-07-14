@@ -7,7 +7,8 @@
     "server": "npm start --prefix backend",
     "client": "npm run dev --prefix frontend",
     "dev": "concurrently \"npm run server\" \"npm run client\" \"npm start --prefix chatbot-server\" \"npm start --prefix chatbot-server2\"",
-    "start": "npm run build --prefix frontend && npm start --prefix backend"
+    "start": "npm run build --prefix frontend && npm start --prefix backend",
+    "start:prod": "concurrently \"npm start --prefix backend\" \"npm start --prefix chatbot-server\" \"npm start --prefix chatbot-server2\""
   },
   "devDependencies": {
     "concurrently": "^10.0.3"

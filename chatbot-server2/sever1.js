@@ -10,9 +10,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Đọc API Key và cấu hình DB từ file .env
-dotenv.config({ path: path.join(__dirname, '..', 'backend', '.env') });
-dotenv.config({ path: path.join(__dirname, '.env') });
-dotenv.config({ path: path.join(__dirname, '..', '.env') });
+dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const app = express();
 app.use(cors());
@@ -46,16 +44,70 @@ const initDB = async () => {
     console.log("✅ Connected to SQL Server");
 };
 
-// 2. Hàm truy vấn Database để lấy dữ liệu sửa chữa
-async function fetchSolutionFromDB(keyword) {
+// 2. Định nghĩa bộ từ khóa nhận diện thiết bị
+const categoryKeywords = {
+    WashingMachine: ["máy giặt", "may giat", "máy sấy", "may say", "lồng giặt", "long giat", "vắt", "vat", "bột giặt", "bot giat"],
+    Refrigerator: ["tủ lạnh", "tu lanh", "tủ đông", "tu dong", "tủ mát", "tu mat", "làm đá", "lam da", "ngăn đá", "ngan da", "ngăn mát", "ngan mat"],
+    AirConditioner: ["điều hòa", "dieu hoa", "máy lạnh", "may lanh", "điều hoà", "dàn lạnh", "dan lanh", "cục nóng", "cuc nong", "cánh vẫy", "canh vay"],
+    Audio: ["loa", "tai nghe", "amply", "ampli", "micro", "headphone", "âm thanh", "am thanh"],
+    Laptop: ["laptop", "macbook", "máy tính xách tay", "may tinh xach tay"],
+    Smartwatch: ["đồng hồ", "dong ho", "smartwatch", "apple watch"],
+    Accessory: ["phụ kiện", "phu kien", "sạc dự phòng", "sac du phong", "chuột", "chuot", "bàn phím", "ban phim", "cáp sạc", "cap sac", "hub"],
+    Smartphone: ["điện thoại", "dien thoai", "iphone", "samsung", "oppo", "xiaomi", "vivo", "huawei"],
+    Tablet: ["máy tính bảng", "may tinh bang", "ipad", "tablet"],
+    GamingConsole: ["máy chơi game", "may choi game", "tay cầm", "tay cam", "ps5", "ps4", "nintendo", "xbox", "analog", "gamepad"],
+    Camera: ["máy ảnh", "may anh", "camera", "ống kính", "ong kinh", "lens", "sensor", "kính ngắm", "viewfinder"],
+    TV: ["tivi", "tv", "remote tivi", "loa tivi", "màn hình tivi"],
+    Monitor: ["màn hình máy tính", "man hinh may tinh", "màn hình pc", "man hinh pc", "monitor"],
+    PC: ["pc", "máy tính để bàn", "may tinh de ban", "thùng máy", "thung may", "cây máy tính", "cay may tinh", "mainboard", "cpu", "ram", "bios", "case"],
+    Printer: ["máy in", "may in", "hộp mực", "hop muc", "kẹt giấy", "ket giay", "in mờ", "in mo", "drum", "trống hình"],
+    Router: ["router", "wifi", "cục phát", "cuc phat", "wan", "lan", "modem", "mesh"]
+};
+
+// Hàm nhận diện category từ lịch sử chat
+function detectCategoryFromHistory(history) {
+    if (!Array.isArray(history)) return null;
+
+    // Ghép toàn bộ nội dung tin nhắn của user để tìm từ khóa thiết bị
+    const userMessages = history
+        .filter(msg => msg && msg.role === 'user')
+        .map(msg => {
+            if (msg.parts && Array.isArray(msg.parts)) {
+                return msg.parts.map(p => (p && p.text) || "").join(" ");
+            }
+            return msg.text || "";
+        })
+        .join(" ")
+        .toLowerCase();
+
+    for (const [category, keywords] of Object.entries(categoryKeywords)) {
+        for (const keyword of keywords) {
+            if (userMessages.includes(keyword)) {
+                return category;
+            }
+        }
+    }
+    return null;
+}
+
+// 3. Hàm truy vấn Database để lấy dữ liệu sửa chữa
+async function fetchSolutionFromDB(keyword, category) {
     try {
-        const result = await pool.request()
-            .input('keyword', sql.NVarChar, `%${keyword}%`)
-            .query(`
-                SELECT TOP 1 solution 
-                FROM repair_knowledge 
-                WHERE keywords LIKE @keyword OR issue_prompt LIKE @keyword
-            `);
+        const request = pool.request();
+        request.input('keyword', sql.NVarChar, `%${keyword}%`);
+
+        let query = `
+            SELECT TOP 1 solution 
+            FROM repair_knowledge 
+            WHERE (keywords LIKE @keyword OR issue_prompt LIKE @keyword)
+        `;
+
+        if (category) {
+            request.input('category', sql.NVarChar, category);
+            query += ` AND category = @category`;
+        }
+
+        const result = await request.query(query);
 
         // Nếu tìm thấy lỗi trong DB, trả về cách giải quyết. Nếu không, trả về null.
         return result.recordset.length > 0 ? result.recordset[0].solution : null;
@@ -63,6 +115,27 @@ async function fetchSolutionFromDB(keyword) {
         console.error("❌ Lỗi kết nối hoặc truy vấn SQL:", err);
         return null;
     }
+}
+
+// 2b. Hàm kiểm tra xem tin nhắn có đề cập tên sản phẩm cụ thể không
+function hasProductMentioned(message) {
+    // Danh sách từ khóa thương hiệu / dòng sản phẩm phổ biến
+    const productKeywords = [
+        // Điện thoại
+        'iphone', 'samsung', 'oppo', 'xiaomi', 'vivo', 'realme', 'nokia', 'huawei',
+        'pixel', 'oneplus', 'asus', 'sony', 'lg', 'motorola', 'redmi', 'poco',
+        // Laptop / máy tính
+        'laptop', 'macbook', 'dell', 'hp', 'lenovo', 'asus', 'acer', 'msi',
+        'surface', 'thinkpad', 'ideapad', 'vivobook', 'zenbook',
+        // Máy tính bảng
+        'ipad', 'tablet', 'galaxy tab',
+        // Thiết bị khác
+        'airpods', 'tai nghe', 'đồng hồ', 'smartwatch', 'apple watch',
+        // Loại thiết bị chung
+        'điện thoại', 'máy tính', 'máy tính bảng', 'thiết bị', 'sản phẩm'
+    ];
+    const lowerMsg = message.toLowerCase();
+    return productKeywords.some(kw => lowerMsg.includes(kw));
 }
 
 // 3. API Chat endpoint kết nối React frontend
@@ -110,35 +183,65 @@ app.post("/api/chat", async (req, res) => {
             lastMessage = lastPart.text;
         }
 
-        // Lấy dữ liệu từ SQL Server dựa trên câu hỏi cuối cùng của khách hàng
-        const dbData = lastMessage.trim() ? await fetchSolutionFromDB(lastMessage) : null;
+        // Nhận diện loại thiết bị từ lịch sử chat
+        const category = detectCategoryFromHistory(formattedHistory);
+        console.log(`🔍 Nhận diện loại thiết bị: ${category || "Không xác định"}`);
+
+        // Lấy dữ liệu từ SQL Server dựa trên câu hỏi cuối cùng của khách hàng và danh mục thiết bị (nếu có)
+        const dbData = (lastMessage.trim() && category) ? await fetchSolutionFromDB(lastMessage, category) : null;
+
+        // Kiểm tra khách hàng có đề cập sản phẩm cụ thể chưa
+        const mentionedProduct = hasProductMentioned(lastMessage);
 
         // Định hình "Nhân cách" và nạp "Kiến thức" cho AI
         let systemPrompt = "";
 
-        if (dbData) {
-            console.log("🟢 Đã tìm thấy tài liệu trong Database! Đang nạp cho AI...");
-            systemPrompt = `Bạn là trợ lý kỹ thuật của hệ thống TechCycle. 
-Dưới đây là tài liệu hướng dẫn sửa chữa chính thức từ công ty:
+        if (category) {
+            if (dbData) {
+                console.log(`🟢 Đã tìm thấy tài liệu cho ${category} trong Database! Đang nạp cho AI...`);
+                systemPrompt = `Bạn là trợ lý kỹ thuật của hệ thống TechCycle. 
+Dưới đây là tài liệu hướng dẫn sửa chữa chính thức từ công ty cho thiết bị này:
 "${dbData}"
 
 YÊU CẦU QUAN TRỌNG: 
 - Hãy dựa 100% vào tài liệu trên để trả lời khách hàng.
 - Trả lời thân thiện, chuyên nghiệp, các bước rõ ràng.`;
+            }
+        } else if (!mentionedProduct) {
+            // Khách hàng chưa nêu rõ sản phẩm → yêu cầu chỉ rõ
+            console.log("🟡 Khách hàng chưa chỉ rõ sản phẩm. AI sẽ hỏi thêm thông tin.");
+            systemPrompt = `Bạn là trợ lý AI thân thiện của TechCycle - nền tảng sửa chữa và mua bán thiết bị điện tử.
+
+YÊU CẦU QUAN TRỌNG:
+- Khách hàng chưa cho biết cụ thể thiết bị / sản phẩm họ đang gặp vấn đề.
+- Hãy lịch sự hỏi lại khách hàng để làm rõ:
+  + Tên thiết bị / thương hiệu (ví dụ: iPhone 14, Samsung Galaxy S23, Laptop Dell XPS...)
+  + Triệu chứng hoặc lỗi cụ thể mà thiết bị đang gặp phải.
+- KHÔNG tự đoán hoặc trả lời chung chung khi chưa có đủ thông tin sản phẩm.
+- Giữ thái độ thân thiện, chuyên nghiệp và nhiệt tình hỗ trợ.`;
         } else {
-            console.log("⚪ Không tìm thấy dữ liệu trong DB. AI sẽ trả lời bằng kiến thức mặc định.");
-            systemPrompt = "Bạn là trợ lý AI thân thiện của TechCycle. Hãy tư vấn khách hàng mang thiết bị ra trung tâm kiểm tra do lỗi này khá phức tạp.";
+            // Có đề cập sản phẩm nhưng không có trong DB → tư vấn mang đến trung tâm
+            console.log("⚪ Không tìm thấy dữ liệu trong DB cho sản phẩm này. AI sẽ tư vấn chung.");
+            systemPrompt = `Bạn là trợ lý AI thân thiện của TechCycle - nền tảng sửa chữa và mua bán thiết bị điện tử.
+
+YÊU CẦU QUAN TRỌNG:
+- Hệ thống hiện chưa có tài liệu kỹ thuật chi tiết cho thiết bị / vấn đề này.
+- Hãy thông báo lịch sự với khách hàng rằng vấn đề của họ cần được kiểm tra trực tiếp.
+- Tư vấn khách hàng mang thiết bị đến trung tâm TechCycle để được kiểm tra và hỗ trợ tốt nhất.
+- Có thể hỏi thêm thông tin (model máy, triệu chứng) để ghi nhận hỗ trợ tốt hơn.
+- Giữ thái độ thân thiện, chuyên nghiệp và nhiệt tình hỗ trợ.`;
         }
 
         // Gọi API của Google Gemini
         const response = await ai.models.generateContent({
-            model: "gemini-3.5-flash",
+            model: "gemini-3.1-flash-lite",
             contents: formattedHistory,
             config: {
                 systemInstruction: systemPrompt,
                 temperature: 0.2 // Mức thấp để AI bám sát tài liệu SQL
             }
         });
+
 
         res.json({ reply: response.text });
     } catch (error) {
@@ -148,7 +251,7 @@ YÊU CẦU QUAN TRỌNG:
 });
 
 app.get('/health', (req, res) => {
-    res.json({ status: 'ok', model: 'gemini-3.5-flash' });
+    res.json({ status: 'ok', model: 'gemini-3.1-flash-lite' });
 });
 
 // Keepalive để giữ tiến trình không bị tắt

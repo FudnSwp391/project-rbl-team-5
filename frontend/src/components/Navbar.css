@@ -342,6 +342,10 @@
   .mobile-toggle {
     display: block;
   }
+
+  .btn-login-nav {
+    display: none !important;
+  }
 }
 
 .mobile-menu-overlay {
