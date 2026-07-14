@@ -2213,7 +2213,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                         <div className="info-row">
                           <span className="info-label">NGÀY ĐĂNG KÝ</span>
                           <span className="info-value">
-                            {new Date(viewingUser.createdAt).toLocaleDateString('vi-VN', { year: 'numeric', month: 'long', day: 'numeric' })}
+                            {viewingUser.createdAt ? new Date(viewingUser.createdAt).toLocaleDateString('vi-VN', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Không rõ'}
                           </span>
                         </div>
                       </div>
@@ -2232,7 +2232,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                         <span className="badge badge-default-address">MẶC ĐỊNH</span>
                       </div>
                       <p className="address-text">
-                        {ordersList.filter(o => o.customerId === viewingUser.id)[0]?.shippingInfo?.address || '103 Eco Tower, District 1, Ho Chi Minh City, 70000, Vietnam'}
+                        {safeOrdersList.filter(o => o && o.customerId === viewingUser.id)[0]?.shippingInfo?.address || '103 Eco Tower, District 1, Ho Chi Minh City, 70000, Vietnam'}
                       </p>
                     </div>
                   </div>
@@ -2246,7 +2246,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                         </div>
                       </div>
                       <p className="address-text">
-                        {ordersList.filter(o => o.customerId === viewingUser.id)[0]?.shippingInfo?.address || '45 Green Lane, Ward 5, District 3, Ho Chi Minh City, 70000, Vietnam'}
+                        {safeOrdersList.filter(o => o && o.customerId === viewingUser.id)[0]?.shippingInfo?.address || '45 Green Lane, Ward 5, District 3, Ho Chi Minh City, 70000, Vietnam'}
                       </p>
                     </div>
                   </div>
@@ -2269,21 +2269,21 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                         </tr>
                       </thead>
                       <tbody>
-                        {ordersList.filter(o => o.customerId === viewingUser.id).length > 0 ? (
-                          ordersList.filter(o => o.customerId === viewingUser.id).map(o => (
+                        {safeOrdersList.filter(o => o && o.customerId === viewingUser.id).length > 0 ? (
+                          safeOrdersList.filter(o => o && o.customerId === viewingUser.id).map(o => (
                             <tr key={o.id}>
-                              <td className="green-text font-bold">#{o.id.toUpperCase()}</td>
-                              <td>{o.items.map(it => it.name).join(', ')}</td>
-                              <td>{new Date(o.createdAt).toLocaleDateString('vi-VN', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
+                              <td className="green-text font-bold">#{o.id || 'N/A'}</td>
+                              <td>{Array.isArray(o.items) && o.items.length > 0 ? o.items.map(it => it?.name || 'Sản phẩm').join(', ') : 'Không có sản phẩm'}</td>
+                              <td>{o.createdAt ? new Date(o.createdAt).toLocaleDateString('vi-VN', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A'}</td>
                               <td>
                                 <span className="price-vnd-formatted">
-                                  {o.totalAmount.toLocaleString('vi-VN')}
+                                  {(o.totalAmount || 0).toLocaleString('vi-VN')}
                                   <span className="price-vnd-label"> VND</span>
                                 </span>
                               </td>
                               <td>
-                                <span className={`status-delivery-tag ${o.status}`}>
-                                  {getStatusLabel(o.status).toUpperCase()}
+                                <span className={`status-delivery-tag ${o.status || 'pending'}`}>
+                                  {getStatusLabel(o.status || 'pending').toUpperCase()}
                                 </span>
                               </td>
                             </tr>
@@ -2322,9 +2322,9 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                       </tr>
                     </thead>
                     <tbody>
-                      {techsList.map(c => {
-                        const bookingsCount = bookingsList.filter(b => b.customerId === c.id).length;
-                        const ordersCount = ordersList.filter(o => o.customerId === c.id).length;
+                      {usersList.filter(u => u.role === 'customer').map(c => {
+                        const bookingsCount = safeBookingsList.filter(b => b && b.customerId === c.id).length;
+                        const ordersCount = safeOrdersList.filter(o => o && o.customerId === c.id).length;
                         return (
                           <tr key={c.id} onClick={() => setViewingUser(c)} style={{ cursor: 'pointer' }} className="customer-row-hover">
                             <td>
@@ -2335,7 +2335,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                             </td>
                             <td>{c.email}</td>
                             <td>{c.phone || 'N/A'}</td>
-                            <td>{new Date(c.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
+                            <td>{c.createdAt ? new Date(c.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A'}</td>
                             <td><span className="count-badge green">{bookingsCount} lịch hẹn</span></td>
                             <td><span className="count-badge blue">{ordersCount} đơn hàng</span></td>
                           </tr>
