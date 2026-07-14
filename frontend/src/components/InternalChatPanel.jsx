@@ -79,14 +79,20 @@ const InternalChatPanel = ({
               <p>Chưa có nhân viên nào.</p>
             </div>
           ) : (
-            staffList.map(staff => {
-              const isActive = selectedConversation && 
-                (Number(selectedConversation.seller_id) === Number(staff.id) || 
-                 Number(selectedConversation.customer_id) === Number(staff.id));
-              
+            [...staffList].sort((a, b) => {
+              const roleOrder = { admin: 1, seller: 2, technician: 3 };
+              const aOrder = roleOrder[a.role] || 4;
+              const bOrder = roleOrder[b.role] || 4;
+              return aOrder - bOrder;
+            }).map(staff => {
+              const isActive = selectedConversation &&
+                (Number(selectedConversation.seller_id) === Number(staff.id) ||
+                  Number(selectedConversation.customer_id) === Number(staff.id));
+
               const partnerName = staff.username || staff.full_name;
               const partnerAvatar = staff.avatar;
-              const roleText = staff.role === 'seller' ? 'Seller' : 'Thợ sửa chữa';
+              const roleText = staff?.role === 'admin' ? 'Quản trị viên' : staff?.role === 'seller' ? 'Nhân viên bán hàng' : 'Thợ sửa chữa';
+              const roleClass = staff?.role === 'admin' ? 'cp-status-internal' : staff?.role === 'seller' ? 'cp-status-assigned' : 'cp-status-active';
 
               return (
                 <div
@@ -111,7 +117,7 @@ const InternalChatPanel = ({
                         {unreadSenders.includes(staff.id) && (
                           <div style={{ width: '8px', height: '8px', backgroundColor: 'var(--accent-red)', borderRadius: '50%' }} title="Có tin nhắn mới" />
                         )}
-                        <span className="cp-status-mini cp-status-active">
+                        <span className={`cp-status-mini ${roleClass}`}>
                           {roleText}
                         </span>
                       </div>
