@@ -2052,7 +2052,7 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
                             <td>
                               <select
                                 className="form-control"
-                                value={bk.status}
+                                value={bk.status || 'pending'}
                                 onChange={(e) => {
                                   handleUpdateBookingDetails(bk.id, { status: e.target.value });
                                 }}
