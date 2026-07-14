@@ -55,9 +55,12 @@ export const AuthProvider = ({ children }) => {
 
   // Đăng nhập bằng Google - redirect đến Google
   const loginWithGoogle = () => {
-    const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-      ? 'http://localhost:5000'
-      : '';
+    // Khi dev local: dùng localhost:5000 trực tiếp
+    // Khi deploy (không phải localhost/IP): dùng same-origin /api/auth/google
+    const isLocalDev = window.location.hostname === 'localhost'
+      || window.location.hostname === '127.0.0.1'
+      || /^(\d{1,3}\.){3}\d{1,3}$/.test(window.location.hostname);
+    const API_BASE = isLocalDev ? 'http://localhost:5000' : '';
     window.location.href = `${API_BASE}/api/auth/google`;
   };
 

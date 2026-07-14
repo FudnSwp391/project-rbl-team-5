@@ -328,6 +328,14 @@ exports.resetPassword = async (req, res) => {
 
 // ===== GOOGLE OAUTH =====
 
+// Helper: lấy base URL thực tế của server từ request (hỗ trợ proxy/nginx)
+function getServerBaseUrl(req) {
+  // Nếu đứng sau reverse proxy (nginx), lấy từ X-Forwarded headers
+  const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+  const host = req.headers['x-forwarded-host'] || req.headers['host'] || 'localhost:5000';
+  return `${proto}://${host}`;
+}
+
 // Bước 1: Tạo URL redirect đến trang đăng nhập Google
 exports.googleLogin = (req, res) => {
   const scopes = [
@@ -335,7 +343,21 @@ exports.googleLogin = (req, res) => {
     'https://www.googleapis.com/auth/userinfo.email'
   ];
 
-  const url = googleClient.generateAuthUrl({
+  // Lấy callback URL từ env, nếu đang là localhost thì tự động thay bằng domain thật
+  let callbackUrl = process.env.GOOGLE_CALLBACK_URL || '';
+  if (!callbackUrl || callbackUrl.includes('localhost')) {
+    callbackUrl = `${getServerBaseUrl(req)}/api/auth/google/callback`;
+  }
+
+  // Tạo OAuth2Client tạm với đúng redirect_uri cho request này
+  const { OAuth2Client: _OAuth2Client } = require('google-auth-library');
+  const dynamicClient = new _OAuth2Client(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    callbackUrl
+  );
+
+  const url = dynamicClient.generateAuthUrl({
     access_type: 'offline',
     scope: scopes,
     prompt: 'select_account'
@@ -347,19 +369,39 @@ exports.googleLogin = (req, res) => {
 // Bước 2: Google callback - nhận code, đổi lấy tokens, lấy thông tin user
 exports.googleCallback = async (req, res) => {
   const { code } = req.query;
-  const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5174';
+
+  // Xác định FRONTEND_URL: ưu tiên env, nếu là localhost thì dùng origin thật
+  let FRONTEND_URL = process.env.FRONTEND_URL || '';
+  if (!FRONTEND_URL || FRONTEND_URL.includes('localhost')) {
+    // Trong production, frontend cùng domain với backend
+    FRONTEND_URL = getServerBaseUrl(req);
+  }
+
+  // Tương tự, xác định callback URL đúng để đổi code
+  let callbackUrl = process.env.GOOGLE_CALLBACK_URL || '';
+  if (!callbackUrl || callbackUrl.includes('localhost')) {
+    callbackUrl = `${getServerBaseUrl(req)}/api/auth/google/callback`;
+  }
+
+  // Tạo OAuth2Client tạm với đúng redirect_uri
+  const { OAuth2Client: _OAuth2Client2 } = require('google-auth-library');
+  const dynamicClient2 = new _OAuth2Client2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    callbackUrl
+  );
 
   if (!code) {
     return res.redirect(`${FRONTEND_URL}/#/auth?error=google_no_code`);
   }
 
   try {
-    // Đổi authorization code lấy tokens
-    const { tokens } = await googleClient.getToken(code);
-    googleClient.setCredentials(tokens);
+    // Đổi authorization code lấy tokens (dùng dynamicClient2 với đúng redirect_uri)
+    const { tokens } = await dynamicClient2.getToken(code);
+    dynamicClient2.setCredentials(tokens);
 
     // Lấy thông tin profile từ Google
-    const ticket = await googleClient.verifyIdToken({
+    const ticket = await dynamicClient2.verifyIdToken({
       idToken: tokens.id_token,
       audience: process.env.GOOGLE_CLIENT_ID
     });
