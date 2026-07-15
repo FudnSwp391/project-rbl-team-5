@@ -232,5 +232,126 @@ const sendOrderConfirmationEmail = async (toEmail, orderDetails) => {
   console.log(`[EMAIL] Đã gửi email xác nhận đơn hàng thành công tới ${toEmail}`);
 };
 
-module.exports = { sendOtpEmail, sendRepairCompletionEmail, sendOrderConfirmationEmail };
+/**
+ * Gửi email thông báo đăng nhập qua Google
+ * @param {string} toEmail - Email người nhận
+ * @param {object} loginInfo - Thông tin đăng nhập { fullName, loginTime, isNewAccount }
+ */
+const sendGoogleLoginNotificationEmail = async (toEmail, loginInfo) => {
+  const { fullName, loginTime, isNewAccount } = loginInfo;
+
+  const formattedTime = new Date(loginTime).toLocaleString('vi-VN', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+
+  const subject = isNewAccount
+    ? '🎉 Chào mừng bạn đến với TechCycle!'
+    : '🔔 Thông báo đăng nhập mới qua Google - TechCycle';
+
+  const headerBg = isNewAccount
+    ? 'linear-gradient(135deg, #10B981 0%, #059669 100%)'
+    : 'linear-gradient(135deg, #4285F4 0%, #1a73e8 100%)';
+
+  const headerTitle = isNewAccount ? '🎉 Chào mừng đến TechCycle!' : '🔔 Đăng nhập mới phát hiện';
+  const headerSubtitle = isNewAccount ? 'Tài khoản đã được tạo thành công' : 'Thông báo bảo mật tài khoản';
+
+  const bodyTitle = isNewAccount ? 'Tài khoản mới được tạo' : 'Phát hiện đăng nhập mới';
+  const bodyIntro = isNewAccount
+    ? `Chào mừng <strong>${fullName}</strong>! Tài khoản TechCycle của bạn vừa được tạo thành công thông qua đăng nhập Google.`
+    : `Xin chào <strong>${fullName}</strong>, chúng tôi ghi nhận một phiên đăng nhập mới vào tài khoản TechCycle của bạn thông qua Google.`;
+
+  const mailOptions = {
+    from: process.env.EMAIL_FROM || `TechCycle <${process.env.EMAIL_USER}>`,
+    to: toEmail,
+    subject,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #f9f9f9; border-radius: 12px; overflow: hidden; border: 1px solid #e0e0e0;">
+        <!-- Header -->
+        <div style="background: ${headerBg}; padding: 32px 24px; text-align: center;">
+          <h1 style="color: white; margin: 0; font-size: 24px; letter-spacing: 1px;">⚡ TechCycle</h1>
+          <p style="color: rgba(255,255,255,0.85); margin: 8px 0 0; font-size: 14px;">${headerSubtitle}</p>
+        </div>
+
+        <!-- Body -->
+        <div style="padding: 32px 24px; background: white;">
+          <h2 style="color: #333; margin: 0 0 12px; font-size: 20px;">${bodyTitle}</h2>
+          <p style="color: #555; line-height: 1.6; margin: 0 0 24px;">
+            ${bodyIntro}
+          </p>
+
+          <!-- Info Box -->
+          <div style="background: #f0f4ff; border-left: 4px solid #4285F4; border-radius: 8px; padding: 16px 20px; margin: 0 0 24px;">
+            <table style="width: 100%; font-size: 14px; color: #333; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 6px 0; color: #666; width: 40%;">📧 Tài khoản:</td>
+                <td style="padding: 6px 0; font-weight: bold;">${toEmail}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #666;">🕐 Thời gian:</td>
+                <td style="padding: 6px 0; font-weight: bold;">${formattedTime}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #666;">🔑 Phương thức:</td>
+                <td style="padding: 6px 0; font-weight: bold;">
+                  <span style="display: inline-flex; align-items: center; gap: 6px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path fill="#EA4335" d="M12 5.04c1.66 0 3.2.57 4.38 1.69l3.27-3.27C17.67 1.47 14.99 1 12 1 7.35 1 3.37 3.68 1.41 7.56l3.85 2.99c.9-2.69 3.42-4.51 6.74-4.51z"/>
+                      <path fill="#4285F4" d="M23.49 12.27c0-.81-.07-1.59-.2-2.34H12v4.45h6.46c-.28 1.46-1.1 2.69-2.33 3.51l3.6 2.79c2.1-1.94 3.76-4.8 3.76-8.42z"/>
+                      <path fill="#FBBC05" d="M5.26 14.87c-.23-.69-.36-1.43-.36-2.2s.13-1.51.36-2.2L1.41 7.48C.51 9.29 0 11.29 0 13.4s.51 4.11 1.41 5.92l3.85-2.99z"/>
+                      <path fill="#34A853" d="M12 23c3.24 0 5.97-1.07 7.96-2.92l-3.6-2.79c-.99.66-2.26 1.06-4.36 1.06-3.32 0-5.84-1.82-6.74-4.51L1.41 16.83C3.37 20.71 7.35 23 12 23z"/>
+                    </svg>
+                    Google OAuth 2.0
+                  </span>
+                </td>
+              </tr>
+            </table>
+          </div>
+
+          ${!isNewAccount ? `
+          <!-- Warning note -->
+          <div style="background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px; padding: 14px 18px; margin: 0 0 24px;">
+            <p style="color: #f57f17; font-size: 13px; margin: 0; line-height: 1.6;">
+              ⚠️ <strong>Không phải bạn đăng nhập?</strong> Nếu bạn không thực hiện thao tác này, tài khoản của bạn có thể đang bị truy cập trái phép. 
+              Hãy liên hệ ngay với chúng tôi để được hỗ trợ.
+            </p>
+          </div>
+          ` : ''}
+
+          <p style="color: #888; font-size: 13px; line-height: 1.6; margin: 0;">
+            ${isNewAccount
+              ? 'Cảm ơn bạn đã tham gia cộng đồng TechCycle — Chợ thiết bị điện tử cũ xanh và bền vững!'
+              : 'Email này được gửi tự động để bảo vệ tài khoản của bạn. Nếu đây là bạn, bạn có thể bỏ qua email này.'
+            }
+          </p>
+        </div>
+
+        <!-- CTA -->
+        <div style="padding: 20px 24px; background: #fafafa; text-align: center; border-top: 1px solid #eee;">
+          <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}" style="background: #4285F4; color: white; padding: 12px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 14px; display: inline-block;">
+            Truy cập TechCycle
+          </a>
+        </div>
+
+        <!-- Footer -->
+        <div style="padding: 16px 24px; background: #f0f0f0; text-align: center;">
+          <p style="color: #aaa; font-size: 12px; margin: 0;">
+            © 2026 TechCycle. 123 Đường Ba Tháng Hai, Quận 10, TP. HCM.
+          </p>
+        </div>
+      </div>
+    `
+  };
+
+  await transporter.sendMail(mailOptions);
+  console.log(`[EMAIL] Email thông báo đăng nhập Google đã gửi tới ${toEmail}`);
+};
+
+module.exports = { sendOtpEmail, sendRepairCompletionEmail, sendOrderConfirmationEmail, sendGoogleLoginNotificationEmail };
 

@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 // Import object db từ file db.js của bạn
 const { db } = require('../db');
-const { sendOtpEmail } = require('../emailService');
+const { sendOtpEmail, sendGoogleLoginNotificationEmail } = require('../emailService');
 const { OAuth2Client } = require('google-auth-library');
 
 const googleClient = new OAuth2Client(
@@ -415,6 +415,7 @@ exports.googleCallback = async (req, res) => {
 
     // Tìm user theo email
     let user = await db.findOne('users', { email });
+    let isNewAccount = false;
 
     if (user) {
       // User đã tồn tại - kiểm tra trạng thái
@@ -448,6 +449,7 @@ exports.googleCallback = async (req, res) => {
         avatar: avatar,
         status: 'active'
       });
+      isNewAccount = true; // Đánh dấu tài khoản mới
     }
 
     // Tạo JWT token
@@ -457,6 +459,13 @@ exports.googleCallback = async (req, res) => {
       JWT_SECRET,
       { expiresIn: '7d' }
     );
+
+    // Gửi email thông báo đăng nhập (fire-and-forget, không chặn redirect)
+    sendGoogleLoginNotificationEmail(email, {
+      fullName: user.full_name || user.username,
+      loginTime: new Date(),
+      isNewAccount
+    }).catch(err => console.error('[EMAIL] Lỗi gửi thông báo đăng nhập Google:', err.message));
 
     // Redirect về frontend kèm token
     res.redirect(`${FRONTEND_URL}/#/auth?google_token=${token}`);
