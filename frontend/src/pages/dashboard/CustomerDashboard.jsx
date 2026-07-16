@@ -22,6 +22,7 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
   const [bookingsList, setBookingsList] = useState([]);
   const [ordersList, setOrdersList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedViewOrder, setSelectedViewOrder] = useState(null);
 
   // --- RESCHEDULE STATES ---
   const [editingOrderId, setEditingOrderId] = useState(null);
@@ -688,18 +689,33 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
                     <button className="btn btn-text" onClick={() => setSubTab('bookings')}>Xem tất cả</button>
                   </div>
                   <div className="panel-body-list">
-                    {bookingsList.slice(0, 3).map(bk => (
-                      <div key={bk.id} className="mini-item">
-                        <div className="mini-info">
-                          <h4>{bk.device_type || bk.deviceType || 'Thiết bị'}</h4>
-                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                            <span className={`badge badge-${bk.status}`}>{getStatusLabel(bk.status)}</span>
-                            <span style={{ fontSize: '0.8rem', color: 'var(--neutral-medium)' }}>🛠 {bk.technicianName || 'Chưa phân công'}</span>
+                    {bookingsList.slice(0, 3).map(bk => {
+                      let displayDeviceType = bk.device_type || bk.deviceType || 'Thiết bị';
+                      let displayIssue = bk.issue_description || bk.issueDescription || '';
+                      if (displayIssue.startsWith('[')) {
+                        const closeIdx = displayIssue.indexOf(']');
+                        if (closeIdx > 0) {
+                          displayDeviceType = displayIssue.substring(1, closeIdx);
+                        }
+                      }
+                      
+                      const displayDate = bk.preferred_date 
+                        ? new Date(bk.preferred_date).toLocaleDateString('vi-VN') 
+                        : (bk.preferredDate || '');
+
+                      return (
+                        <div key={bk.id} className="mini-item">
+                          <div className="mini-info">
+                            <h4>{displayDeviceType}</h4>
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                              <span className={`badge badge-${bk.status}`}>{getStatusLabel(bk.status)}</span>
+                              <span style={{ fontSize: '0.8rem', color: 'var(--neutral-medium)' }}>🛠 {bk.technicianName || 'Chưa phân công'}</span>
+                            </div>
                           </div>
+                          <p>{displayDate}</p>
                         </div>
-                        <p>{bk.preferred_date || bk.preferredDate || ''}</p>
-                      </div>
-                    ))}
+                      );
+                    })}
                     {bookingsList.length === 0 && <p className="empty-text">Chưa có yêu cầu sửa chữa nào.</p>}
                   </div>
                 </div>
@@ -748,20 +764,38 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
                 {bookingsList.length === 0 ? (
                   <div className="glass-panel text-center py-4">Bạn chưa có lịch hẹn sửa chữa nào.</div>
                 ) : (
-                  bookingsList.map(bk => (
-                    <div key={bk.id} className="repair-card glass-panel">
-                      <div className="card-top-row">
-                        <span className={`badge badge-${bk.status}`}>
-                          {getStatusLabel(bk.status)}
-                        </span>
-                        <span className="booking-id-tag">#{bk.id}</span>
-                      </div>
-                      
-                      <hr />
+                  bookingsList.map(bk => {
+                    let displayDeviceType = bk.device_type || bk.deviceType || 'Thiết bị';
+                    let displayIssue = bk.issue_description || bk.issueDescription || '';
+                    if (displayIssue.startsWith('[')) {
+                      const closeIdx = displayIssue.indexOf(']');
+                      if (closeIdx > 0) {
+                        displayDeviceType = displayIssue.substring(1, closeIdx);
+                        displayIssue = displayIssue.substring(closeIdx + 1).trim();
+                      }
+                    }
 
-                      <div className="card-body">
-                        <h4>{bk.deviceType}</h4>
-                        <p className="card-issue"><strong>Lỗi báo cáo:</strong> {bk.issueDescription}</p>
+                    const displayDate = bk.preferred_date 
+                      ? new Date(bk.preferred_date).toLocaleDateString('vi-VN') 
+                      : (bk.preferredDate || 'Chưa cập nhật');
+
+                    let displayTime = bk.preferredTime || '';
+                    if (!displayTime && bk.notes && bk.notes.includes('Khung giờ:')) {
+                      const matchTime = bk.notes.match(/Khung giờ:\s*([^\r\n]+)/);
+                      if (matchTime) {
+                        displayTime = matchTime[1].trim();
+                      }
+                    }
+                    const timeSuffix = displayTime ? ` (${displayTime})` : '';
+
+                    return (
+                      <div key={bk.id} className="repair-card glass-panel">
+                        <div className="card-top-row">
+                          <span className={`badge badge-${bk.status}`}>
+                            {getStatusLabel(bk.status)}
+                          </span>
+                          <span className="booking-id-tag">#{bk.id}</span>
+                        </div>
                         
                         <div className="card-details-row">
                           <div>
@@ -772,22 +806,22 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
                             <span className="card-meta-lbl">Lịch hẹn:</span>
                             <p>{bk.preferredDate} ({bk.preferredTime})</p>
                           </div>
+
+                          {bk.cost > 0 && (
+                            <div className="card-cost-banner">
+                              Chi phí dự kiến: <strong>{bk.cost.toLocaleString('vi-VN')} VND</strong>
+                            </div>
+                          )}
+
+                          {bk.notes && !bk.notes.startsWith('Khung giờ:') && (
+                            <div className="card-notes-banner">
+                              <strong>Ghi chú từ thợ:</strong> {bk.notes}
+                            </div>
+                          )}
                         </div>
-
-                        {bk.cost > 0 && (
-                          <div className="card-cost-banner">
-                            Chi phí dự kiến: <strong>{bk.cost.toLocaleString('en-US')} VND</strong>
-                          </div>
-                        )}
-
-                        {bk.notes && (
-                          <div className="card-notes-banner">
-                            <strong>Ghi chú từ thợ:</strong> {bk.notes}
-                          </div>
-                        )}
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
@@ -820,6 +854,23 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
                               Hẹn: {ord.appointmentInfo.appointmentDate} ({ord.appointmentInfo.appointmentTime})
                             </div>
                           )}
+                          <button 
+                            onClick={() => setSelectedViewOrder(ord)} 
+                            style={{ 
+                              background: 'none', 
+                              border: 'none', 
+                              color: '#006D44', 
+                              textDecoration: 'underline', 
+                              fontSize: '0.78rem', 
+                              padding: 0, 
+                              cursor: 'pointer', 
+                              display: 'block', 
+                              marginTop: '4px',
+                              textAlign: 'left'
+                            }}
+                          >
+                            Xem chi tiết
+                          </button>
                         </td>
                         <td>{new Date(ord.createdAt).toLocaleDateString('vi-VN')}</td>
                         <td>
@@ -916,7 +967,7 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
           )}
 
           {!loading && subTab === 'chat' && (
-            <div className="animate-fade" style={{ height: 'calc(100vh - 160px)', minHeight: '520px' }}>
+            <div className="animate-fade" style={{ height: 'calc(100vh - 200px)', minHeight: '400px' }}>
               <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h2 style={{ margin: 0 }}>Tư vấn Khách hàng</h2>
                 <button className="btn btn-primary" onClick={handleRequestConsultation}>
@@ -973,6 +1024,141 @@ const CustomerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setI
           )}
         </main>
       </div>
+
+      {selectedViewOrder && (
+        <div className="modal-backdrop" style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.6)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999,
+          padding: '20px'
+        }} onClick={() => setSelectedViewOrder(null)}>
+          <div className="modal-content glass-panel" style={{
+            backgroundColor: 'var(--card-bg, #1a202c)',
+            color: 'var(--text-color, #f7fafc)',
+            padding: '24px',
+            borderRadius: '16px',
+            maxWidth: '600px',
+            width: '100%',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            border: '1px solid var(--border-color)',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)',
+            position: 'relative'
+          }} onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>Chi Tiết Đơn Hàng {selectedViewOrder.invoiceNumber}</h3>
+              <button 
+                onClick={() => setSelectedViewOrder(null)} 
+                style={{ 
+                  background: 'none', 
+                  border: 'none', 
+                  color: 'var(--text-color)', 
+                  fontSize: '1.5rem', 
+                  cursor: 'pointer',
+                  lineHeight: '1'
+                }}
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Information Grid */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* Status & Date */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
+                <div>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--neutral-medium)', display: 'block' }}>Ngày Đặt Hàng</span>
+                  <strong style={{ fontSize: '0.95rem' }}>{new Date(selectedViewOrder.createdAt).toLocaleString('vi-VN')}</strong>
+                </div>
+                <div>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--neutral-medium)', display: 'block' }}>Trạng Thế</span>
+                  <span className={`status-delivery-tag ${selectedViewOrder.status}`} style={{ display: 'inline-block', marginTop: '4px' }}>
+                    {selectedViewOrder.status === 'pending' ? 'Đang chờ' : selectedViewOrder.status === 'reserved' ? 'Đã hẹn (Đang giữ máy)' : selectedViewOrder.status === 'waiting_payment' ? 'Chờ thanh toán (Đang giữ máy)' : selectedViewOrder.status === 'completed' ? 'Thành công (Đã mua)' : selectedViewOrder.status === 'canceled' || selectedViewOrder.status === 'cancelled' ? 'Đã hủy' : selectedViewOrder.status}
+                  </span>
+                </div>
+              </div>
+
+              {/* Payment Method */}
+              <div>
+                <span style={{ fontSize: '0.8rem', color: 'var(--neutral-medium)', display: 'block' }}>Phương Thức Thanh Toán</span>
+                <strong style={{ fontSize: '0.95rem' }}>
+                  {selectedViewOrder.paymentMethod === 'cod' ? 'Thanh toán tại cửa hàng (COD)' : selectedViewOrder.paymentMethod === 'vnpay' ? 'Thanh toán qua VNPay' : 'Chuyển khoản'}
+                </strong>
+              </div>
+
+              {/* Items List */}
+              <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px', background: 'rgba(255,255,255,0.02)' }}>
+                <h4 style={{ margin: '0 0 10px 0', fontSize: '0.9rem', fontWeight: 700, borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>Danh Sách Thiết Bị</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {selectedViewOrder.items.map((item, idx) => (
+                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                      <span>{item.name} <span style={{ color: 'var(--neutral-medium)' }}>x{item.quantity}</span></span>
+                      <strong>{item.price.toLocaleString('vi-VN')} VND</strong>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ borderTop: '1px solid var(--border-color)', marginTop: '10px', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: '0.95rem' }}>
+                  <span>Tổng tiền</span>
+                  <span style={{ color: 'var(--primary, #006D44)' }}>{selectedViewOrder.totalAmount.toLocaleString('vi-VN')} VND</span>
+                </div>
+              </div>
+
+              {/* Appointment / Contact Details */}
+              {selectedViewOrder.appointmentInfo && (
+                <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px', background: 'rgba(255,255,255,0.02)' }}>
+                  <h4 style={{ margin: '0 0 10px 0', fontSize: '0.9rem', fontWeight: 700, borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>Thông Tin Lịch Hẹn & Nhận Hàng</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.85rem' }}>
+                    {selectedViewOrder.appointmentInfo.fullName && (
+                      <div>
+                        <span style={{ color: 'var(--neutral-medium)' }}>Họ và tên:</span> <strong>{selectedViewOrder.appointmentInfo.fullName}</strong>
+                      </div>
+                    )}
+                    {selectedViewOrder.appointmentInfo.phone && (
+                      <div>
+                        <span style={{ color: 'var(--neutral-medium)' }}>Số điện thoại:</span> <strong>{selectedViewOrder.appointmentInfo.phone}</strong>
+                      </div>
+                    )}
+                    {selectedViewOrder.appointmentInfo.email && (
+                      <div>
+                        <span style={{ color: 'var(--neutral-medium)' }}>Email:</span> <strong>{selectedViewOrder.appointmentInfo.email}</strong>
+                      </div>
+                    )}
+                    {selectedViewOrder.appointmentInfo.appointmentDate && (
+                      <div>
+                        <span style={{ color: 'var(--neutral-medium)' }}>Thời gian hẹn:</span> <strong>{selectedViewOrder.appointmentInfo.appointmentDate} ({selectedViewOrder.appointmentInfo.appointmentTime})</strong>
+                      </div>
+                    )}
+                    {selectedViewOrder.appointmentInfo.address && (
+                      <div>
+                        <span style={{ color: 'var(--neutral-medium)' }}>Địa chỉ cửa hàng / nhận hàng:</span> <strong>{selectedViewOrder.appointmentInfo.address}</strong>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer Actions */}
+            <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+              <button 
+                className="btn btn-secondary" 
+                style={{ padding: '8px 16px', fontSize: '0.9rem' }} 
+                onClick={() => setSelectedViewOrder(null)}
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

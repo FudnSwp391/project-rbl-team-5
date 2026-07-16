@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { MapPin, CreditCard, CheckCircle2, ArrowRight, ShieldCheck, Printer, Calendar } from 'lucide-react';
+import { MapPin, CreditCard, CheckCircle2, ArrowRight, ShieldCheck, Printer, Calendar, Phone, Store, User, ListOrdered, Package, Tag, ShoppingCart, FileText, Coins, Truck, Check, ClipboardCheck, ChevronRight, Mail, Globe, Recycle } from 'lucide-react';
 import './Checkout.css';
 
 const getVietQrBankId = (brand) => {
@@ -426,7 +426,7 @@ const Checkout = ({ setActivePage }) => {
 
       {error && <div className="checkout-error-alert">{error}</div>}
 
-      <div className="checkout-content-grid">
+      <div className={`checkout-content-grid${step === 'invoice' ? ' invoice-mode' : ''}`}>
         {/* Main form area */}
         <div className="checkout-main-panel">
           
@@ -680,58 +680,88 @@ const Checkout = ({ setActivePage }) => {
 
           {/* STEP 4: INVOICE PRINT VIEW */}
           {step === 'invoice' && completedOrder && (
-            <div className="invoice-container glass-panel animate-scale-up">
-              <div className="invoice-header">
-                <div className="invoice-brand">
-                  <div className="invoice-logo">
-                    <span>TechCycle Invoice</span>
+            <div className="invoice-container inv-wrap animate-scale-up">
+
+              {/* ─── HEADER ─── */}
+              <div className="inv-header">
+                <div className="inv-brand">
+                  <div className="inv-logo-icon">
+                    <Recycle size={22} />
                   </div>
-                  <p>Công nghệ tuần hoàn - Tương lai bền vững</p>
+                  <div>
+                    <div className="inv-brand-name">TechCycle</div>
+                    <div className="inv-brand-sub">Invoice</div>
+                  </div>
                 </div>
-                <div className="invoice-meta">
-                  <h2>HÓA ĐƠN MUA HÀNG</h2>
-                  <p>Mã hóa đơn: <strong>{completedOrder.invoiceNumber}</strong></p>
-                  <p><Calendar size={14} /> Ngày lập: {new Date(completedOrder.createdAt).toLocaleDateString('vi-VN')}</p>
+
+                <div className="inv-title-block">
+                  <h1 className="inv-main-title">HÓA ĐƠN MUA HÀNG</h1>
+                </div>
+
+                <div className="inv-meta">
+                  <div className="inv-meta-badge">
+                    <span className="inv-meta-label">Mã hóa đơn</span>
+                    <span className="inv-meta-value">{completedOrder.invoiceNumber}</span>
+                  </div>
+                  <div className="inv-meta-badge">
+                    <span className="inv-meta-label"><Calendar size={11} /> Ngày lập</span>
+                    <span className="inv-meta-value">{new Date(completedOrder.createdAt).toLocaleDateString('vi-VN')}</span>
+                  </div>
                 </div>
               </div>
 
-              <hr className="invoice-divider" />
-
-              <div className="invoice-addresses">
-                <div className="addr-col">
-                  <h5>ĐƠN VỊ CUNG CẤP:</h5>
-                  <p><strong>TechCycle Việt Nam</strong></p>
-                  <p>123 Đường Ba Tháng Hai, Quận 10, TP. Hồ Chí Minh</p>
-                  <p>Hotline: 0900.112.233</p>
+              {/* ─── PARTIES ─── */}
+              <div className="inv-parties">
+                <div className="inv-party-card">
+                  <span className="inv-party-label">ĐƠN VỊ CUNG CẤP</span>
+                  <div className="inv-party-body">
+                    <div className="inv-party-avatar"><Store size={20} /></div>
+                    <div className="inv-party-info">
+                      <div className="inv-party-name">TechCycle Việt Nam</div>
+                      <div className="inv-party-detail"><MapPin size={12} />123 Đường Ba Tháng Hai, Quận 10, TP. Hồ Chí Minh</div>
+                      <div className="inv-party-detail"><Phone size={12} />0900.112.233</div>
+                    </div>
+                  </div>
                 </div>
-                <div className="addr-col">
-                  <h5>KHÁCH HÀNG:</h5>
-                  <p><strong>{completedOrder.shippingInfo.fullName}</strong></p>
-                  <p>{completedOrder.shippingInfo.address}</p>
-                  <p>SĐT: {completedOrder.shippingInfo.phone}</p>
+
+                <div className="inv-party-card">
+                  <span className="inv-party-label">KHÁCH HÀNG</span>
+                  <div className="inv-party-body">
+                    <div className="inv-party-avatar"><User size={20} /></div>
+                    <div className="inv-party-info">
+                      <div className="inv-party-name">{completedOrder.shippingInfo.fullName}</div>
+                      <div className="inv-party-detail"><MapPin size={12} />{completedOrder.shippingInfo.address}</div>
+                      <div className="inv-party-detail"><Phone size={12} />{completedOrder.shippingInfo.phone}</div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <table className="invoice-table">
-                <thead>
-                  <tr>
-                    <th>Sản phẩm</th>
-                    <th className="text-right">Đơn giá</th>
-                    <th className="text-right">Số lượng</th>
-                    <th className="text-right">Thành tiền</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {completedOrder.items.map((item, idx) => (
-                    <tr key={idx}>
-                      <td>{item.name}</td>
-                      <td className="text-right">{(item.price || 0).toLocaleString('en-US')} <span className="currency">VND</span></td>
-                      <td className="text-right">1</td>
-                      <td className="text-right">{(item.price || 0).toLocaleString('en-US')} <span className="currency">VND</span></td>
+              {/* ─── PRODUCT TABLE ─── */}
+              <div className="inv-table-wrap">
+                <table className="inv-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '60px' }}>STT</th>
+                      <th>TÊN SẢN PHẨM</th>
+                      <th style={{ width: '140px', textAlign: 'right' }}>ĐƠN GIÁ</th>
+                      <th style={{ width: '100px', textAlign: 'center' }}>SỐ LƯỢNG</th>
+                      <th style={{ width: '160px', textAlign: 'right' }}>THÀNH TIỀN</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {completedOrder.items.map((item, idx) => (
+                      <tr key={idx}>
+                        <td>{idx + 1}</td>
+                        <td className="inv-product-name">{item.name}</td>
+                        <td style={{ textAlign: 'right' }}>{(item.price || 0).toLocaleString('vi-VN')} <span className="inv-currency">₫</span></td>
+                        <td style={{ textAlign: 'center' }}>1</td>
+                        <td style={{ textAlign: 'right' }} className="inv-amount">{(item.price || 0).toLocaleString('vi-VN')} <span className="inv-currency">₫</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
               {(() => {
                 const originalTotal = completedOrder.items.reduce((sum, item) => sum + (item.price || 0), 0);
@@ -765,24 +795,51 @@ const Checkout = ({ setActivePage }) => {
                 );
               })()}
 
-              <div className="invoice-footer">
-                <div className="payment-status-badge">
-                  <ShieldCheck size={18} />
-                  <span>Trạng thái: CHỜ GIAO HÀNG / {completedOrder.paymentMethod === 'cod' ? 'Thanh toán COD' : completedOrder.paymentMethod === 'vnpay' ? 'Đã thanh toán VNPay' : 'Đã thanh toán CK'}</span>
+              {/* ─── FOOTER ─── */}
+              <div className="inv-footer">
+                {/* Column 1: Brand Logo & Contacts */}
+                <div className="inv-footer-brand">
+                  <div className="inv-footer-logo">
+                    <Recycle size={16} />
+                    <span>TechCycle</span>
+                  </div>
+                  <div className="inv-footer-contacts">
+                    <span><Mail size={12} />support@techcycle.vn</span>
+                    <span><Globe size={12} />www.techcycle.vn</span>
+                  </div>
                 </div>
-                
-                <div className="invoice-actions no-print">
-                  <button className="btn btn-outline" onClick={() => window.print()}>
-                    <Printer size={16} />
-                    In hóa đơn
-                  </button>
-                  <button className="btn btn-primary" onClick={() => setActivePage('shop')}>
-                    Tiếp tục mua sắm
-                  </button>
+
+                {/* Column 2: Thanks message */}
+                <div className="inv-footer-thanks-wrap">
+                  <p className="inv-footer-thanks">🌱 Cảm ơn quý khách đã lựa chọn TechCycle! 🌱</p>
+                </div>
+
+                {/* Column 3: QR Code online lookup */}
+                <div className="inv-footer-qr">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=72x72&data=https://techcycle.vn/invoice/${completedOrder.id}`}
+                    alt="Invoice QR"
+                    className="inv-qr-img"
+                  />
+                  <span className="inv-qr-label">Quét mã để xem<br />thông tin đơn hàng</span>
                 </div>
               </div>
+
+              {/* ─── ACTIONS ─── */}
+              <div className="inv-actions no-print">
+                <button className="inv-btn inv-btn-outline" onClick={() => window.print()}>
+                  <Printer size={16} />In hóa đơn
+                </button>
+                <button className="inv-btn inv-btn-primary" onClick={() => setActivePage('shop')}>
+                  Tiếp tục mua sắm<ArrowRight size={16} />
+                </button>
+              </div>
+
             </div>
           )}
+
+
+
 
         </div>
 

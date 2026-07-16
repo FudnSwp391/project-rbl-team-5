@@ -27,6 +27,12 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
 
   const [usersList, setUsersList] = useState([]);
 
+  // --- EDITING STATES FOR BOOKINGS ---
+  const [editingBookingId, setEditingBookingId] = useState(null);
+  const [editCost, setEditCost] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+  const [isSavingCostNotes, setIsSavingCostNotes] = useState(false);
+
   // --- INTERNAL CHAT HOOK ---
   const {
     selectedConversation: internalConversation,
@@ -120,6 +126,7 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
   };
 
   const handleUpdateBookingCostNotes = async (bookingId, cost, notes) => {
+    setIsSavingCostNotes(true);
     try {
       const res = await fetch(`${API_BASE}/api/bookings/${bookingId}`, {
         method: 'PUT',
@@ -127,14 +134,19 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ cost, notes })
+        body: JSON.stringify({ cost: cost ? Number(cost) : 0, notes })
       });
       if (res.ok) {
-        alert('Cập nhật chi phí sửa chữa thành công.');
+        alert('Cập nhật chi phí & ghi chú thành công.');
+        setEditingBookingId(null);
         fetchData();
+      } else {
+        alert('Lỗi cập nhật.');
       }
     } catch {
       alert('Không thể cập nhật.');
+    } finally {
+      setIsSavingCostNotes(false);
     }
   };
   const getStatusLabel = (st) => {
@@ -327,62 +339,150 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
                 {bookingsList.length === 0 ? (
                   <div className="glass-panel text-center py-4">Hiện chưa có công việc sửa chữa nào được phân công cho bạn.</div>
                 ) : (
-                  bookingsList.map(bk => (
-                    <div key={bk.id} className="repair-card glass-panel">
-                      <div className="card-top-row">
-                        <span className={`badge badge-${bk.status}`}>
-                          {getStatusLabel(bk.status)}
-                        </span>
-                        <span className="booking-id-tag">#{bk.id}</span>
-                      </div>
-                      
-                      <hr />
+                  bookingsList.map(bk => {
+                    let displayDeviceType = bk.device_type || bk.deviceType || 'Thiết bị';
+                    let displayIssue = bk.issue_description || bk.issueDescription || '';
+                    if (displayIssue.startsWith('[')) {
+                      const closeIdx = displayIssue.indexOf(']');
+                      if (closeIdx > 0) {
+                        displayDeviceType = displayIssue.substring(1, closeIdx);
+                        displayIssue = displayIssue.substring(closeIdx + 1).trim();
+                      }
+                    }
 
-                      <div className="card-body">
-                        <h4>{bk.deviceType}</h4>
-                        <p className="card-issue"><strong>Lỗi báo cáo:</strong> {bk.issueDescription}</p>
+                    const displayDate = bk.preferred_date 
+                      ? new Date(bk.preferred_date).toLocaleDateString('vi-VN') 
+                      : (bk.preferredDate || 'Chưa cập nhật');
+
+                    let displayTime = bk.preferredTime || '';
+                    if (!displayTime && bk.notes && bk.notes.includes('Khung giờ:')) {
+                      const matchTime = bk.notes.match(/Khung giờ:\s*([^\r\n]+)/);
+                      if (matchTime) {
+                        displayTime = matchTime[1].trim();
+                      }
+                    }
+                    const timeSuffix = displayTime ? ` (${displayTime})` : '';
+
+                    return (
+                      <div key={bk.id} className="repair-card glass-panel">
+                        <div className="card-top-row">
+                          <span className={`badge badge-${bk.status}`}>
+                            {getStatusLabel(bk.status)}
+                          </span>
+                          <span className="booking-id-tag">#{bk.id}</span>
+                        </div>
                         
-                        <div className="card-details-row">
-                          <div>
-                            <span className="card-meta-lbl">Khách hàng:</span>
-                            <p><strong>{bk.customerName}</strong> ({bk.customerPhone})</p>
+                        <hr />
+
+                        <div className="card-body">
+                          <h4>{displayDeviceType}</h4>
+                          <p className="card-issue"><strong>Lỗi báo cáo:</strong> {displayIssue}</p>
+                          
+                          <div className="card-details-row">
+                            <div>
+                              <span className="card-meta-lbl">Khách hàng:</span>
+                              <p><strong>{bk.customerName}</strong> ({bk.customerPhone})</p>
+                            </div>
+                            <div>
+                              <span className="card-meta-lbl">Ngày hẹn:</span>
+                              <p>{displayDate}{timeSuffix}</p>
+                            </div>
                           </div>
-                          <div>
-                            <span className="card-meta-lbl">Ngày hẹn:</span>
-                            <p>{bk.preferredDate} ({bk.preferredTime})</p>
-                          </div>
+
+                          {editingBookingId === bk.id ? (
+                            <div className="card-edit-details-form" style={{ marginTop: '15px', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                              <div className="form-group" style={{ marginBottom: '10px' }}>
+                                <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--neutral-medium)', marginBottom: '4px' }}>Chi phí dự kiến (VND):</label>
+                                <input 
+                                  type="number"
+                                  className="form-control"
+                                  style={{ width: '100%', padding: '6px', fontSize: '0.85rem', background: 'var(--neutral-bg)', border: '1px solid var(--border-color)', borderRadius: '4px', color: 'var(--text-color)' }}
+                                  value={editCost}
+                                  onChange={e => setEditCost(e.target.value)}
+                                  placeholder="0"
+                                  min="0"
+                                />
+                              </div>
+                              <div className="form-group" style={{ marginBottom: '12px' }}>
+                                <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--neutral-medium)', marginBottom: '4px' }}>Ghi chú từ thợ:</label>
+                                <textarea 
+                                  className="form-control"
+                                  rows={3}
+                                  style={{ width: '100%', padding: '6px', fontSize: '0.85rem', background: 'var(--neutral-bg)', border: '1px solid var(--border-color)', borderRadius: '4px', color: 'var(--text-color)', resize: 'vertical' }}
+                                  value={editNotes}
+                                  onChange={e => setEditNotes(e.target.value)}
+                                  placeholder="Nhập ghi chú cho khách hàng..."
+                                />
+                              </div>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button 
+                                  className="btn btn-primary btn-sm" 
+                                  style={{ flex: 1, padding: '4px 8px', fontSize: '0.8rem' }}
+                                  disabled={isSavingCostNotes}
+                                  onClick={() => handleUpdateBookingCostNotes(bk.id, editCost, editNotes)}
+                                >
+                                  {isSavingCostNotes ? 'Đang lưu...' : 'Lưu'}
+                                </button>
+                                <button 
+                                  className="btn btn-secondary btn-sm" 
+                                  style={{ flex: 1, padding: '4px 8px', fontSize: '0.8rem' }}
+                                  onClick={() => setEditingBookingId(null)}
+                                >
+                                  Hủy
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              {bk.cost > 0 ? (
+                                <div className="card-cost-banner">
+                                  Chi phí dự kiến: <strong>{bk.cost.toLocaleString('vi-VN')} VND</strong>
+                                </div>
+                              ) : (
+                                <div className="card-cost-banner" style={{ opacity: 0.6 }}>
+                                  Chi phí dự kiến: <strong>Chưa báo giá</strong>
+                                </div>
+                              )}
+
+                              {bk.notes && !bk.notes.startsWith('Khung giờ:') && (
+                                <div className="card-notes-banner">
+                                  <strong>Ghi chú từ thợ:</strong> {bk.notes}
+                                </div>
+                              )}
+
+                              <button 
+                                className="btn btn-outline btn-sm"
+                                style={{ marginTop: '10px', width: '100%', padding: '4px 8px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                                onClick={() => {
+                                  setEditingBookingId(bk.id);
+                                  setEditCost(bk.cost > 0 ? String(bk.cost) : '');
+                                  setEditNotes(bk.notes || '');
+                                }}
+                              >
+                                ✏️ Báo giá & Ghi chú
+                              </button>
+                            </>
+                          )}
                         </div>
 
-                        {bk.cost > 0 && (
-                          <div className="card-cost-banner">
-                            Chi phí dự kiến: <strong>{bk.cost.toLocaleString('vi-VN')} VND</strong>
+                        <div className="card-actions">
+                          <div className="status-selector-wrap">
+                            <span>Cập nhật trạng thái:</span>
+                            <select 
+                              className="form-control inline-select"
+                              value={bk.status}
+                              onChange={(e) => handleUpdateBookingStatus(bk.id, e.target.value)}
+                            >
+                              <option value="assigned">Đã phân công</option>
+                              <option value="inspecting">Đang kiểm tra</option>
+                              <option value="repairing">Đang sửa chữa</option>
+                              <option value="completed">Hoàn thành</option>
+                            </select>
                           </div>
-                        )}
-
-                        {bk.notes && (
-                          <div className="card-notes-banner">
-                            <strong>Ghi chú kỹ thuật viên:</strong> {bk.notes}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="card-actions">
-                        <div className="status-selector-wrap">
-                          <span>Cập nhật trạng thái:</span>
-                          <select 
-                            className="form-control inline-select"
-                            value={bk.status}
-                            onChange={(e) => handleUpdateBookingStatus(bk.id, e.target.value)}
-                          >
-                            <option value="assigned">Đã phân công</option>
-                            <option value="inspecting">Đang kiểm tra</option>
-                            <option value="repairing">Đang sửa chữa</option>
-                            <option value="completed">Hoàn thành</option>
-                          </select>
                         </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
@@ -661,7 +761,7 @@ const TechnicianDashboard = ({ setActivePage, theme, setTheme, initialSubTab, se
           )}
 
           {!loading && subTab === 'internal-chat' && (
-            <div className="animate-fade" style={{ height: 'calc(100vh - 160px)', minHeight: '520px' }}>
+            <div className="animate-fade" style={{ height: 'calc(100vh - 200px)', minHeight: '400px' }}>
               <InternalChatPanel
                 staffList={internalStaffList}
                 selectedConversation={internalConversation}
