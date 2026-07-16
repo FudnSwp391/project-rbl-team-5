@@ -1102,7 +1102,7 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                 <div className="stats-card-widget glass-panel recent-transactions">
                   <div className="widget-header-row">
                     <h3>Giao Dịch Gần Đây</h3>
-                    <span className="three-dots-icon" onClick={() => alert("Đang mở bộ lọc giao dịch lịch sử...")}>•••</span>
+                    <span className="three-dots-icon" onClick={() => setSubTab('bookings')}>•••</span>
                   </div>
 
                   <div className="transactions-table-wrapper">
@@ -1202,8 +1202,8 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
                     </table>
                   </div>
 
-                  <div className="view-history-footer" onClick={() => alert("Redirecting to full transaction logs...")}>
-                    <span>View all transaction history</span>
+                  <div className="view-history-footer" onClick={() => setSubTab('bookings')}>
+                    <span>Xem tất cả lịch sử giao dịch</span>
                   </div>
                 </div>
               </div>
