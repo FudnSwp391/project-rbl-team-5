@@ -882,15 +882,15 @@ const AdminDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setInit
             </button>
             <button className={`sidebar-nav-btn ${subTab === 'products' ? 'active' : ''}`} onClick={() => handleNavClick('products')}>
               <ShoppingBag size={18} />
-              Tài sản
+              Kho hàng
             </button>
             <button className={`sidebar-nav-btn ${subTab === 'customers' ? 'active' : ''}`} onClick={() => handleNavClick('customers')}>
               <Users size={18} />
-              Báo cáo
+              Sổ Khách Hàng
             </button>
             <button className={`sidebar-nav-btn ${subTab === 'users' ? 'active' : ''}`} onClick={() => handleNavClick('users')}>
               <Users size={18} />
-              Nhóm
+              Danh Sách Tài Khoản
             </button>
             <button className={`sidebar-nav-btn ${subTab === 'marketing' ? 'active' : ''}`} onClick={() => handleNavClick('marketing')}>
               <Tag size={18} />
