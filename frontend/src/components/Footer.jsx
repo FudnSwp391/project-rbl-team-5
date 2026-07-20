@@ -44,11 +44,12 @@ const Footer = () => {
           <ul className="contact-list">
             <li>
               <MapPin size={18} />
-              <span>123 Đường Ba Tháng Hai, Quận 10, TP. Hồ Chí Minh</span>
+              <span>Khu đô thị công nghệ FPT Đà Nẵng, Phường Ngũ Hành Sơn, TP. Đà Nẵng
+              </span>
             </li>
             <li>
               <Phone size={18} />
-              <span>0900.112.233 (8:00 - 20:00)</span>
+              <span>0335928283 (8:00 - 20:00)</span>
             </li>
             <li>
               <Mail size={18} />
