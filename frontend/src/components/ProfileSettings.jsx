@@ -26,12 +26,25 @@ const ProfileSettings = () => {
       setMessage({ text: 'Username và Email không được để trống.', type: 'danger' });
       return;
     }
+
+    if (!phone || !phone.trim()) {
+      setMessage({ text: 'Số điện thoại không được để trống.', type: 'danger' });
+      return;
+    }
+
+    const trimmedPhone = phone.trim();
+    const phoneRegex = /^0\d{9,10}$/;
+    const isDummyPhone = trimmedPhone.startsWith('google_');
+    if (!isDummyPhone && !phoneRegex.test(trimmedPhone)) {
+      setMessage({ text: 'Số điện thoại không hợp lệ. Vui lòng nhập 10-11 chữ số bắt đầu bằng 0.', type: 'danger' });
+      return;
+    }
     
     setLoading(true);
     setMessage({ text: '', type: '' });
     
     try {
-      await updateProfile(username, email, description, phone);
+      await updateProfile(username, email, description, trimmedPhone);
       setMessage({ text: 'Cập nhật thông tin tài khoản thành công!', type: 'success' });
     } catch (err) {
       setMessage({ text: err.message || 'Cập nhật thất bại. Vui lòng thử lại.', type: 'danger' });

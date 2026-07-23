@@ -192,6 +192,17 @@ exports.updateProfile = async (req, res) => {
     return res.status(400).json({ message: 'Tên đăng nhập và email là bắt buộc.' });
   }
 
+  if (!phone || !phone.trim()) {
+    return res.status(400).json({ message: 'Số điện thoại là bắt buộc.' });
+  }
+
+  const trimmedPhone = phone.trim();
+  const phoneRegex = /^0\d{9,10}$/;
+  const isDummyPhone = trimmedPhone.startsWith('google_');
+  if (!isDummyPhone && !phoneRegex.test(trimmedPhone)) {
+    return res.status(400).json({ message: 'Số điện thoại không hợp lệ. Vui lòng nhập 10-11 chữ số bắt đầu bằng 0.' });
+  }
+
   try {
     // Check if email is already taken by another user
     const existingUser = await db.findOne('users', { email });
@@ -205,6 +216,12 @@ exports.updateProfile = async (req, res) => {
       return res.status(400).json({ message: 'Tên đăng nhập đã được sử dụng bởi tài khoản khác.' });
     }
 
+    // Check if phone is already taken by another user
+    const existingPhone = await db.findOne('users', { phone: trimmedPhone });
+    if (existingPhone && String(existingPhone.id) !== String(req.user.id)) {
+      return res.status(400).json({ message: 'Số điện thoại đã được sử dụng bởi tài khoản khác.' });
+    }
+
     await db.query(
       `UPDATE users 
        SET username = @username, email = @email, description = @description, phone = @phone 
@@ -213,7 +230,7 @@ exports.updateProfile = async (req, res) => {
         { name: 'username', value: username },
         { name: 'email', value: email },
         { name: 'description', value: description || null },
-        { name: 'phone', value: phone || null },
+        { name: 'phone', value: trimmedPhone },
         { name: 'id', value: req.user.id }
       ]
     );
