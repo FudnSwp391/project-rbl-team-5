@@ -153,7 +153,22 @@ const sendRepairCompletionEmail = async (toEmail, bookingDetails) => {
  * @param {object} orderDetails - Chi tiết đơn hàng
  */
 const sendOrderConfirmationEmail = async (toEmail, orderDetails) => {
-  const itemsHtml = orderDetails.items.map(item => `
+  // Fallback an toàn cho shippingInfo
+  const shipping = orderDetails.shippingInfo || {};
+  const fullName = shipping.fullName || shipping.name || 'Khách hàng';
+  const phone = shipping.phone || shipping.phoneNumber || '';
+  const address = shipping.address || shipping.shippingAddress || 'Không có thông tin';
+  const notes = shipping.notes || shipping.note || '';
+
+  // Fallback cho paymentMethodLabel
+  const paymentMethodLabel = orderDetails.paymentMethodLabel || 'Chuyển khoản (SePay)';
+
+  // Fallback cho items
+  const items = (orderDetails.items && orderDetails.items.length > 0)
+    ? orderDetails.items
+    : [{ name: `Đơn hàng #${orderDetails.invoiceNumber}`, price: orderDetails.totalAmount || 0, quantity: 1 }];
+
+  const itemsHtml = items.map(item => `
     <tr style="border-bottom: 1px solid #eee;">
       <td style="padding: 8px 0; color: #333;">${item.name}</td>
       <td style="padding: 8px 0; text-align: right; color: #333;">1</td>
@@ -177,13 +192,13 @@ const sendOrderConfirmationEmail = async (toEmail, orderDetails) => {
         <div style="padding: 32px 24px; background: white;">
           <h2 style="color: #10b981; margin: 0 0 12px; font-size: 20px;">Thanh Toán Thành Công!</h2>
           <p style="color: #555; line-height: 1.6; margin: 0 0 24px;">
-            Chào bạn, đơn hàng của bạn đã được thanh toán thành công qua chuyển khoản ngân hàng SePay. Chúng tôi đang chuẩn bị hàng để giao tới bạn trong thời gian sớm nhất.
+            Chào bạn, đơn hàng của bạn đã được thanh toán thành công. Chúng tôi đang chuẩn bị hàng để giao tới bạn trong thời gian sớm nhất.
           </p>
 
           <div style="background: #f3f4f6; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
             <p style="margin: 0 0 8px; font-size: 14px; color: #666;">Mã hóa đơn: <strong style="color: #333;">${orderDetails.invoiceNumber}</strong></p>
             <p style="margin: 0 0 8px; font-size: 14px; color: #666;">Ngày đặt hàng: <strong style="color: #333;">${new Date(orderDetails.createdAt).toLocaleDateString('vi-VN')}</strong></p>
-            <p style="margin: 0; font-size: 14px; color: #666;">Phương thức: <strong style="color: #333;">Chuyển khoản (SePay)</strong></p>
+            <p style="margin: 0; font-size: 14px; color: #666;">Phương thức: <strong style="color: #333;">${paymentMethodLabel}</strong></p>
           </div>
 
           <h3 style="color: #333; border-bottom: 2px solid #f3f4f6; padding-bottom: 8px; margin-bottom: 12px;">Chi tiết sản phẩm</h3>
@@ -207,10 +222,10 @@ const sendOrderConfirmationEmail = async (toEmail, orderDetails) => {
 
           <h3 style="color: #333; border-bottom: 2px solid #f3f4f6; padding-bottom: 8px; margin-bottom: 12px;">Thông tin giao hàng</h3>
           <p style="color: #555; font-size: 14px; margin: 0 0 8px; line-height: 1.6;">
-            <strong>Người nhận:</strong> ${orderDetails.shippingInfo.fullName}<br>
-            <strong>Số điện thoại:</strong> ${orderDetails.shippingInfo.phone}<br>
-            <strong>Địa chỉ giao:</strong> ${orderDetails.shippingInfo.address}<br>
-            ${orderDetails.shippingInfo.notes ? `<strong>Ghi chú:</strong> ${orderDetails.shippingInfo.notes}` : ''}
+            <strong>Người nhận:</strong> ${fullName}<br>
+            <strong>Số điện thoại:</strong> ${phone}<br>
+            <strong>Địa chỉ giao:</strong> ${address}<br>
+            ${notes ? `<strong>Ghi chú:</strong> ${notes}` : ''}
           </p>
 
           <div style="text-align: center; margin-top: 32px;">

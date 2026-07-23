@@ -700,35 +700,61 @@ exports.sepayWebhook = async (req, res) => {
           });
         }
 
-        // Parse shipping info
-        let shippingInfo = {};
+        // Parse shipping info - đảm bảo luôn có fullName, phone, address
+        let shippingInfo = { fullName: 'Khách hàng', phone: '', address: 'Không có thông tin' };
         if (order.shipping_address) {
           const trimmed = order.shipping_address.trim();
           if (trimmed.startsWith('{')) {
             try {
-              shippingInfo = JSON.parse(trimmed);
+              const parsed = JSON.parse(trimmed);
+              shippingInfo = {
+                fullName: parsed.fullName || parsed.name || parsed.recipientName || 'Khách hàng',
+                phone: parsed.phone || parsed.phoneNumber || '',
+                address: parsed.address || parsed.shippingAddress || parsed.deliveryAddress || 'Không có thông tin',
+                notes: parsed.notes || parsed.note || ''
+              };
             } catch (e) {
-              shippingInfo = { address: order.shipping_address, fullName: 'Khách hàng', phone: '' };
+              shippingInfo = { fullName: 'Khách hàng', phone: '', address: order.shipping_address };
             }
           } else {
-            shippingInfo = { address: order.shipping_address, fullName: 'Khách hàng', phone: '' };
+            shippingInfo = { fullName: 'Khách hàng', phone: '', address: order.shipping_address };
           }
         }
 
-        // Fetch items
-        const itemsResult = await db.query(
-          'SELECT * FROM order_items WHERE order_id = @orderId',
-          [{ name: 'orderId', value: order.id }]
-        );
-        const items = await Promise.all(itemsResult.recordset.map(async (item) => {
-          const prod = await db.findOne('products', { id: item.product_id });
-          return {
-            productId: item.product_id,
-            name: prod ? (prod.title || prod.name) : 'Thiết bị cũ',
-            price: item.price,
-            quantity: item.quantity
-          };
-        }));
+        // Parse payment method từ notes
+        let paymentMethodLabel = 'Chuyển khoản (SePay)';
+        if (order.notes) {
+          const paymentPart = order.notes.split('|').find(p => p.startsWith('payment:'));
+          if (paymentPart) {
+            const method = paymentPart.replace('payment:', '').trim();
+            if (method === 'vnpay') paymentMethodLabel = 'VNPay';
+            else if (method === 'bank_transfer') paymentMethodLabel = 'Chuyển khoản (SePay)';
+            else if (method === 'at_store') paymentMethodLabel = 'Thanh toán tại cửa hàng';
+            else paymentMethodLabel = method;
+          }
+        }
+
+        // Fetch items an toàn
+        let items = [];
+        try {
+          const itemsResult = await db.query(
+            'SELECT * FROM order_items WHERE order_id = @orderId',
+            [{ name: 'orderId', value: order.id }]
+          );
+          const recordset = (itemsResult && itemsResult.recordset) ? itemsResult.recordset : [];
+          items = await Promise.all(recordset.map(async (item) => {
+            const prod = await db.findOne('products', { id: item.product_id });
+            return {
+              productId: item.product_id,
+              name: prod ? (prod.title || prod.name || 'Thiết bị cũ') : 'Thiết bị cũ',
+              price: Number(item.price) || 0,
+              quantity: item.quantity || 1
+            };
+          }));
+        } catch (itemErr) {
+          console.error('[SePay Webhook] Lỗi lấy danh sách sản phẩm trong đơn:', itemErr);
+          items = [{ name: `Đơn hàng #${order.id}`, price: Number(order.total_amount) || 0, quantity: 1 }];
+        }
 
         const { sendOrderConfirmationEmail } = require('../emailService');
         await sendOrderConfirmationEmail(customerEmail, {
@@ -736,6 +762,7 @@ exports.sepayWebhook = async (req, res) => {
           createdAt: order.created_at,
           totalAmount: order.total_amount,
           shippingInfo,
+          paymentMethodLabel,
           items
         });
       }
