@@ -343,13 +343,13 @@ const SellerDashboard = ({ setActivePage, theme, setTheme, initialSubTab, setIni
     }
     let basePrice = 10000000;
     const nameLower = valuationName.toLowerCase();
-    if (nameLower.includes("17")) basePrice = 27400000;
-    else if (nameLower.includes("16")) basePrice = 23700000;
-    else if (nameLower.includes("15")) basePrice = 17999000;
-    else if (nameLower.includes("14")) basePrice = 13500000;
-    else if (nameLower.includes("13")) basePrice = 10999000;
-    else if (nameLower.includes("12")) basePrice = 9600000;
-    else if (nameLower.includes("macbook")) basePrice = 18000000;
+    if (nameLower.includes("macbook")) basePrice = 18000000;
+    else if (nameLower.match(/\b17\b/)) basePrice = 27400000;
+    else if (nameLower.match(/\b16\b/)) basePrice = 23700000;
+    else if (nameLower.match(/\b15\b/)) basePrice = 17999000;
+    else if (nameLower.match(/\b14\b/)) basePrice = 13500000;
+    else if (nameLower.match(/\b13\b/)) basePrice = 10999000;
+    else if (nameLower.match(/\b12\b/)) basePrice = 9600000;
 
     const multiplier =
       valuationCondition.includes('Grade A') || valuationCondition.includes('Cấp A') ? 1.0
